@@ -1,5 +1,6 @@
 package com.rising.pos.ui.navigation
 
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -120,49 +121,31 @@ fun PosAppNavHost(
             }
         }
     } else {
-        // Phone: Scaffold with BottomNavigationBar
+        // Phone: Scaffold with PlayStoreBottomNavBar (Google Play Store style + 3D flip icon)
+        val isDarkTheme = MaterialTheme.colorScheme.background == Color(0xFF000000) ||
+                (settings.appTheme == com.rising.pos.core.model.AppTheme.DARK) ||
+                (settings.appTheme == com.rising.pos.core.model.AppTheme.SYSTEM && isSystemInDarkTheme())
+
         Scaffold(
             bottomBar = {
-                NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    tonalElevation = 8.dp
-                ) {
-                    phoneNavigationItems.forEach { screen ->
-                        val selected = currentRoute == screen.route
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = {
-                                if (currentRoute != screen.route) {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
+                PlayStoreBottomNavBar(
+                    items = phoneNavigationItems,
+                    currentRoute = currentRoute,
+                    isDarkTheme = isDarkTheme,
+                    onNavigate = { route ->
+                        if (currentRoute != route) {
+                            navController.navigate(route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
                                 }
-                            },
-                            icon = {
-                                screen.icon?.let { Icon(it, contentDescription = screen.title) }
-                            },
-                            label = {
-                                Text(
-                                    screen.title,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = PrimaryBlue,
-                                selectedTextColor = PrimaryBlue,
-                                indicatorColor = PrimaryBlue.copy(alpha = 0.15f),
-                                unselectedIconColor = Slate500,
-                                unselectedTextColor = Slate500
-                            )
-                        )
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
                     }
-                }
-            }
+                )
+            },
+            containerColor = MaterialTheme.colorScheme.background
         ) { paddingValues ->
             Surface(
                 modifier = Modifier
