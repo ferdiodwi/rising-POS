@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary">#1E293B</color>
+    <color name="white">#FFFFFF</color>
+    <string name="app_name">Rising POS</string>
+    <style name="Theme.RisingPos" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">@color/white</item>
+    </style>
+</resources>
