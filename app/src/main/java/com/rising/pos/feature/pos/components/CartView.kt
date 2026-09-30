@@ -87,7 +87,7 @@ fun CartView(
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp)
     ) {
         // Header

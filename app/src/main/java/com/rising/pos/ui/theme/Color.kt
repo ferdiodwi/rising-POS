@@ -1,16 +1,43 @@
 package com.rising.pos.ui.theme
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-val Slate900 = Color(0xFF0F172A)
-val Slate800 = Color(0xFF1E293B)
-val Slate700 = Color(0xFF334155)
-val Slate600 = Color(0xFF475569)
-val Slate500 = Color(0xFF64748B)
-val Slate400 = Color(0xFF94A3B8)
-val Slate200 = Color(0xFFE2E8F0)
-val Slate100 = Color(0xFFF1F5F9)
-val Slate50 = Color(0xFFF8FAFC)
+val Slate900: Color
+    @Composable
+    get() = LocalPosColors.current.slate900
+
+val Slate800: Color
+    @Composable
+    get() = LocalPosColors.current.slate800
+
+val Slate700: Color
+    @Composable
+    get() = LocalPosColors.current.slate700
+
+val Slate600: Color
+    @Composable
+    get() = LocalPosColors.current.slate600
+
+val Slate500: Color
+    @Composable
+    get() = LocalPosColors.current.slate500
+
+val Slate400: Color
+    @Composable
+    get() = LocalPosColors.current.slate400
+
+val Slate200: Color
+    @Composable
+    get() = LocalPosColors.current.slate200
+
+val Slate100: Color
+    @Composable
+    get() = LocalPosColors.current.slate100
+
+val Slate50: Color
+    @Composable
+    get() = LocalPosColors.current.slate50
 
 val PrimaryBlue = Color(0xFF1E40AF)
 val PrimaryBlueLight = Color(0xFF3B82F6)

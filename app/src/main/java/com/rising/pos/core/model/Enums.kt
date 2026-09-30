@@ -50,3 +50,10 @@ enum class SyncStatus {
     FAILED,
     CONFLICT
 }
+
+enum class AppTheme(val label: String) {
+    SYSTEM("Ikuti Sistem"),
+    LIGHT("Terang"),
+    DARK("Gelap (Hitam)")
+}
+

@@ -71,7 +71,7 @@ fun PosAppNavHost(
         // Tablet: NavigationRail layout with full items
         Row(modifier = Modifier.fillMaxSize()) {
             NavigationRail(
-                containerColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxHeight()
             ) {
                 tabletNavigationItems.forEach { screen ->
@@ -124,7 +124,7 @@ fun PosAppNavHost(
         Scaffold(
             bottomBar = {
                 NavigationBar(
-                    containerColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     tonalElevation = 8.dp
                 ) {
                     phoneNavigationItems.forEach { screen ->

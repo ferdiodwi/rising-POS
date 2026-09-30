@@ -104,7 +104,7 @@ fun VariantPickerDialog(
                                 .fillMaxWidth()
                                 .clickable { onSelectVariant(variant) },
                             shape = RoundedCornerShape(10.dp),
-                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                             border = BorderStroke(1.dp, Slate200),
                             elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                         ) {

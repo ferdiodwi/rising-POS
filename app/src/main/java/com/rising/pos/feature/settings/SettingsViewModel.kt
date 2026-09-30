@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rising.pos.core.datastore.AppPreferences
 import com.rising.pos.core.datastore.BusinessSettings
+import com.rising.pos.core.model.AppTheme
 import com.rising.pos.core.export.DataExportManager
 import com.rising.pos.core.printer.BluetoothPrinterDevice
 import com.rising.pos.core.printer.BluetoothPrinterManager
@@ -117,6 +118,12 @@ class SettingsViewModel @Inject constructor(
 
     fun clearPrinterStatus() {
         _uiState.update { it.copy(printerStatusMessage = null) }
+    }
+
+    fun setAppTheme(theme: AppTheme) {
+        viewModelScope.launch {
+            appPreferences.updateAppTheme(theme)
+        }
     }
 
 

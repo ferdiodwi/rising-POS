@@ -147,7 +147,7 @@ fun PosScreen(
                         .width(360.dp)
                         .fillMaxHeight(),
                     shape = RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                 ) {
                     CartView(

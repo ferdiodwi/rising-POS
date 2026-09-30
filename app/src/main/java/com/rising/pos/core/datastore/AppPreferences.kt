@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.rising.pos.core.model.AppTheme
 import com.rising.pos.core.model.BusinessType
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
@@ -45,7 +46,9 @@ data class BusinessSettings(
     val autoPrintReceipt: Boolean = false,
     // Security
     val isPinSecurityEnabled: Boolean = false,
-    val securityPin: String = ""
+    val securityPin: String = "",
+    // Appearance / Theme
+    val appTheme: AppTheme = AppTheme.SYSTEM
 )
 
 @Singleton
@@ -81,6 +84,7 @@ class AppPreferences @Inject constructor(
 
         val IS_PIN_SECURITY_ENABLED = booleanPreferencesKey("is_pin_security_enabled")
         val SECURITY_PIN = stringPreferencesKey("security_pin")
+        val APP_THEME = stringPreferencesKey("app_theme")
     }
 
     val settingsFlow: Flow<BusinessSettings> = context.dataStore.data.map { prefs ->
@@ -115,7 +119,12 @@ class AppPreferences @Inject constructor(
             printerPaperWidthMm = prefs[Keys.PRINTER_PAPER_WIDTH] ?: 58,
             autoPrintReceipt = prefs[Keys.AUTO_PRINT_RECEIPT] ?: false,
             isPinSecurityEnabled = prefs[Keys.IS_PIN_SECURITY_ENABLED] ?: false,
-            securityPin = prefs[Keys.SECURITY_PIN] ?: ""
+            securityPin = prefs[Keys.SECURITY_PIN] ?: "",
+            appTheme = try {
+                AppTheme.valueOf(prefs[Keys.APP_THEME] ?: AppTheme.SYSTEM.name)
+            } catch (_: Exception) {
+                AppTheme.SYSTEM
+            }
         )
     }
 
@@ -224,6 +233,12 @@ class AppPreferences @Inject constructor(
         context.dataStore.edit { prefs ->
             prefs[Keys.IS_PIN_SECURITY_ENABLED] = enabled
             prefs[Keys.SECURITY_PIN] = pin
+        }
+    }
+
+    suspend fun updateAppTheme(theme: AppTheme) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.APP_THEME] = theme.name
         }
     }
 }

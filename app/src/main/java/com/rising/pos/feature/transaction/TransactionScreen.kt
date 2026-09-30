@@ -40,6 +40,7 @@ import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.util.CurrencyFormatter
 import com.rising.pos.feature.pos.components.ReceiptSuccessDialog
 import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.Slate100
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
@@ -319,7 +320,7 @@ private fun TransactionItemCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isVoided) Color(0xFFFAFAFA) else Color.White
+            containerColor = if (isVoided) Slate100 else MaterialTheme.colorScheme.surface
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isVoided) 0.5.dp else 1.5.dp)
     ) {
