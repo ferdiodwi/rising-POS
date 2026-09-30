@@ -2,7 +2,7 @@
 agp = "8.11.1"
 kotlin = "2.2.20"
 ksp = "2.2.20-2.0.4"
-hilt = "2.52"
+hilt = "2.55"
 hiltNavigationCompose = "1.2.0"
 
 coreKtx = "1.17.0"
@@ -50,7 +50,7 @@ androidx-room-compiler = { module = "androidx.room:room-compiler", version.ref =
 androidx-room-testing = { module = "androidx.room:room-testing", version.ref = "room" }
 
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
-hilt-compiler = { module = "com.google.dagger:hilt-android-compiler", version.ref = "hilt" }
+hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
 androidx-hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
 
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
