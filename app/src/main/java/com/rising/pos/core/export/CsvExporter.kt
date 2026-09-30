@@ -1,5 +1,6 @@
 package com.rising.pos.core.export
 
+import com.rising.pos.core.database.entity.CustomerWithStats
 import com.rising.pos.core.database.entity.ExpenseEntity
 import com.rising.pos.core.database.entity.ProductWithCategory
 import com.rising.pos.core.database.entity.TransactionWithDetails
@@ -147,6 +148,46 @@ object CsvExporter {
                     escape(exp.amount),
                     escape(exp.notes ?: "-"),
                     escape("-")
+                ).joinToString(",")
+            )
+        }
+        return sb.toString()
+    }
+
+    fun generateCustomersCsv(
+        customers: List<CustomerWithStats>,
+        currencySymbol: String = "Rp"
+    ): String {
+        val sb = StringBuilder()
+        sb.appendLine(
+            listOf(
+                "ID Pelanggan",
+                "Nama",
+                "No. Telepon",
+                "Email",
+                "Alamat",
+                "Catatan",
+                "Total Transaksi",
+                "Total Belanja ($currencySymbol)",
+                "Kunjungan Terakhir",
+                "Terdaftar Sejak"
+            ).joinToString(",")
+        )
+
+        for (item in customers) {
+            val cust = item.customer
+            sb.appendLine(
+                listOf(
+                    escape(cust.id),
+                    escape(cust.name),
+                    escape(cust.phone ?: "-"),
+                    escape(cust.email ?: "-"),
+                    escape(cust.address ?: "-"),
+                    escape(cust.notes ?: "-"),
+                    escape(item.totalTransactions),
+                    escape(item.totalSpent),
+                    escape(item.lastTransactionDate?.let { dateTimeFormat.format(Date(it)) } ?: "-"),
+                    escape(dateTimeFormat.format(Date(cust.createdAt)))
                 ).joinToString(",")
             )
         }

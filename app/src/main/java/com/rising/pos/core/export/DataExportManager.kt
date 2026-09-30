@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import androidx.core.content.FileProvider
 import com.rising.pos.core.database.PosDatabase
+import com.rising.pos.domain.repository.CustomerRepository
 import com.rising.pos.domain.repository.ExpenseRepository
 import com.rising.pos.domain.repository.ProductRepository
 import com.rising.pos.domain.repository.TransactionRepository
@@ -25,7 +26,8 @@ class DataExportManager @Inject constructor(
     private val database: PosDatabase,
     private val transactionRepository: TransactionRepository,
     private val productRepository: ProductRepository,
-    private val expenseRepository: ExpenseRepository
+    private val expenseRepository: ExpenseRepository,
+    private val customerRepository: CustomerRepository
 ) {
     private val fileDateFormat = SimpleDateFormat("yyyyMMdd_HHmm", Locale.getDefault())
 
@@ -125,6 +127,65 @@ class DataExportManager @Inject constructor(
                 "Cadangan Database POS ($timestamp)"
             )
             Result.success(shareIntent)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun exportCustomersCsv(currencySymbol: String = "Rp"): Result<Intent> = withContext(Dispatchers.IO) {
+        try {
+            val customers = customerRepository.getAllCustomersWithStats().first()
+            val csv = CsvExporter.generateCustomersCsv(customers, currencySymbol)
+            val fileName = "pelanggan_${fileDateFormat.format(Date())}.csv"
+            val file = File(getExportDir(), fileName)
+            file.writeText(csv)
+
+            val shareIntent = createShareIntent(file, "text/csv", "Export Data Pelanggan POS")
+            Result.success(shareIntent)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun restoreDatabaseFromUri(uri: Uri): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+                ?: return@withContext Result.failure(IllegalStateException("Tidak dapat membuka file backup yang dipilih."))
+
+            val tempFile = File(context.cacheDir, "temp_restore.db")
+            tempFile.outputStream().use { output ->
+                inputStream.copyTo(output)
+            }
+
+            if (tempFile.length() < 16) {
+                tempFile.delete()
+                return@withContext Result.failure(IllegalArgumentException("File yang dipilih terlalu kecil atau bukan file SQLite yang valid."))
+            }
+
+            val headerBytes = ByteArray(16)
+            tempFile.inputStream().use { it.read(headerBytes) }
+            val headerString = String(headerBytes)
+            if (!headerString.startsWith("SQLite format 3")) {
+                tempFile.delete()
+                return@withContext Result.failure(IllegalArgumentException("Format file tidak valid. Harap pilih file .db cadangan yang sah."))
+            }
+
+            // Checkpoint database to flush current transactions
+            try {
+                database.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").close()
+            } catch (_: Exception) {}
+
+            val originalDbFile = context.getDatabasePath("rising_pos.db")
+            tempFile.copyTo(originalDbFile, overwrite = true)
+            tempFile.delete()
+
+            // Remove existing WAL and SHM so restored DB starts clean
+            val walFile = File(originalDbFile.parentFile, "rising_pos.db-wal")
+            val shmFile = File(originalDbFile.parentFile, "rising_pos.db-shm")
+            if (walFile.exists()) walFile.delete()
+            if (shmFile.exists()) shmFile.delete()
+
+            Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
         }

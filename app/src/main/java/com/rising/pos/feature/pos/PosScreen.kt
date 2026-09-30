@@ -66,6 +66,7 @@ import com.rising.pos.feature.customer.components.CustomerFormDialog
 import com.rising.pos.feature.customer.components.CustomerPickerDialog
 import com.rising.pos.feature.pos.components.CartView
 import com.rising.pos.feature.pos.components.CheckoutDialog
+import com.rising.pos.feature.pos.components.DiscountDialog
 import com.rising.pos.feature.pos.components.HeldOrdersDialog
 import com.rising.pos.feature.pos.components.HoldCartDialog
 import com.rising.pos.feature.pos.components.ProductCard
@@ -157,7 +158,8 @@ fun PosScreen(
                         onCheckout = viewModel::openCheckoutDialog,
                         onHoldCart = viewModel::openHoldDialog,
                         onOpenCustomerPicker = { viewModel.openCustomerPicker(true) },
-                        onRemoveCustomer = { viewModel.setCustomer(null) }
+                        onRemoveCustomer = { viewModel.setCustomer(null) },
+                        onOpenDiscountDialog = { viewModel.openDiscountDialog(true) }
                     )
                 }
             }
@@ -291,7 +293,8 @@ fun PosScreen(
                         onCheckout = viewModel::openCheckoutDialog,
                         onHoldCart = viewModel::openHoldDialog,
                         onOpenCustomerPicker = { viewModel.openCustomerPicker(true) },
-                        onRemoveCustomer = { viewModel.setCustomer(null) }
+                        onRemoveCustomer = { viewModel.setCustomer(null) },
+                        onOpenDiscountDialog = { viewModel.openDiscountDialog(true) }
                     )
                 }
             }
@@ -369,6 +372,20 @@ fun PosScreen(
                         )
                         newCustomerFormState = CustomerFormState(isOpen = false)
                     }
+                }
+            )
+        }
+
+        // Discount Dialog
+        if (uiState.isDiscountDialogOpen) {
+            DiscountDialog(
+                subtotal = uiState.cart.subtotal,
+                currencySymbol = settings.currencySymbol,
+                currentDiscount = uiState.cart.discount,
+                currentReason = uiState.cart.discountReason,
+                onDismiss = { viewModel.openDiscountDialog(false) },
+                onApplyDiscount = { amount, reason ->
+                    viewModel.applyDiscount(amount, reason)
                 }
             )
         }

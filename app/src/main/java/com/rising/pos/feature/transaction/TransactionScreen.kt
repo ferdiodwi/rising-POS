@@ -49,6 +49,15 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -67,7 +76,10 @@ import com.rising.pos.ui.theme.WarningAmber
 fun TransactionScreen(
     viewModel: TransactionViewModel = hiltViewModel()
 ) {
-    val transactions by viewModel.transactions.collectAsState()
+    val transactions by viewModel.filteredTransactions.collectAsState()
+    val allTransactions by viewModel.transactions.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val statusFilter by viewModel.statusFilter.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -115,13 +127,91 @@ fun TransactionScreen(
                         )
                     )
                     Text(
-                        text = "${transactions.size} Transaksi Tersimpan",
+                        text = if (searchQuery.isNotBlank() || statusFilter != null) {
+                            "${transactions.size} dari ${allTransactions.size} Transaksi"
+                        } else {
+                            "${allTransactions.size} Transaksi Tersimpan"
+                        },
                         style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = viewModel::onSearchQueryChange,
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text("Cari no struk, produk, atau catatan...", fontSize = 13.sp) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Search,
+                        contentDescription = "Cari",
+                        tint = Slate500,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                trailingIcon = {
+                    if (searchQuery.isNotBlank()) {
+                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Hapus",
+                                tint = Slate500,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(12.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = PrimaryBlue,
+                    unfocusedBorderColor = Slate200,
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
+                ),
+                singleLine = true
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Status Filter Chips
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = statusFilter == null,
+                    onClick = { viewModel.onStatusFilterChange(null) },
+                    label = { Text("Semua", fontSize = 12.sp) }
+                )
+                FilterChip(
+                    selected = statusFilter == TransactionStatus.COMPLETED,
+                    onClick = { viewModel.onStatusFilterChange(TransactionStatus.COMPLETED) },
+                    label = { Text("Selesai", fontSize = 12.sp) }
+                )
+                FilterChip(
+                    selected = statusFilter == TransactionStatus.CANCELLED,
+                    onClick = { viewModel.onStatusFilterChange(TransactionStatus.CANCELLED) },
+                    label = { Text("Void / Batal", fontSize = 12.sp) }
+                )
+                FilterChip(
+                    selected = statusFilter == TransactionStatus.REFUNDED,
+                    onClick = { viewModel.onStatusFilterChange(TransactionStatus.REFUNDED) },
+                    label = { Text("Refund", fontSize = 12.sp) }
+                )
+                FilterChip(
+                    selected = statusFilter == TransactionStatus.HELD,
+                    onClick = { viewModel.onStatusFilterChange(TransactionStatus.HELD) },
+                    label = { Text("Ditahan", fontSize = 12.sp) }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
 
             if (transactions.isEmpty()) {
                 Box(
@@ -139,11 +229,15 @@ fun TransactionScreen(
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            text = "Belum Ada Transaksi",
+                            text = if (allTransactions.isEmpty()) "Belum Ada Transaksi" else "Tidak Ada Transaksi yang Cocok",
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                         )
                         Text(
-                            text = "Transaksi yang selesai akan tercatat otomatis di sini.",
+                            text = if (allTransactions.isEmpty()) {
+                                "Transaksi yang selesai akan tercatat otomatis di sini."
+                            } else {
+                                "Coba ubah kata kunci pencarian atau ganti filter status transaksi."
+                            },
                             style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
                         )
                     }

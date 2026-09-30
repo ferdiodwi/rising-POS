@@ -7,11 +7,13 @@ import com.rising.pos.core.datastore.AppPreferences
 import com.rising.pos.core.datastore.BusinessSettings
 import com.rising.pos.core.printer.BluetoothPrinterManager
 import com.rising.pos.domain.repository.TransactionRepository
+import com.rising.pos.core.model.TransactionStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -44,6 +46,40 @@ class TransactionViewModel @Inject constructor(
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
         )
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    private val _statusFilter = MutableStateFlow<TransactionStatus?>(null)
+    val statusFilter = _statusFilter.asStateFlow()
+
+    val filteredTransactions: StateFlow<List<TransactionWithDetails>> =
+        combine(transactions, _searchQuery, _statusFilter) { list, query, status ->
+            list.filter { item ->
+                val matchesStatus = (status == null || item.transaction.status == status)
+                val matchesQuery = if (query.isBlank()) {
+                    true
+                } else {
+                    val q = query.trim()
+                    item.transaction.receiptNumber.contains(q, ignoreCase = true) ||
+                        (item.transaction.note?.contains(q, ignoreCase = true) == true) ||
+                        item.items.any { it.item.productName.contains(q, ignoreCase = true) }
+                }
+                matchesStatus && matchesQuery
+            }
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    fun onSearchQueryChange(query: String) {
+        _searchQuery.value = query
+    }
+
+    fun onStatusFilterChange(status: TransactionStatus?) {
+        _statusFilter.value = status
+    }
 
     private val _uiState = MutableStateFlow(TransactionUiState())
     val uiState = _uiState.asStateFlow()

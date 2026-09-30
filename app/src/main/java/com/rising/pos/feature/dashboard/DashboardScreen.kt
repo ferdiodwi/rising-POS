@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -63,6 +64,7 @@ fun DashboardScreen(
 ) {
     val metrics by viewModel.metrics.collectAsState()
     val settings by viewModel.settings.collectAsState()
+    val selectedPeriod by viewModel.selectedPeriod.collectAsState()
 
     LazyColumn(
         modifier = Modifier
@@ -71,18 +73,33 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Column {
-                Text(
-                    text = "Dashboard & Laporan",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column {
+                    Text(
+                        text = "Dashboard & Laporan",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
                     )
-                )
-                Text(
-                    text = "Ringkasan Penjualan Hari Ini",
-                    style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                )
+                    Text(
+                        text = "Ringkasan Penjualan (${selectedPeriod.label})",
+                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    DashboardPeriod.entries.forEach { period ->
+                        FilterChip(
+                            selected = selectedPeriod == period,
+                            onClick = { viewModel.setPeriod(period) },
+                            label = { Text(period.label, fontSize = 12.sp) }
+                        )
+                    }
+                }
             }
         }
 
@@ -94,23 +111,22 @@ fun DashboardScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     MetricCard(
-                        title = "Omzet Hari Ini",
-                        value = CurrencyFormatter.format(metrics.todayGrossSales, settings.currencySymbol),
+                        title = "Omzet (${selectedPeriod.label})",
+                        value = CurrencyFormatter.format(metrics.grossSales, settings.currencySymbol),
                         icon = Icons.Default.AttachMoney,
                         iconTint = SuccessGreen,
                         modifier = Modifier.weight(1f)
                     )
 
                     MetricCard(
-                        title = "Pengeluaran Hari Ini",
-                        value = CurrencyFormatter.format(metrics.todayExpenses, settings.currencySymbol),
+                        title = "Pengeluaran (${selectedPeriod.label})",
+                        value = CurrencyFormatter.format(metrics.expenses, settings.currencySymbol),
                         icon = Icons.Default.MoneyOff,
                         iconTint = DangerRed,
                         modifier = Modifier.weight(1f),
                         onClick = onNavigateToExpenses
                     )
                 }
-
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -125,8 +141,8 @@ fun DashboardScreen(
                     )
 
                     MetricCard(
-                        title = "Transaksi Hari Ini",
-                        value = "${metrics.todayTransactionCount} TRX",
+                        title = "Transaksi (${selectedPeriod.label})",
+                        value = "${metrics.transactionCount} TRX",
                         icon = Icons.Default.Receipt,
                         iconTint = PrimaryBlue,
                         modifier = Modifier.weight(1f)
@@ -150,7 +166,8 @@ fun DashboardScreen(
                         value = "${metrics.totalProductCount} Item",
                         icon = Icons.Default.Category,
                         iconTint = Slate700,
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToInventory
                     )
                 }
             }

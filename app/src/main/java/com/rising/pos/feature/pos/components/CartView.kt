@@ -72,6 +72,7 @@ fun CartView(
     onHoldCart: () -> Unit = {},
     onOpenCustomerPicker: () -> Unit = {},
     onRemoveCustomer: () -> Unit = {},
+    onOpenDiscountDialog: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val calc = cart.calculateTotals(
@@ -282,18 +283,48 @@ fun CartView(
                     )
                 }
 
-                if (calc.discount > 0) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Diskon", style = MaterialTheme.typography.bodyMedium.copy(color = DangerRed))
+                // Discount Row (Clickable)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onOpenDiscountDialog),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (calc.discount > 0) {
+                        Column {
+                            Text(
+                                "Diskon",
+                                style = MaterialTheme.typography.bodyMedium.copy(
+                                    color = DangerRed,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                            if (!cart.discountReason.isNullOrBlank()) {
+                                Text(
+                                    cart.discountReason,
+                                    style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
+                                )
+                            }
+                        }
                         Text(
-                            "- ${CurrencyFormatter.format(calc.discount, settings.currencySymbol)}",
+                            "- ${CurrencyFormatter.format(calc.discount, settings.currencySymbol)} (Ubah)",
                             style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Medium,
+                                fontWeight = FontWeight.Bold,
                                 color = DangerRed
                             )
+                        )
+                    } else {
+                        Text(
+                            "+ Tambah Diskon",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = PrimaryBlue,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        )
+                        Text(
+                            "-",
+                            style = MaterialTheme.typography.bodySmall.copy(color = Slate400)
                         )
                     }
                 }

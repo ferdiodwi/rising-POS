@@ -36,7 +36,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
 import com.rising.pos.ui.components.PinSetupDialog
+import com.rising.pos.ui.components.SecurityPinDialog
 import com.rising.pos.ui.theme.DangerRed
 import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.Slate200
@@ -44,6 +51,7 @@ import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
+import com.rising.pos.ui.theme.WarningAmber
 
 @Composable
 fun SettingsScreen(
@@ -58,6 +66,15 @@ fun SettingsScreen(
     var address by remember(settings.address) { mutableStateOf(settings.address) }
     var footerNote by remember(settings.footerNote) { mutableStateOf(settings.footerNote) }
     var deviceId by remember(settings.deviceId) { mutableStateOf(settings.deviceId) }
+
+    var isRestoreConfirmationOpen by remember { mutableStateOf(false) }
+    var isPinAuthForRestoreOpen by remember { mutableStateOf(false) }
+
+    val restoreFilePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.restoreDatabase(it) }
+    }
 
     Column(
         modifier = Modifier
@@ -447,19 +464,93 @@ fun SettingsScreen(
                         onClick = { viewModel.exportExpenses(context) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
-                        enabled = !uiState.isExporting
+                        enabled = !uiState.isExporting && !uiState.isRestoring
                     ) {
                         Text("Ekspor Biaya", fontSize = 12.sp)
                     }
 
+                    OutlinedButton(
+                        onClick = { viewModel.exportCustomers(context) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        enabled = !uiState.isExporting && !uiState.isRestoring
+                    ) {
+                        Text("Ekspor Pelanggan", fontSize = 12.sp)
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
                     Button(
                         onClick = { viewModel.backupDatabase(context) },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(10.dp),
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                        enabled = !uiState.isExporting
+                        enabled = !uiState.isExporting && !uiState.isRestoring
                     ) {
                         Text("Cadangkan DB", fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = {
+                            if (settings.isPinSecurityEnabled && settings.securityPin.isNotBlank()) {
+                                isPinAuthForRestoreOpen = true
+                            } else {
+                                isRestoreConfirmationOpen = true
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        enabled = !uiState.isExporting && !uiState.isRestoring
+                    ) {
+                        Text("Pulihkan DB", fontSize = 12.sp, color = DangerRed)
+                    }
+                }
+
+                if (uiState.isRestoring) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Sedang memulihkan database...",
+                            style = MaterialTheme.typography.bodySmall.copy(color = Slate700)
+                        )
+                    }
+                }
+
+                uiState.restoreStatusMessage?.let { msg ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (uiState.isRestoreSuccess) SuccessGreen.copy(alpha = 0.12f) else DangerRed.copy(alpha = 0.12f)
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = msg,
+                                modifier = Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = if (uiState.isRestoreSuccess) SuccessGreen else DangerRed,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            )
+                            TextButton(onClick = viewModel::clearRestoreStatus) {
+                                Text("Tutup", fontSize = 11.sp)
+                            }
+                        }
                     }
                 }
 
@@ -543,6 +634,53 @@ fun SettingsScreen(
             initialEnabled = settings.isPinSecurityEnabled,
             onDismiss = viewModel::closePinSetupDialog,
             onSavePin = viewModel::updatePinSecurity
+        )
+    }
+
+    if (isPinAuthForRestoreOpen) {
+        SecurityPinDialog(
+            correctPin = settings.securityPin,
+            title = "Otorisasi Pulihkan Database",
+            description = "Masukkan PIN Owner untuk melanjutkan proses pemulihan database.",
+            onDismiss = { isPinAuthForRestoreOpen = false },
+            onSuccess = {
+                isPinAuthForRestoreOpen = false
+                isRestoreConfirmationOpen = true
+            }
+        )
+    }
+
+    if (isRestoreConfirmationOpen) {
+        AlertDialog(
+            onDismissRequest = { isRestoreConfirmationOpen = false },
+            title = {
+                Text(
+                    text = "Konfirmasi Pemulihan Database",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = DangerRed)
+                )
+            },
+            text = {
+                Text(
+                    text = "PERINGATAN: Memulihkan database akan mengganti seluruh data yang ada saat ini (transaksi, produk, pelanggan, biaya) dengan data dari file cadangan yang dipilih.\n\nApakah Anda yakin ingin melanjutkan dan memilih file cadangan (.db)?",
+                    style = MaterialTheme.typography.bodyMedium.copy(color = Slate700)
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        isRestoreConfirmationOpen = false
+                        restoreFilePickerLauncher.launch("*/*")
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = DangerRed)
+                ) {
+                    Text("Pilih File Cadangan")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = { isRestoreConfirmationOpen = false }) {
+                    Text("Batal")
+                }
+            }
         )
     }
 }

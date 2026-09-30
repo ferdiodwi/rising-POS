@@ -25,6 +25,9 @@ data class SettingsUiState(
     val printerStatusMessage: String? = null,
     val isExporting: Boolean = false,
     val exportStatusMessage: String? = null,
+    val isRestoring: Boolean = false,
+    val restoreStatusMessage: String? = null,
+    val isRestoreSuccess: Boolean = false,
     val isPinSetupDialogOpen: Boolean = false
 )
 
@@ -235,6 +238,27 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun exportCustomers(context: Context) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExporting = true, exportStatusMessage = null) }
+            val result = dataExportManager.exportCustomersCsv(settings.value.currencySymbol)
+            result.fold(
+                onSuccess = { intent ->
+                    _uiState.update { it.copy(isExporting = false) }
+                    context.startActivity(intent)
+                },
+                onFailure = { err ->
+                    _uiState.update {
+                        it.copy(
+                            isExporting = false,
+                            exportStatusMessage = "Gagal ekspor pelanggan: ${err.localizedMessage}"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
     fun backupDatabase(context: Context) {
         viewModelScope.launch {
             _uiState.update { it.copy(isExporting = true, exportStatusMessage = null) }
@@ -259,6 +283,47 @@ class SettingsViewModel @Inject constructor(
                 }
             )
         }
+    }
+
+    fun restoreDatabase(uri: android.net.Uri) {
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    isRestoring = true,
+                    restoreStatusMessage = null,
+                    isRestoreSuccess = false
+                )
+            }
+            val result = dataExportManager.restoreDatabaseFromUri(uri)
+            result.fold(
+                onSuccess = {
+                    _uiState.update {
+                        it.copy(
+                            isRestoring = false,
+                            isRestoreSuccess = true,
+                            restoreStatusMessage = "Database berhasil dipulihkan! Semua data telah diperbarui dari cadangan."
+                        )
+                    }
+                },
+                onFailure = { err ->
+                    _uiState.update {
+                        it.copy(
+                            isRestoring = false,
+                            isRestoreSuccess = false,
+                            restoreStatusMessage = "Gagal memulihkan database: ${err.localizedMessage}"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun clearRestoreStatus() {
+        _uiState.update { it.copy(restoreStatusMessage = null, isRestoreSuccess = false) }
+    }
+
+    fun clearExportStatus() {
+        _uiState.update { it.copy(exportStatusMessage = null) }
     }
 
     fun updatePinSecurity(enabled: Boolean, pin: String) {

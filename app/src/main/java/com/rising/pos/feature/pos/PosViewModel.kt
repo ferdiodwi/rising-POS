@@ -40,6 +40,7 @@ data class PosUiState(
     val isHeldOrdersListDialogOpen: Boolean = false,
     val isCustomerPickerOpen: Boolean = false,
     val isNewCustomerFormOpen: Boolean = false,
+    val isDiscountDialogOpen: Boolean = false,
     val isProcessingPayment: Boolean = false,
     val paymentErrorMessage: String? = null,
     val lastCompletedTransaction: TransactionWithDetails? = null,
@@ -207,6 +208,10 @@ class PosViewModel @Inject constructor(
 
     fun applyDiscount(amount: Double, reason: String?) {
         _uiState.update { it.copy(cart = it.cart.copy(discount = amount, discountReason = reason)) }
+    }
+
+    fun openDiscountDialog(isOpen: Boolean) {
+        _uiState.update { it.copy(isDiscountDialogOpen = isOpen) }
     }
 
     fun openCheckoutDialog() {
