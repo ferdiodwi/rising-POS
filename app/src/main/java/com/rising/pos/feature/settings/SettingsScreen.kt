@@ -31,10 +31,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rising.pos.ui.components.PinSetupDialog
 import com.rising.pos.ui.theme.DangerRed
 import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.Slate200
@@ -47,6 +49,7 @@ import com.rising.pos.ui.theme.SuccessGreen
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val settings by viewModel.settings.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
 
@@ -391,6 +394,138 @@ fun SettingsScreen(
             }
         }
 
+        // Section 5: Ekspor Data & Backup Database (PRD 7.35 & 7.36)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Ekspor Data & Cadangan (Backup)",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
+                )
+                Text(
+                    text = "Unduh dan bagikan data usaha ke format spreadsheet (.csv) atau buat salinan database lokal.",
+                    style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
+                )
+
+                HorizontalDivider(color = Slate200)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.exportTransactions(context) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        enabled = !uiState.isExporting
+                    ) {
+                        Text("Ekspor Transaksi", fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = { viewModel.exportProducts(context) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        enabled = !uiState.isExporting
+                    ) {
+                        Text("Ekspor Produk", fontSize = 12.sp)
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { viewModel.exportExpenses(context) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        enabled = !uiState.isExporting
+                    ) {
+                        Text("Ekspor Biaya", fontSize = 12.sp)
+                    }
+
+                    Button(
+                        onClick = { viewModel.backupDatabase(context) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(10.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                        enabled = !uiState.isExporting
+                    ) {
+                        Text("Cadangkan DB", fontSize = 12.sp)
+                    }
+                }
+
+                uiState.exportStatusMessage?.let { msg ->
+                    Text(
+                        text = msg,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = if (msg.contains("berhasil", ignoreCase = true)) SuccessGreen else DangerRed,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                }
+            }
+        }
+
+        // Section 6: Keamanan & PIN Owner (PRD 7.37 & MVP #18)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Keamanan & PIN Owner",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
+                )
+                Text(
+                    text = "Kunci otorisasi untuk aksi penting seperti pembatalan (Void) transaksi kasir.",
+                    style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
+                )
+
+                HorizontalDivider(color = Slate200)
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (settings.isPinSecurityEnabled) "PIN Aktif" else "PIN Nonaktif",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = if (settings.isPinSecurityEnabled) SuccessGreen else Slate500
+                            )
+                        )
+                        Text(
+                            text = if (settings.isPinSecurityEnabled) "Aksi Void memerlukan verifikasi PIN" else "Kasir dapat membatalkan transaksi tanpa PIN",
+                            style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = viewModel::openPinSetupDialog,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(if (settings.isPinSecurityEnabled) "Ubah PIN" else "Atur PIN", fontSize = 12.sp)
+                    }
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
     }
 
@@ -400,6 +535,14 @@ fun SettingsScreen(
             currentSelectedMac = settings.printerMacAddress,
             onDismiss = viewModel::closePrinterPicker,
             onSelectPrinter = viewModel::selectPrinter
+        )
+    }
+
+    if (uiState.isPinSetupDialogOpen) {
+        PinSetupDialog(
+            initialEnabled = settings.isPinSecurityEnabled,
+            onDismiss = viewModel::closePinSetupDialog,
+            onSavePin = viewModel::updatePinSecurity
         )
     }
 }

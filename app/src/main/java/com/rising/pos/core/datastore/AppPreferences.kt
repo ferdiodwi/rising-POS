@@ -42,7 +42,10 @@ data class BusinessSettings(
     val printerMacAddress: String = "",
     val printerName: String = "",
     val printerPaperWidthMm: Int = 58,
-    val autoPrintReceipt: Boolean = false
+    val autoPrintReceipt: Boolean = false,
+    // Security
+    val isPinSecurityEnabled: Boolean = false,
+    val securityPin: String = ""
 )
 
 @Singleton
@@ -75,6 +78,9 @@ class AppPreferences @Inject constructor(
         val PRINTER_NAME = stringPreferencesKey("printer_name")
         val PRINTER_PAPER_WIDTH = androidx.datastore.preferences.core.intPreferencesKey("printer_paper_width")
         val AUTO_PRINT_RECEIPT = booleanPreferencesKey("auto_print_receipt")
+
+        val IS_PIN_SECURITY_ENABLED = booleanPreferencesKey("is_pin_security_enabled")
+        val SECURITY_PIN = stringPreferencesKey("security_pin")
     }
 
     val settingsFlow: Flow<BusinessSettings> = context.dataStore.data.map { prefs ->
@@ -107,7 +113,9 @@ class AppPreferences @Inject constructor(
             printerMacAddress = prefs[Keys.PRINTER_MAC_ADDRESS] ?: "",
             printerName = prefs[Keys.PRINTER_NAME] ?: "",
             printerPaperWidthMm = prefs[Keys.PRINTER_PAPER_WIDTH] ?: 58,
-            autoPrintReceipt = prefs[Keys.AUTO_PRINT_RECEIPT] ?: false
+            autoPrintReceipt = prefs[Keys.AUTO_PRINT_RECEIPT] ?: false,
+            isPinSecurityEnabled = prefs[Keys.IS_PIN_SECURITY_ENABLED] ?: false,
+            securityPin = prefs[Keys.SECURITY_PIN] ?: ""
         )
     }
 
@@ -209,6 +217,13 @@ class AppPreferences @Inject constructor(
             prefs[Keys.PRINTER_NAME] = name
             prefs[Keys.PRINTER_PAPER_WIDTH] = paperWidthMm
             prefs[Keys.AUTO_PRINT_RECEIPT] = autoPrintReceipt
+        }
+    }
+
+    suspend fun updatePinSecurity(enabled: Boolean, pin: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.IS_PIN_SECURITY_ENABLED] = enabled
+            prefs[Keys.SECURITY_PIN] = pin
         }
     }
 }

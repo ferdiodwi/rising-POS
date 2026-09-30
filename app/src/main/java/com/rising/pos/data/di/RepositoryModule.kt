@@ -37,4 +37,10 @@ abstract class RepositoryModule {
     abstract fun bindStockRepository(
         impl: com.rising.pos.data.repository.StockRepositoryImpl
     ): com.rising.pos.domain.repository.StockRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindCustomerRepository(
+        impl: com.rising.pos.data.repository.CustomerRepositoryImpl
+    ): com.rising.pos.domain.repository.CustomerRepository
 }

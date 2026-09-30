@@ -52,6 +52,10 @@ interface TransactionDao {
     @Query("SELECT COUNT(*) FROM transactions WHERE status = 'COMPLETED' AND created_at >= :startDate AND created_at <= :endDate")
     fun getTransactionCountBetween(startDate: Long, endDate: Long): Flow<Int>
 
+    @Transaction
+    @Query("SELECT * FROM transactions WHERE customer_id = :customerId ORDER BY created_at DESC")
+    fun getTransactionsByCustomerId(customerId: String): Flow<List<TransactionWithDetails>>
+
     @Query("SELECT COUNT(*) FROM transactions WHERE receipt_number LIKE :prefix || '%'")
     suspend fun countTransactionsWithPrefix(prefix: String): Int
 

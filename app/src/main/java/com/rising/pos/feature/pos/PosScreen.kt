@@ -47,6 +47,9 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,6 +61,9 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.util.CurrencyFormatter
 import androidx.compose.material.icons.filled.PauseCircle
+import com.rising.pos.feature.customer.CustomerFormState
+import com.rising.pos.feature.customer.components.CustomerFormDialog
+import com.rising.pos.feature.customer.components.CustomerPickerDialog
 import com.rising.pos.feature.pos.components.CartView
 import com.rising.pos.feature.pos.components.CheckoutDialog
 import com.rising.pos.feature.pos.components.HeldOrdersDialog
@@ -81,6 +87,9 @@ fun PosScreen(
     val categories by viewModel.categories.collectAsState()
     val products by viewModel.filteredProducts.collectAsState()
     val heldTransactions by viewModel.heldTransactions.collectAsState()
+    val customers by viewModel.customers.collectAsState()
+
+    var newCustomerFormState by remember { mutableStateOf(CustomerFormState()) }
 
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
@@ -146,7 +155,9 @@ fun PosScreen(
                         onRemoveItem = viewModel::removeItem,
                         onClearCart = viewModel::clearCart,
                         onCheckout = viewModel::openCheckoutDialog,
-                        onHoldCart = viewModel::openHoldDialog
+                        onHoldCart = viewModel::openHoldDialog,
+                        onOpenCustomerPicker = { viewModel.openCustomerPicker(true) },
+                        onRemoveCustomer = { viewModel.setCustomer(null) }
                     )
                 }
             }
@@ -278,7 +289,9 @@ fun PosScreen(
                         onRemoveItem = viewModel::removeItem,
                         onClearCart = viewModel::clearCart,
                         onCheckout = viewModel::openCheckoutDialog,
-                        onHoldCart = viewModel::openHoldDialog
+                        onHoldCart = viewModel::openHoldDialog,
+                        onOpenCustomerPicker = { viewModel.openCustomerPicker(true) },
+                        onRemoveCustomer = { viewModel.setCustomer(null) }
                     )
                 }
             }
@@ -313,6 +326,50 @@ fun PosScreen(
                 onDismiss = viewModel::closeHeldOrdersList,
                 onResumeOrder = viewModel::resumeHeldTransaction,
                 onDeleteOrder = viewModel::deleteHeldOrder
+            )
+        }
+
+        // Customer Picker Dialog
+        if (uiState.isCustomerPickerOpen) {
+            CustomerPickerDialog(
+                customers = customers,
+                selectedCustomer = uiState.cart.customer,
+                onSelectCustomer = { cust -> viewModel.setCustomer(cust) },
+                onAddNewCustomer = {
+                    newCustomerFormState = CustomerFormState(isOpen = true)
+                    viewModel.openNewCustomerForm(true)
+                },
+                onDismiss = { viewModel.openCustomerPicker(false) }
+            )
+        }
+
+        // Quick New Customer Dialog from POS
+        if (uiState.isNewCustomerFormOpen && newCustomerFormState.isOpen) {
+            CustomerFormDialog(
+                formState = newCustomerFormState,
+                onNameChange = { newCustomerFormState = newCustomerFormState.copy(name = it, errorMessage = null) },
+                onPhoneChange = { newCustomerFormState = newCustomerFormState.copy(phone = it) },
+                onEmailChange = { newCustomerFormState = newCustomerFormState.copy(email = it) },
+                onAddressChange = { newCustomerFormState = newCustomerFormState.copy(address = it) },
+                onNotesChange = { newCustomerFormState = newCustomerFormState.copy(notes = it) },
+                onDismiss = {
+                    newCustomerFormState = CustomerFormState(isOpen = false)
+                    viewModel.openNewCustomerForm(false)
+                },
+                onSave = {
+                    if (newCustomerFormState.name.trim().isBlank()) {
+                        newCustomerFormState = newCustomerFormState.copy(errorMessage = "Nama pelanggan wajib diisi")
+                    } else {
+                        viewModel.createCustomerAndSelect(
+                            name = newCustomerFormState.name.trim(),
+                            phone = newCustomerFormState.phone.trim(),
+                            email = newCustomerFormState.email.trim(),
+                            address = newCustomerFormState.address.trim(),
+                            notes = newCustomerFormState.notes.trim()
+                        )
+                        newCustomerFormState = CustomerFormState(isOpen = false)
+                    }
+                }
             )
         }
 

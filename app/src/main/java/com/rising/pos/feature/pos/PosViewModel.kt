@@ -3,6 +3,7 @@ package com.rising.pos.feature.pos
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rising.pos.core.database.entity.CategoryEntity
+import com.rising.pos.core.database.entity.CustomerEntity
 import com.rising.pos.core.database.entity.ProductEntity
 import com.rising.pos.core.database.entity.ProductWithCategory
 import com.rising.pos.core.database.entity.TransactionWithDetails
@@ -12,6 +13,7 @@ import com.rising.pos.core.model.OrderType
 import com.rising.pos.core.model.PaymentMethod
 import com.rising.pos.domain.model.CartItem
 import com.rising.pos.domain.model.CartState
+import com.rising.pos.domain.repository.CustomerRepository
 import com.rising.pos.domain.repository.ProductRepository
 import com.rising.pos.domain.repository.TransactionRepository
 import com.rising.pos.core.printer.BluetoothPrinterManager
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import com.rising.pos.core.database.entity.ModifierEntity
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 data class PosUiState(
@@ -35,6 +38,8 @@ data class PosUiState(
     val isCartSheetOpen: Boolean = false,
     val isHoldDialogOpen: Boolean = false,
     val isHeldOrdersListDialogOpen: Boolean = false,
+    val isCustomerPickerOpen: Boolean = false,
+    val isNewCustomerFormOpen: Boolean = false,
     val isProcessingPayment: Boolean = false,
     val paymentErrorMessage: String? = null,
     val lastCompletedTransaction: TransactionWithDetails? = null,
@@ -47,6 +52,7 @@ data class PosUiState(
 class PosViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val transactionRepository: TransactionRepository,
+    private val customerRepository: CustomerRepository,
     private val appPreferences: AppPreferences,
     private val printerManager: BluetoothPrinterManager
 ) : ViewModel() {
@@ -55,6 +61,12 @@ class PosViewModel @Inject constructor(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = BusinessSettings()
+    )
+
+    val customers: StateFlow<List<CustomerEntity>> = customerRepository.getAllCustomers().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
     )
 
     val categories: StateFlow<List<CategoryEntity>> = productRepository.getActiveCategories().stateIn(
@@ -162,6 +174,39 @@ class PosViewModel @Inject constructor(
 
     fun setOrderType(orderType: OrderType) {
         _uiState.update { it.copy(cart = it.cart.copy(orderType = orderType)) }
+    }
+
+    fun setCustomer(customer: CustomerEntity?) {
+        _uiState.update { it.copy(cart = it.cart.copy(customer = customer), isCustomerPickerOpen = false) }
+    }
+
+    fun openCustomerPicker(isOpen: Boolean) {
+        _uiState.update { it.copy(isCustomerPickerOpen = isOpen) }
+    }
+
+    fun openNewCustomerForm(isOpen: Boolean) {
+        _uiState.update { it.copy(isNewCustomerFormOpen = isOpen) }
+    }
+
+    fun createCustomerAndSelect(name: String, phone: String?, email: String? = null, address: String? = null, notes: String? = null) {
+        viewModelScope.launch {
+            val newCustomer = CustomerEntity(
+                id = UUID.randomUUID().toString(),
+                name = name,
+                phone = phone?.takeIf { it.isNotBlank() },
+                email = email?.takeIf { it.isNotBlank() },
+                address = address?.takeIf { it.isNotBlank() },
+                notes = notes?.takeIf { it.isNotBlank() }
+            )
+            customerRepository.saveCustomer(newCustomer).onSuccess {
+                setCustomer(newCustomer)
+                _uiState.update { it.copy(isNewCustomerFormOpen = false, isCustomerPickerOpen = false) }
+            }
+        }
+    }
+
+    fun applyDiscount(amount: Double, reason: String?) {
+        _uiState.update { it.copy(cart = it.cart.copy(discount = amount, discountReason = reason)) }
     }
 
     fun openCheckoutDialog() {

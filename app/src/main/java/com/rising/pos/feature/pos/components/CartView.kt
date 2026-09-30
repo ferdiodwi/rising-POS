@@ -53,8 +53,13 @@ import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
 
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.OutlinedButton
+import com.rising.pos.ui.theme.PrimaryBlue
 
 @Composable
 fun CartView(
@@ -65,6 +70,8 @@ fun CartView(
     onClearCart: () -> Unit,
     onCheckout: () -> Unit,
     onHoldCart: () -> Unit = {},
+    onOpenCustomerPicker: () -> Unit = {},
+    onRemoveCustomer: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val calc = cart.calculateTotals(
@@ -120,6 +127,80 @@ fun CartView(
                         text = "Kosongkan",
                         style = MaterialTheme.typography.labelMedium.copy(color = DangerRed)
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Customer Row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (cart.customer != null) {
+                Surface(
+                    color = PrimaryBlue.copy(alpha = 0.1f),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.clickable { onOpenCustomerPicker() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = PrimaryBlue,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = cart.customer.name,
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = PrimaryBlue
+                            )
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        IconButton(
+                            onClick = onRemoveCustomer,
+                            modifier = Modifier.size(18.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Lepas Pelanggan",
+                                tint = PrimaryBlue,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                    }
+                }
+            } else {
+                Surface(
+                    color = Slate200.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(20.dp),
+                    modifier = Modifier.clickable { onOpenCustomerPicker() }
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PersonAdd,
+                            contentDescription = null,
+                            tint = Slate500,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "+ Pilih Pelanggan",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Medium,
+                                color = Slate700
+                            )
+                        )
+                    }
                 }
             }
         }

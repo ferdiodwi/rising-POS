@@ -23,7 +23,9 @@ import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.Inventory
 import androidx.compose.material.icons.filled.MoneyOff
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -56,7 +58,8 @@ import com.rising.pos.ui.theme.WarningAmber
 fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
     onNavigateToExpenses: () -> Unit = {},
-    onNavigateToInventory: () -> Unit = {}
+    onNavigateToInventory: () -> Unit = {},
+    onNavigateToCustomers: () -> Unit = {}
 ) {
     val metrics by viewModel.metrics.collectAsState()
     val settings by viewModel.settings.collectAsState()
@@ -149,6 +152,78 @@ fun DashboardScreen(
                         iconTint = Slate700,
                         modifier = Modifier.weight(1f)
                     )
+                }
+            }
+        }
+
+        // Quick Shortcuts Section
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Pintasan Operasional",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    )
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = onNavigateToInventory),
+                        color = Color.White,
+                        shape = RoundedCornerShape(12.dp),
+                        shadowElevation = 1.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.Inventory, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text("Inventaris", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, color = Slate900))
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = onNavigateToExpenses),
+                        color = Color.White,
+                        shape = RoundedCornerShape(12.dp),
+                        shadowElevation = 1.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.MoneyOff, contentDescription = null, tint = DangerRed, modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text("Pengeluaran", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, color = Slate900))
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable(onClick = onNavigateToCustomers),
+                        color = Color.White,
+                        shape = RoundedCornerShape(12.dp),
+                        shadowElevation = 1.dp
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Icon(Icons.Default.People, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(24.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text("Pelanggan", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, color = Slate900))
+                        }
+                    }
                 }
             }
         }

@@ -1,9 +1,11 @@
 package com.rising.pos.feature.settings
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rising.pos.core.datastore.AppPreferences
 import com.rising.pos.core.datastore.BusinessSettings
+import com.rising.pos.core.export.DataExportManager
 import com.rising.pos.core.printer.BluetoothPrinterDevice
 import com.rising.pos.core.printer.BluetoothPrinterManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,13 +22,17 @@ data class SettingsUiState(
     val pairedPrinters: List<BluetoothPrinterDevice> = emptyList(),
     val isPrinterPickerOpen: Boolean = false,
     val isTestingPrint: Boolean = false,
-    val printerStatusMessage: String? = null
+    val printerStatusMessage: String? = null,
+    val isExporting: Boolean = false,
+    val exportStatusMessage: String? = null,
+    val isPinSetupDialogOpen: Boolean = false
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val appPreferences: AppPreferences,
-    private val printerManager: BluetoothPrinterManager
+    private val printerManager: BluetoothPrinterManager,
+    private val dataExportManager: DataExportManager
 ) : ViewModel() {
 
     val settings: StateFlow<BusinessSettings> = appPreferences.settingsFlow.stateIn(
@@ -164,5 +170,109 @@ class SettingsViewModel @Inject constructor(
                 deviceId = deviceId
             )
         }
+    }
+
+    fun exportTransactions(context: Context) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExporting = true, exportStatusMessage = null) }
+            val result = dataExportManager.exportTransactionsCsv(settings.value.currencySymbol)
+            result.fold(
+                onSuccess = { intent ->
+                    _uiState.update { it.copy(isExporting = false) }
+                    context.startActivity(intent)
+                },
+                onFailure = { err ->
+                    _uiState.update {
+                        it.copy(
+                            isExporting = false,
+                            exportStatusMessage = "Gagal ekspor: ${err.localizedMessage}"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun exportProducts(context: Context) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExporting = true, exportStatusMessage = null) }
+            val result = dataExportManager.exportProductsCsv(settings.value.currencySymbol)
+            result.fold(
+                onSuccess = { intent ->
+                    _uiState.update { it.copy(isExporting = false) }
+                    context.startActivity(intent)
+                },
+                onFailure = { err ->
+                    _uiState.update {
+                        it.copy(
+                            isExporting = false,
+                            exportStatusMessage = "Gagal ekspor produk: ${err.localizedMessage}"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun exportExpenses(context: Context) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExporting = true, exportStatusMessage = null) }
+            val result = dataExportManager.exportExpensesCsv(settings.value.currencySymbol)
+            result.fold(
+                onSuccess = { intent ->
+                    _uiState.update { it.copy(isExporting = false) }
+                    context.startActivity(intent)
+                },
+                onFailure = { err ->
+                    _uiState.update {
+                        it.copy(
+                            isExporting = false,
+                            exportStatusMessage = "Gagal ekspor biaya: ${err.localizedMessage}"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun backupDatabase(context: Context) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isExporting = true, exportStatusMessage = null) }
+            val result = dataExportManager.createDatabaseBackup()
+            result.fold(
+                onSuccess = { intent ->
+                    _uiState.update {
+                        it.copy(
+                            isExporting = false,
+                            exportStatusMessage = "Cadangan database berhasil dibuat!"
+                        )
+                    }
+                    context.startActivity(intent)
+                },
+                onFailure = { err ->
+                    _uiState.update {
+                        it.copy(
+                            isExporting = false,
+                            exportStatusMessage = "Gagal membuat cadangan: ${err.localizedMessage}"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun updatePinSecurity(enabled: Boolean, pin: String) {
+        viewModelScope.launch {
+            appPreferences.updatePinSecurity(enabled, pin)
+            _uiState.update { it.copy(isPinSetupDialogOpen = false) }
+        }
+    }
+
+    fun openPinSetupDialog() {
+        _uiState.update { it.copy(isPinSetupDialogOpen = true) }
+    }
+
+    fun closePinSetupDialog() {
+        _uiState.update { it.copy(isPinSetupDialogOpen = false) }
     }
 }

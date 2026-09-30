@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Money
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.QrCode
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -210,6 +211,38 @@ fun CheckoutDialog(
                         )
                     }
 
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                // Customer Display
+                if (cart.customer != null) {
+                    Surface(
+                        color = PrimaryBlue.copy(alpha = 0.08f),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Person, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(
+                                    text = "Pelanggan: ${cart.customer.name}",
+                                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = PrimaryBlue)
+                                )
+                                if (!cart.customer.phone.isNullOrBlank()) {
+                                    Text(
+                                        text = cart.customer.phone,
+                                        style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
+                                    )
+                                }
+                            }
+                        }
+                    }
                     Spacer(modifier = Modifier.height(10.dp))
                 }
 

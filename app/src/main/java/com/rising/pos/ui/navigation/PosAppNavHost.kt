@@ -31,6 +31,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.rising.pos.core.datastore.AppPreferences
 import com.rising.pos.core.datastore.BusinessSettings
+import com.rising.pos.feature.customer.CustomerScreen
 import com.rising.pos.feature.dashboard.DashboardScreen
 import com.rising.pos.feature.expense.ExpenseScreen
 import com.rising.pos.feature.inventory.InventoryScreen
@@ -192,10 +193,12 @@ private fun MainAppNavHostContent(
         composable(Screen.Inventory.route) { InventoryScreen() }
         composable(Screen.Transactions.route) { TransactionScreen() }
         composable(Screen.Expenses.route) { ExpenseScreen() }
+        composable(Screen.Customers.route) { CustomerScreen() }
         composable(Screen.Dashboard.route) {
             DashboardScreen(
                 onNavigateToExpenses = { navController.navigate(Screen.Expenses.route) },
-                onNavigateToInventory = { navController.navigate(Screen.Inventory.route) }
+                onNavigateToInventory = { navController.navigate(Screen.Inventory.route) },
+                onNavigateToCustomers = { navController.navigate(Screen.Customers.route) }
             )
         }
         composable(Screen.Settings.route) { SettingsScreen() }

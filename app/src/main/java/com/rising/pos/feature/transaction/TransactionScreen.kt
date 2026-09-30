@@ -53,10 +53,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextDecoration
 import com.rising.pos.core.model.TransactionStatus
 import com.rising.pos.feature.transaction.components.TransactionDetailDialog
+import com.rising.pos.ui.components.SecurityPinDialog
 import com.rising.pos.ui.theme.DangerRed
 import com.rising.pos.ui.theme.WarningAmber
 
@@ -68,6 +71,9 @@ fun TransactionScreen(
     val settings by viewModel.settings.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    var showPinDialog by remember { mutableStateOf(false) }
+    var pendingVoidAction by remember { mutableStateOf<Pair<String, String>?>(null) }
 
     val dateFormatter = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
 
@@ -170,7 +176,32 @@ fun TransactionScreen(
             onPrintReceipt = { viewModel.printReceipt(trx) },
             onDismiss = { viewModel.selectTransaction(null) },
             onVoidTransaction = { trxId, reason ->
-                viewModel.voidTransaction(trxId, reason)
+                if (settings.isPinSecurityEnabled && settings.securityPin.isNotBlank()) {
+                    pendingVoidAction = Pair(trxId, reason)
+                    showPinDialog = true
+                } else {
+                    viewModel.voidTransaction(trxId, reason)
+                }
+            }
+        )
+    }
+
+    if (showPinDialog && pendingVoidAction != null) {
+        SecurityPinDialog(
+            correctPin = settings.securityPin,
+            title = "Otorisasi Void",
+            description = "Masukkan PIN Owner untuk menyetujui pembatalan transaksi ini.",
+            onDismiss = {
+                showPinDialog = false
+                pendingVoidAction = null
+            },
+            onSuccess = {
+                val action = pendingVoidAction
+                showPinDialog = false
+                pendingVoidAction = null
+                action?.let { (trxId, reason) ->
+                    viewModel.voidTransaction(trxId, reason)
+                }
             }
         )
     }
