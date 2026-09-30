@@ -49,6 +49,17 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.text.style.TextDecoration
+import com.rising.pos.core.model.TransactionStatus
+import com.rising.pos.feature.transaction.components.TransactionDetailDialog
+import com.rising.pos.ui.theme.DangerRed
+import com.rising.pos.ui.theme.WarningAmber
+
 @Composable
 fun TransactionScreen(
     viewModel: TransactionViewModel = hiltViewModel()
@@ -56,84 +67,109 @@ fun TransactionScreen(
     val transactions by viewModel.transactions.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
     val dateFormatter = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp)
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Riwayat Transaksi",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                )
-                Text(
-                    text = "${transactions.size} Transaksi Tersimpan",
-                    style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                )
-            }
+    LaunchedEffect(uiState.successMessage) {
+        uiState.successMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessages()
         }
+    }
 
-        Spacer(modifier = Modifier.height(16.dp))
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearMessages()
+        }
+    }
 
-        if (transactions.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .weight(1f),
-                contentAlignment = Alignment.Center
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
-                        contentDescription = null,
-                        tint = Slate500,
-                        modifier = Modifier.size(56.dp)
-                    )
-                    Spacer(modifier = Modifier.height(10.dp))
+                Column {
                     Text(
-                        text = "Belum Ada Transaksi",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        text = "Riwayat Transaksi",
+                        style = MaterialTheme.typography.titleLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
                     )
                     Text(
-                        text = "Transaksi yang selesai akan tercatat otomatis di sini.",
+                        text = "${transactions.size} Transaksi Tersimpan",
                         style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
                     )
                 }
             }
-        } else {
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(transactions, key = { it.transaction.id }) { item ->
-                    TransactionItemCard(
-                        trxDetails = item,
-                        currencySymbol = settings.currencySymbol,
-                        dateStr = dateFormatter.format(Date(item.transaction.createdAt)),
-                        onClick = { viewModel.selectTransaction(item) }
-                    )
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (transactions.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                            contentDescription = null,
+                            tint = Slate500,
+                            modifier = Modifier.size(56.dp)
+                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Text(
+                            text = "Belum Ada Transaksi",
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        )
+                        Text(
+                            text = "Transaksi yang selesai akan tercatat otomatis di sini.",
+                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(transactions, key = { it.transaction.id }) { item ->
+                        TransactionItemCard(
+                            trxDetails = item,
+                            currencySymbol = settings.currencySymbol,
+                            dateStr = dateFormatter.format(Date(item.transaction.createdAt)),
+                            onClick = { viewModel.selectTransaction(item) }
+                        )
+                    }
                 }
             }
         }
     }
 
-    // Receipt Detail Dialog
+    // Receipt Detail & Void Dialog
     uiState.selectedTransaction?.let { trx ->
-        ReceiptSuccessDialog(
+        TransactionDetailDialog(
             transactionWithDetails = trx,
             settings = settings,
-            onDismiss = { viewModel.selectTransaction(null) }
+            isProcessing = uiState.isProcessing,
+            onDismiss = { viewModel.selectTransaction(null) },
+            onVoidTransaction = { trxId, reason ->
+                viewModel.voidTransaction(trxId, reason)
+            }
         )
     }
 }
@@ -147,14 +183,18 @@ private fun TransactionItemCard(
 ) {
     val trx = trxDetails.transaction
     val itemsSummary = trxDetails.items.joinToString(", ") { "${it.item.productName} (${it.item.qty.toInt()})" }
+    val isVoided = trx.status == TransactionStatus.CANCELLED
+    val isRefunded = trx.status == TransactionStatus.REFUNDED
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = if (isVoided) Color(0xFFFAFAFA) else Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (isVoided) 0.5.dp else 1.5.dp)
     ) {
         Row(
             modifier = Modifier
@@ -173,9 +213,11 @@ private fun TransactionItemCard(
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
-                            color = Slate900
+                            color = if (isVoided) Slate500 else Slate900,
+                            textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None
                         )
                     )
+
                     Surface(
                         color = PrimaryBlue.copy(alpha = 0.1f),
                         shape = RoundedCornerShape(4.dp)
@@ -189,6 +231,38 @@ private fun TransactionItemCard(
                             ),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                         )
+                    }
+
+                    if (isVoided) {
+                        Surface(
+                            color = DangerRed.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "VOID",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = DangerRed,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 9.sp
+                                ),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    } else if (isRefunded) {
+                        Surface(
+                            color = WarningAmber.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(4.dp)
+                        ) {
+                            Text(
+                                text = "REFUND",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = WarningAmber,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 9.sp
+                                ),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
                     }
                 }
 
@@ -215,7 +289,12 @@ private fun TransactionItemCard(
                     text = CurrencyFormatter.format(trx.grandTotal, currencySymbol),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.ExtraBold,
-                        color = SuccessGreen
+                        color = when {
+                            isVoided -> DangerRed
+                            isRefunded -> WarningAmber
+                            else -> SuccessGreen
+                        },
+                        textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None
                     )
                 )
                 Icon(
@@ -228,3 +307,4 @@ private fun TransactionItemCard(
         }
     }
 }
+

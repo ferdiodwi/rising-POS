@@ -1,6 +1,8 @@
 package com.rising.pos.feature.dashboard
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import com.rising.pos.ui.theme.DangerRed
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,8 +20,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.MoneyOff
 import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Card
@@ -50,7 +54,9 @@ import com.rising.pos.ui.theme.WarningAmber
 
 @Composable
 fun DashboardScreen(
-    viewModel: DashboardViewModel = hiltViewModel()
+    viewModel: DashboardViewModel = hiltViewModel(),
+    onNavigateToExpenses: () -> Unit = {},
+    onNavigateToInventory: () -> Unit = {}
 ) {
     val metrics by viewModel.metrics.collectAsState()
     val settings by viewModel.settings.collectAsState()
@@ -93,7 +99,30 @@ fun DashboardScreen(
                     )
 
                     MetricCard(
-                        title = "Jumlah Transaksi",
+                        title = "Pengeluaran Hari Ini",
+                        value = CurrencyFormatter.format(metrics.todayExpenses, settings.currencySymbol),
+                        icon = Icons.Default.MoneyOff,
+                        iconTint = DangerRed,
+                        modifier = Modifier.weight(1f),
+                        onClick = onNavigateToExpenses
+                    )
+                }
+
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    MetricCard(
+                        title = "Estimasi Laba Bersih",
+                        value = CurrencyFormatter.format(metrics.netProfit, settings.currencySymbol),
+                        icon = Icons.Default.AccountBalanceWallet,
+                        iconTint = if (metrics.netProfit >= 0) SuccessGreen else DangerRed,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    MetricCard(
+                        title = "Transaksi Hari Ini",
                         value = "${metrics.todayTransactionCount} TRX",
                         icon = Icons.Default.Receipt,
                         iconTint = PrimaryBlue,
@@ -149,18 +178,30 @@ fun DashboardScreen(
                     )
                 }
 
-                if (metrics.lowStockProducts.isNotEmpty()) {
-                    Surface(
-                        color = WarningAmber.copy(alpha = 0.15f),
-                        shape = CircleShape
-                    ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (metrics.lowStockProducts.isNotEmpty()) {
+                        Surface(
+                            color = WarningAmber.copy(alpha = 0.15f),
+                            shape = CircleShape
+                        ) {
+                            Text(
+                                text = "${metrics.lowStockProducts.size} item",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    color = WarningAmber,
+                                    fontWeight = FontWeight.Bold
+                                ),
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    androidx.compose.material3.TextButton(onClick = onNavigateToInventory) {
                         Text(
-                            text = "${metrics.lowStockProducts.size} item",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = WarningAmber,
+                            text = "Kelola Stok",
+                            style = MaterialTheme.typography.labelMedium.copy(
+                                color = PrimaryBlue,
                                 fontWeight = FontWeight.Bold
-                            ),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            )
                         )
                     }
                 }
@@ -185,7 +226,9 @@ fun DashboardScreen(
         } else {
             items(metrics.lowStockProducts, key = { it.id }) { product ->
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable(onClick = onNavigateToInventory),
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
@@ -237,10 +280,13 @@ private fun MetricCard(
     value: String,
     icon: ImageVector,
     iconTint: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
 ) {
     Card(
-        modifier = modifier,
+        modifier = modifier.then(
+            if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+        ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -285,3 +331,4 @@ private fun MetricCard(
         }
     }
 }
+

@@ -54,4 +54,14 @@ interface TransactionDao {
 
     @Query("SELECT COUNT(*) FROM transactions WHERE receipt_number LIKE :prefix || '%'")
     suspend fun countTransactionsWithPrefix(prefix: String): Int
+
+    @Query("DELETE FROM transactions WHERE id = :id")
+    suspend fun deleteTransaction(id: String)
+
+    @Query("DELETE FROM transaction_items WHERE transaction_id = :transactionId")
+    suspend fun deleteTransactionItems(transactionId: String)
+
+    @Query("DELETE FROM transaction_item_modifiers WHERE transaction_item_id IN (SELECT id FROM transaction_items WHERE transaction_id = :transactionId)")
+    suspend fun deleteTransactionItemModifiers(transactionId: String)
 }
+

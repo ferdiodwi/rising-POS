@@ -26,6 +26,16 @@ interface TransactionRepository {
     fun getCompletedTransactionsBetween(startDate: Long, endDate: Long): Flow<List<TransactionWithDetails>>
     fun getHeldTransactions(): Flow<List<TransactionWithDetails>>
     suspend fun updateTransactionStatus(transactionId: String, status: TransactionStatus)
+    suspend fun voidTransaction(transactionId: String, reason: String): Result<Unit>
+    suspend fun refundTransaction(transactionId: String, reason: String): Result<Unit>
+    suspend fun holdTransaction(
+        cartState: CartState,
+        deviceId: String,
+        note: String,
+        cashierId: String? = null
+    ): Result<TransactionWithDetails>
+    suspend fun deleteHeldTransaction(transactionId: String): Result<Unit>
     fun getGrossSalesBetween(startDate: Long, endDate: Long): Flow<Double?>
     fun getTransactionCountBetween(startDate: Long, endDate: Long): Flow<Int>
 }
+

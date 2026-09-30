@@ -196,9 +196,183 @@ class TransactionRepositoryImpl @Inject constructor(
         transactionDao.updateTransactionStatus(transactionId, status)
     }
 
+    override suspend fun voidTransaction(transactionId: String, reason: String): Result<Unit> = runCatching {
+        database.withTransaction {
+            val trxDetails = transactionDao.getTransactionById(transactionId)
+                ?: throw IllegalArgumentException("Transaksi tidak ditemukan")
+            val trx = trxDetails.transaction
+            if (trx.status != TransactionStatus.COMPLETED) {
+                throw IllegalStateException("Hanya transaksi selesai yang dapat dibatalkan")
+            }
+
+            val now = System.currentTimeMillis()
+            transactionDao.updateTransactionStatus(transactionId, TransactionStatus.CANCELLED)
+
+            // Kembalikan stok produk otomatis
+            for (itemDetail in trxDetails.items) {
+                val item = itemDetail.item
+                val product = productDao.getProductById(item.productId)
+                if (product != null && product.trackStock) {
+                    val before = product.stock
+                    val after = before + item.qty
+                    productDao.updateStock(product.id, after, now)
+
+                    stockMovementDao.insertMovement(
+                        StockMovementEntity(
+                            id = UUID.randomUUID().toString(),
+                            productId = product.id,
+                            type = StockMovementType.REFUND,
+                            qtyChange = item.qty,
+                            qtyBefore = before,
+                            qtyAfter = after,
+                            reason = "Void #${trx.receiptNumber}: $reason",
+                            referenceId = transactionId,
+                            createdAt = now,
+                            syncStatus = SyncStatus.PENDING
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun refundTransaction(transactionId: String, reason: String): Result<Unit> = runCatching {
+        database.withTransaction {
+            val trxDetails = transactionDao.getTransactionById(transactionId)
+                ?: throw IllegalArgumentException("Transaksi tidak ditemukan")
+            val trx = trxDetails.transaction
+            if (trx.status != TransactionStatus.COMPLETED) {
+                throw IllegalStateException("Hanya transaksi selesai yang dapat di-refund")
+            }
+
+            val now = System.currentTimeMillis()
+            transactionDao.updateTransactionStatus(transactionId, TransactionStatus.REFUNDED)
+
+            for (itemDetail in trxDetails.items) {
+                val item = itemDetail.item
+                val product = productDao.getProductById(item.productId)
+                if (product != null && product.trackStock) {
+                    val before = product.stock
+                    val after = before + item.qty
+                    productDao.updateStock(product.id, after, now)
+
+                    stockMovementDao.insertMovement(
+                        StockMovementEntity(
+                            id = UUID.randomUUID().toString(),
+                            productId = product.id,
+                            type = StockMovementType.REFUND,
+                            qtyChange = item.qty,
+                            qtyBefore = before,
+                            qtyAfter = after,
+                            reason = "Refund #${trx.receiptNumber}: $reason",
+                            referenceId = transactionId,
+                            createdAt = now,
+                            syncStatus = SyncStatus.PENDING
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    override suspend fun holdTransaction(
+        cartState: CartState,
+        deviceId: String,
+        note: String,
+        cashierId: String?
+    ): Result<TransactionWithDetails> = runCatching {
+        if (cartState.items.isEmpty()) {
+            throw IllegalArgumentException("Keranjang belanja kosong")
+        }
+
+        database.withTransaction {
+            val now = System.currentTimeMillis()
+            val transactionId = UUID.randomUUID().toString()
+            val dateStr = dateOnlyFormat.format(Date(now))
+            val prefix = "HOLD-$deviceId-$dateStr"
+            val countToday = transactionDao.countTransactionsWithPrefix(prefix)
+            val receiptNumber = "HOLD-$deviceId-$dateStr-${String.format(Locale.US, "%04d", countToday + 1)}"
+
+            val calc = cartState.calculateTotals()
+
+            val transactionEntity = TransactionEntity(
+                id = transactionId,
+                receiptNumber = receiptNumber,
+                deviceId = deviceId,
+                cashierId = cashierId,
+                customerId = cartState.customer?.id,
+                orderType = cartState.orderType,
+                subtotal = calc.subtotal,
+                discount = calc.discount,
+                discountReason = cartState.discountReason,
+                tax = calc.tax,
+                serviceCharge = calc.serviceCharge,
+                grandTotal = calc.grandTotal,
+                paymentAmount = 0.0,
+                changeAmount = 0.0,
+                paymentMethod = PaymentMethod.CASH,
+                status = TransactionStatus.HELD,
+                note = note.ifBlank { cartState.note },
+                createdAt = now,
+                syncStatus = SyncStatus.PENDING
+            )
+            transactionDao.insertTransaction(transactionEntity)
+
+            val itemEntities = mutableListOf<TransactionItemEntity>()
+            val modifierEntities = mutableListOf<TransactionItemModifierEntity>()
+
+            for (cartItem in cartState.items) {
+                val itemId = UUID.randomUUID().toString()
+                itemEntities.add(
+                    TransactionItemEntity(
+                        id = itemId,
+                        transactionId = transactionId,
+                        productId = cartItem.product.id,
+                        productName = cartItem.product.name,
+                        variantName = cartItem.variant?.name,
+                        qty = cartItem.quantity,
+                        unitPrice = cartItem.unitPrice,
+                        subtotal = cartItem.totalPrice,
+                        discount = cartItem.discount,
+                        note = cartItem.note
+                    )
+                )
+
+                for (mod in cartItem.selectedModifiers) {
+                    modifierEntities.add(
+                        TransactionItemModifierEntity(
+                            id = UUID.randomUUID().toString(),
+                            transactionItemId = itemId,
+                            modifierId = mod.id,
+                            modifierName = mod.name,
+                            price = mod.price
+                        )
+                    )
+                }
+            }
+
+            transactionDao.insertTransactionItems(itemEntities)
+            if (modifierEntities.isNotEmpty()) {
+                transactionDao.insertTransactionItemModifiers(modifierEntities)
+            }
+
+            transactionDao.getTransactionById(transactionId)
+                ?: throw IllegalStateException("Gagal memuat pesanan tertunda")
+        }
+    }
+
+    override suspend fun deleteHeldTransaction(transactionId: String): Result<Unit> = runCatching {
+        database.withTransaction {
+            transactionDao.deleteTransactionItemModifiers(transactionId)
+            transactionDao.deleteTransactionItems(transactionId)
+            transactionDao.deleteTransaction(transactionId)
+        }
+    }
+
     override fun getGrossSalesBetween(startDate: Long, endDate: Long): Flow<Double?> =
         transactionDao.getGrossSalesBetween(startDate, endDate)
 
     override fun getTransactionCountBetween(startDate: Long, endDate: Long): Flow<Int> =
         transactionDao.getTransactionCountBetween(startDate, endDate)
 }
+

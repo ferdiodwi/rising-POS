@@ -53,6 +53,9 @@ import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
 
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material3.OutlinedButton
+
 @Composable
 fun CartView(
     cart: CartState,
@@ -61,6 +64,7 @@ fun CartView(
     onRemoveItem: (String) -> Unit,
     onClearCart: () -> Unit,
     onCheckout: () -> Unit,
+    onHoldCart: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val calc = cart.calculateTotals(
@@ -70,6 +74,7 @@ fun CartView(
         isServiceChargeEnabled = settings.isServiceChargeEnabled,
         serviceChargePercentage = settings.serviceChargePercentage
     )
+
 
     Column(
         modifier = modifier
@@ -249,38 +254,54 @@ fun CartView(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Button(
-                    onClick = onCheckout,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = SuccessGreen
-                    )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
+                    OutlinedButton(
+                        onClick = onHoldCart,
+                        modifier = Modifier
+                            .weight(0.32f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(14.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Payment,
-                            contentDescription = null,
-                            tint = Color.White
+                        Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Tahan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = onCheckout,
+                        modifier = Modifier
+                            .weight(0.68f)
+                            .height(52.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = SuccessGreen
                         )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Bayar Sekarang (${CurrencyFormatter.format(calc.grandTotal, settings.currencySymbol)})",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Payment,
+                                contentDescription = null,
+                                tint = Color.White
                             )
-                        )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "Bayar",
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            )
+                        }
                     }
                 }
             }
+
         }
     }
 }

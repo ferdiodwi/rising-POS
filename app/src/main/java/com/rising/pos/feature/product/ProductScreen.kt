@@ -84,7 +84,8 @@ import com.rising.pos.ui.theme.WarningAmber
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProductScreen(
-    viewModel: ProductViewModel = hiltViewModel()
+    viewModel: ProductViewModel = hiltViewModel(),
+    onNavigateToInventory: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val settings by viewModel.settings.collectAsState()
@@ -131,15 +132,27 @@ fun ProductScreen(
                     )
                 }
 
-                OutlinedButton(
-                    onClick = viewModel::openCategoryDialog,
-                    shape = RoundedCornerShape(10.dp)
-                ) {
-                    Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("+ Kategori", fontSize = 12.sp)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = onNavigateToInventory,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Inventory2, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Stok", fontSize = 12.sp)
+                    }
+
+                    OutlinedButton(
+                        onClick = viewModel::openCategoryDialog,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("+ Kategori", fontSize = 12.sp)
+                    }
                 }
             }
+
 
             Spacer(modifier = Modifier.height(14.dp))
 

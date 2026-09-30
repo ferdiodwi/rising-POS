@@ -54,8 +54,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.util.CurrencyFormatter
+import androidx.compose.material.icons.filled.PauseCircle
 import com.rising.pos.feature.pos.components.CartView
 import com.rising.pos.feature.pos.components.CheckoutDialog
+import com.rising.pos.feature.pos.components.HeldOrdersDialog
+import com.rising.pos.feature.pos.components.HoldCartDialog
 import com.rising.pos.feature.pos.components.ProductCard
 import com.rising.pos.feature.pos.components.ReceiptSuccessDialog
 import com.rising.pos.ui.theme.PrimaryBlue
@@ -74,6 +77,7 @@ fun PosScreen(
     val settings by viewModel.settings.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val products by viewModel.filteredProducts.collectAsState()
+    val heldTransactions by viewModel.heldTransactions.collectAsState()
 
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
@@ -96,7 +100,9 @@ fun PosScreen(
                         storeName = settings.name,
                         deviceId = settings.deviceId,
                         searchQuery = uiState.searchQuery,
-                        onSearchChange = viewModel::updateSearchQuery
+                        heldOrdersCount = heldTransactions.size,
+                        onSearchChange = viewModel::updateSearchQuery,
+                        onOpenHeldOrders = viewModel::openHeldOrdersList
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -135,11 +141,13 @@ fun PosScreen(
                         onUpdateQuantity = viewModel::updateQuantity,
                         onRemoveItem = viewModel::removeItem,
                         onClearCart = viewModel::clearCart,
-                        onCheckout = viewModel::openCheckoutDialog
+                        onCheckout = viewModel::openCheckoutDialog,
+                        onHoldCart = viewModel::openHoldDialog
                     )
                 }
             }
         } else {
+
             // ── Phone Layout (Vertical + Sticky Bottom Cart Bar) ─────────────
             Box(modifier = Modifier.fillMaxSize()) {
                 Column(
@@ -151,7 +159,9 @@ fun PosScreen(
                         storeName = settings.name,
                         deviceId = settings.deviceId,
                         searchQuery = uiState.searchQuery,
-                        onSearchChange = viewModel::updateSearchQuery
+                        heldOrdersCount = heldTransactions.size,
+                        onSearchChange = viewModel::updateSearchQuery,
+                        onOpenHeldOrders = viewModel::openHeldOrdersList
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
@@ -262,7 +272,8 @@ fun PosScreen(
                         onUpdateQuantity = viewModel::updateQuantity,
                         onRemoveItem = viewModel::removeItem,
                         onClearCart = viewModel::clearCart,
-                        onCheckout = viewModel::openCheckoutDialog
+                        onCheckout = viewModel::openCheckoutDialog,
+                        onHoldCart = viewModel::openHoldDialog
                     )
                 }
             }
@@ -277,6 +288,26 @@ fun PosScreen(
                 errorMessage = uiState.paymentErrorMessage,
                 onDismiss = viewModel::closeCheckoutDialog,
                 onConfirmPayment = viewModel::processPayment
+            )
+        }
+
+        // Hold Cart Dialog
+        if (uiState.isHoldDialogOpen) {
+            HoldCartDialog(
+                itemCount = uiState.cart.totalItemCount.toInt(),
+                onDismiss = viewModel::closeHoldDialog,
+                onConfirmHold = viewModel::holdCurrentCart
+            )
+        }
+
+        // Held Orders List Dialog
+        if (uiState.isHeldOrdersListDialogOpen) {
+            HeldOrdersDialog(
+                heldOrders = heldTransactions,
+                currencySymbol = settings.currencySymbol,
+                onDismiss = viewModel::closeHeldOrdersList,
+                onResumeOrder = viewModel::resumeHeldTransaction,
+                onDeleteOrder = viewModel::deleteHeldOrder
             )
         }
 
@@ -296,14 +327,19 @@ private fun PosHeader(
     storeName: String,
     deviceId: String,
     searchQuery: String,
-    onSearchChange: (String) -> Unit
+    heldOrdersCount: Int = 0,
+    onSearchChange: (String) -> Unit,
+    onOpenHeldOrders: () -> Unit = {}
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
             Box(
                 modifier = Modifier
                     .size(40.dp)
@@ -312,7 +348,6 @@ private fun PosHeader(
             ) {
                 Icon(Icons.Default.Store, contentDescription = null, tint = PrimaryBlue)
             }
-            Spacer(modifier = Modifier.width(10.dp))
             Column {
                 Text(
                     text = storeName,
@@ -336,9 +371,39 @@ private fun PosHeader(
                     )
                 }
             }
+
+            if (heldOrdersCount > 0) {
+                Surface(
+                    modifier = Modifier.clickable(onClick = onOpenHeldOrders),
+                    shape = RoundedCornerShape(20.dp),
+                    color = PrimaryBlue.copy(alpha = 0.12f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PauseCircle,
+                            contentDescription = null,
+                            tint = PrimaryBlue,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "$heldOrdersCount Tertunda",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = PrimaryBlue,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            )
+                        )
+                    }
+                }
+            }
         }
 
         // Search Bar
+
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchChange,

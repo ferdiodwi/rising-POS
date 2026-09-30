@@ -41,12 +41,13 @@ data class CartState(
         get() = items.sumOf { it.totalPrice }
 
     fun calculateTotals(
-        isTaxEnabled: Boolean,
-        taxPercentage: Double,
-        isTaxInclusive: Boolean,
-        isServiceChargeEnabled: Boolean,
-        serviceChargePercentage: Double
+        isTaxEnabled: Boolean = false,
+        taxPercentage: Double = 0.0,
+        isTaxInclusive: Boolean = true,
+        isServiceChargeEnabled: Boolean = false,
+        serviceChargePercentage: Double = 0.0
     ): CartCalculation {
+
         val netSubtotal = maxOf(0.0, subtotal - discount)
 
         val serviceCharge = if (isServiceChargeEnabled && serviceChargePercentage > 0) {

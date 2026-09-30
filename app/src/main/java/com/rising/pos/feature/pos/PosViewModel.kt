@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import com.rising.pos.core.database.entity.ModifierEntity
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,6 +32,8 @@ data class PosUiState(
     val cart: CartState = CartState(),
     val isCheckoutDialogOpen: Boolean = false,
     val isCartSheetOpen: Boolean = false,
+    val isHoldDialogOpen: Boolean = false,
+    val isHeldOrdersListDialogOpen: Boolean = false,
     val isProcessingPayment: Boolean = false,
     val paymentErrorMessage: String? = null,
     val lastCompletedTransaction: TransactionWithDetails? = null
@@ -55,8 +58,16 @@ class PosViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
+    val heldTransactions: StateFlow<List<TransactionWithDetails>> =
+        transactionRepository.getHeldTransactions().stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
     private val _uiState = MutableStateFlow(PosUiState())
     val uiState = _uiState.asStateFlow()
+
 
     // Combine products with active filters
     val filteredProducts: StateFlow<List<ProductWithCategory>> = combine(
@@ -207,4 +218,101 @@ class PosViewModel @Inject constructor(
     fun dismissSuccessDialog() {
         _uiState.update { it.copy(lastCompletedTransaction = null) }
     }
+
+    fun openHoldDialog() {
+        if (_uiState.value.cart.items.isNotEmpty()) {
+            _uiState.update { it.copy(isHoldDialogOpen = true) }
+        }
+    }
+
+    fun closeHoldDialog() {
+        _uiState.update { it.copy(isHoldDialogOpen = false) }
+    }
+
+    fun openHeldOrdersList() {
+        _uiState.update { it.copy(isHeldOrdersListDialogOpen = true) }
+    }
+
+    fun closeHeldOrdersList() {
+        _uiState.update { it.copy(isHeldOrdersListDialogOpen = false) }
+    }
+
+    fun holdCurrentCart(note: String) {
+        val currentSettings = settings.value
+        val currentCart = _uiState.value.cart
+        if (currentCart.items.isEmpty()) return
+
+        viewModelScope.launch {
+            val result = transactionRepository.holdTransaction(
+                cartState = currentCart,
+                deviceId = currentSettings.deviceId,
+                note = note,
+                cashierId = currentSettings.cashierName
+            )
+            if (result.isSuccess) {
+                _uiState.update {
+                    it.copy(
+                        cart = CartState(),
+                        isHoldDialogOpen = false,
+                        isCartSheetOpen = false
+                    )
+                }
+            }
+        }
+    }
+
+    fun resumeHeldTransaction(heldTrx: TransactionWithDetails) {
+        viewModelScope.launch {
+            val restoredCartItems = mutableListOf<CartItem>()
+            for (itemDetail in heldTrx.items) {
+                val item = itemDetail.item
+                val existingProduct = productRepository.getProductById(item.productId) ?: ProductEntity(
+                    id = item.productId,
+                    name = item.productName,
+                    sellingPrice = item.unitPrice,
+                    costPrice = 0.0,
+                    stock = 0.0
+                )
+                val modifiers = itemDetail.modifiers.map { mod ->
+                    ModifierEntity(
+                        id = mod.modifierId,
+                        name = mod.modifierName,
+                        price = mod.price
+                    )
+                }
+                restoredCartItems.add(
+                    CartItem(
+                        product = existingProduct,
+                        quantity = item.qty,
+                        selectedModifiers = modifiers,
+                        discount = item.discount,
+                        note = item.note
+                    )
+                )
+            }
+
+            _uiState.update {
+                it.copy(
+                    cart = CartState(
+                        items = restoredCartItems,
+                        discount = heldTrx.transaction.discount,
+                        discountReason = heldTrx.transaction.discountReason,
+                        orderType = heldTrx.transaction.orderType,
+                        note = heldTrx.transaction.note
+                    ),
+                    isHeldOrdersListDialogOpen = false,
+                    isHoldDialogOpen = false
+                )
+            }
+
+            transactionRepository.deleteHeldTransaction(heldTrx.transaction.id)
+        }
+    }
+
+    fun deleteHeldOrder(heldTrxId: String) {
+        viewModelScope.launch {
+            transactionRepository.deleteHeldTransaction(heldTrxId)
+        }
+    }
 }
+

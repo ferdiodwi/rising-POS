@@ -32,6 +32,8 @@ import androidx.navigation.compose.rememberNavController
 import com.rising.pos.core.datastore.AppPreferences
 import com.rising.pos.core.datastore.BusinessSettings
 import com.rising.pos.feature.dashboard.DashboardScreen
+import com.rising.pos.feature.expense.ExpenseScreen
+import com.rising.pos.feature.inventory.InventoryScreen
 import com.rising.pos.feature.onboarding.OnboardingScreen
 import com.rising.pos.feature.pos.PosScreen
 import com.rising.pos.feature.product.ProductScreen
@@ -65,13 +67,13 @@ fun PosAppNavHost(
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Pos.route
 
     if (isTablet) {
-        // Tablet: NavigationRail layout
+        // Tablet: NavigationRail layout with full items
         Row(modifier = Modifier.fillMaxSize()) {
             NavigationRail(
                 containerColor = Color.White,
                 modifier = Modifier.fillMaxHeight()
             ) {
-                mainNavigationItems.forEach { screen ->
+                tabletNavigationItems.forEach { screen ->
                     val selected = currentRoute == screen.route
                     NavigationRailItem(
                         selected = selected,
@@ -124,7 +126,7 @@ fun PosAppNavHost(
                     containerColor = Color.White,
                     tonalElevation = 8.dp
                 ) {
-                    mainNavigationItems.forEach { screen ->
+                    phoneNavigationItems.forEach { screen ->
                         val selected = currentRoute == screen.route
                         NavigationBarItem(
                             selected = selected,
@@ -182,9 +184,21 @@ private fun MainAppNavHostContent(
         startDestination = Screen.Pos.route
     ) {
         composable(Screen.Pos.route) { PosScreen() }
-        composable(Screen.Products.route) { ProductScreen() }
+        composable(Screen.Products.route) {
+            ProductScreen(
+                onNavigateToInventory = { navController.navigate(Screen.Inventory.route) }
+            )
+        }
+        composable(Screen.Inventory.route) { InventoryScreen() }
         composable(Screen.Transactions.route) { TransactionScreen() }
-        composable(Screen.Dashboard.route) { DashboardScreen() }
+        composable(Screen.Expenses.route) { ExpenseScreen() }
+        composable(Screen.Dashboard.route) {
+            DashboardScreen(
+                onNavigateToExpenses = { navController.navigate(Screen.Expenses.route) },
+                onNavigateToInventory = { navController.navigate(Screen.Inventory.route) }
+            )
+        }
         composable(Screen.Settings.route) { SettingsScreen() }
     }
 }
+
