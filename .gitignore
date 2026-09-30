@@ -10,5 +10,6 @@ captures/
 .cxx/
 *.apk
 *.aab
+.kotlin/
 
 PRD_Flexible_Offline_First_POS_Android.md

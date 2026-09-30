@@ -32,7 +32,7 @@ object DatabaseModule {
             PosDatabase::class.java,
             "rising_pos.db"
         )
-        .fallbackToDestructiveMigration()
+        .fallbackToDestructiveMigration(dropAllTables = true)
         .build()
     }
 

@@ -1,0 +1,210 @@
+package com.rising.pos.feature.pos
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.rising.pos.core.database.entity.CategoryEntity
+import com.rising.pos.core.database.entity.ProductEntity
+import com.rising.pos.core.database.entity.ProductWithCategory
+import com.rising.pos.core.database.entity.TransactionWithDetails
+import com.rising.pos.core.datastore.AppPreferences
+import com.rising.pos.core.datastore.BusinessSettings
+import com.rising.pos.core.model.OrderType
+import com.rising.pos.core.model.PaymentMethod
+import com.rising.pos.domain.model.CartItem
+import com.rising.pos.domain.model.CartState
+import com.rising.pos.domain.repository.ProductRepository
+import com.rising.pos.domain.repository.TransactionRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+data class PosUiState(
+    val selectedCategoryId: String? = null,
+    val searchQuery: String = "",
+    val cart: CartState = CartState(),
+    val isCheckoutDialogOpen: Boolean = false,
+    val isCartSheetOpen: Boolean = false,
+    val isProcessingPayment: Boolean = false,
+    val paymentErrorMessage: String? = null,
+    val lastCompletedTransaction: TransactionWithDetails? = null
+)
+
+@HiltViewModel
+class PosViewModel @Inject constructor(
+    private val productRepository: ProductRepository,
+    private val transactionRepository: TransactionRepository,
+    private val appPreferences: AppPreferences
+) : ViewModel() {
+
+    val settings: StateFlow<BusinessSettings> = appPreferences.settingsFlow.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = BusinessSettings()
+    )
+
+    val categories: StateFlow<List<CategoryEntity>> = productRepository.getActiveCategories().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    private val _uiState = MutableStateFlow(PosUiState())
+    val uiState = _uiState.asStateFlow()
+
+    // Combine products with active filters
+    val filteredProducts: StateFlow<List<ProductWithCategory>> = combine(
+        productRepository.getActiveProducts(),
+        _uiState
+    ) { allProducts, state ->
+        allProducts.filter { item ->
+            val matchCategory = state.selectedCategoryId == null || item.product.categoryId == state.selectedCategoryId
+            val matchSearch = state.searchQuery.isBlank() ||
+                    item.product.name.contains(state.searchQuery, ignoreCase = true) ||
+                    (item.product.barcode != null && item.product.barcode.contains(state.searchQuery, ignoreCase = true))
+            matchCategory && matchSearch
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    fun selectCategory(categoryId: String?) {
+        _uiState.update { it.copy(selectedCategoryId = categoryId) }
+    }
+
+    fun updateSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun addToCart(product: ProductEntity) {
+        _uiState.update { state ->
+            val existingItemIndex = state.cart.items.indexOfFirst {
+                it.product.id == product.id && it.variant == null && it.selectedModifiers.isEmpty()
+            }
+
+            val updatedItems = if (existingItemIndex != -1) {
+                state.cart.items.mapIndexed { index, item ->
+                    if (index == existingItemIndex) {
+                        item.copy(quantity = item.quantity + 1)
+                    } else item
+                }
+            } else {
+                state.cart.items + CartItem(
+                    product = product,
+                    quantity = 1.0
+                )
+            }
+
+            state.copy(cart = state.cart.copy(items = updatedItems))
+        }
+    }
+
+    fun updateQuantity(cartItemId: String, delta: Double) {
+        _uiState.update { state ->
+            val updatedItems = state.cart.items.mapNotNull { item ->
+                if (item.cartItemId == cartItemId) {
+                    val newQty = item.quantity + delta
+                    if (newQty > 0) item.copy(quantity = newQty) else null
+                } else item
+            }
+            state.copy(cart = state.cart.copy(items = updatedItems))
+        }
+    }
+
+    fun removeItem(cartItemId: String) {
+        _uiState.update { state ->
+            val updatedItems = state.cart.items.filterNot { it.cartItemId == cartItemId }
+            state.copy(cart = state.cart.copy(items = updatedItems))
+        }
+    }
+
+    fun clearCart() {
+        _uiState.update { it.copy(cart = CartState()) }
+    }
+
+    fun setOrderType(orderType: OrderType) {
+        _uiState.update { it.copy(cart = it.cart.copy(orderType = orderType)) }
+    }
+
+    fun openCheckoutDialog() {
+        if (_uiState.value.cart.items.isNotEmpty()) {
+            _uiState.update { it.copy(isCheckoutDialogOpen = true, paymentErrorMessage = null) }
+        }
+    }
+
+    fun closeCheckoutDialog() {
+        _uiState.update { it.copy(isCheckoutDialogOpen = false, paymentErrorMessage = null) }
+    }
+
+    fun setCartSheetOpen(isOpen: Boolean) {
+        _uiState.update { it.copy(isCartSheetOpen = isOpen) }
+    }
+
+    fun processPayment(
+        paymentMethod: PaymentMethod,
+        cashPaidAmount: Double
+    ) {
+        val currentSettings = settings.value
+        val currentCart = _uiState.value.cart
+        val calc = currentCart.calculateTotals(
+            isTaxEnabled = currentSettings.isTaxEnabled,
+            taxPercentage = currentSettings.taxPercentage,
+            isTaxInclusive = currentSettings.isTaxInclusive,
+            isServiceChargeEnabled = currentSettings.isServiceChargeEnabled,
+            serviceChargePercentage = currentSettings.serviceChargePercentage
+        )
+
+        val paidAmount = if (paymentMethod == PaymentMethod.CASH) cashPaidAmount else calc.grandTotal
+
+        _uiState.update { it.copy(isProcessingPayment = true, paymentErrorMessage = null) }
+
+        viewModelScope.launch {
+            val result = transactionRepository.processCheckout(
+                cartState = currentCart,
+                paymentMethod = paymentMethod,
+                paymentAmount = paidAmount,
+                deviceId = currentSettings.deviceId,
+                cashierId = currentSettings.cashierName,
+                isTaxEnabled = currentSettings.isTaxEnabled,
+                taxPercentage = currentSettings.taxPercentage,
+                isTaxInclusive = currentSettings.isTaxInclusive,
+                isServiceChargeEnabled = currentSettings.isServiceChargeEnabled,
+                serviceChargePercentage = currentSettings.serviceChargePercentage
+            )
+
+            result.fold(
+                onSuccess = { completedTrx ->
+                    _uiState.update {
+                        it.copy(
+                            isProcessingPayment = false,
+                            isCheckoutDialogOpen = false,
+                            isCartSheetOpen = false,
+                            cart = CartState(), // Clear cart
+                            lastCompletedTransaction = completedTrx
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isProcessingPayment = false,
+                            paymentErrorMessage = error.localizedMessage ?: "Terjadi kesalahan saat checkout"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun dismissSuccessDialog() {
+        _uiState.update { it.copy(lastCompletedTransaction = null) }
+    }
+}
