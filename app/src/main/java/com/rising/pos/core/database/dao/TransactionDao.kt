@@ -5,6 +5,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
+import com.rising.pos.core.database.entity.TopSellingProduct
 import com.rising.pos.core.database.entity.TransactionEntity
 import com.rising.pos.core.database.entity.TransactionItemEntity
 import com.rising.pos.core.database.entity.TransactionItemModifierEntity
@@ -51,6 +52,17 @@ interface TransactionDao {
 
     @Query("SELECT COUNT(*) FROM transactions WHERE status = 'COMPLETED' AND created_at >= :startDate AND created_at <= :endDate")
     fun getTransactionCountBetween(startDate: Long, endDate: Long): Flow<Int>
+
+    @Query("""
+        SELECT ti.product_id, ti.product_name, SUM(ti.qty) AS total_qty, SUM(ti.subtotal) AS total_revenue
+        FROM transaction_items ti
+        INNER JOIN transactions t ON ti.transaction_id = t.id
+        WHERE t.status = 'COMPLETED' AND t.created_at >= :startDate AND t.created_at <= :endDate
+        GROUP BY ti.product_id, ti.product_name
+        ORDER BY total_qty DESC
+        LIMIT :limit
+    """)
+    fun getTopSellingProductsBetween(startDate: Long, endDate: Long, limit: Int = 5): Flow<List<TopSellingProduct>>
 
     @Transaction
     @Query("SELECT * FROM transactions WHERE customer_id = :customerId ORDER BY created_at DESC")

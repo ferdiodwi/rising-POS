@@ -39,6 +39,9 @@ class ProductRepositoryImpl @Inject constructor(
     override fun getProductDetails(id: String): Flow<ProductWithVariants?> =
         productDao.getProductWithDetails(id)
 
+    override suspend fun getVariantsByProductId(productId: String): List<ProductVariantEntity> =
+        productDao.getVariantsByProductIdSync(productId)
+
     override suspend fun saveProduct(product: ProductEntity, variants: List<ProductVariantEntity>) {
         productDao.insertProduct(product)
         if (variants.isNotEmpty()) {

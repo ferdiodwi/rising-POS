@@ -3,6 +3,7 @@ package com.rising.pos.feature.dashboard
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rising.pos.core.database.entity.ProductEntity
+import com.rising.pos.core.database.entity.TopSellingProduct
 import com.rising.pos.core.datastore.AppPreferences
 import com.rising.pos.core.datastore.BusinessSettings
 import com.rising.pos.domain.repository.ExpenseRepository
@@ -35,6 +36,7 @@ data class DashboardMetrics(
     val averageTicketSize: Double = 0.0,
     val totalProductCount: Int = 0,
     val lowStockProducts: List<ProductEntity> = emptyList(),
+    val topSellingProducts: List<TopSellingProduct> = emptyList(),
     val todayGrossSales: Double = grossSales,
     val todayExpenses: Double = expenses,
     val todayTransactionCount: Int = transactionCount
@@ -107,12 +109,15 @@ class DashboardViewModel @Inject constructor(
     val metrics: StateFlow<DashboardMetrics> = _selectedPeriod.flatMapLatest { period ->
         val (startTime, endTime) = getPeriodDateRange(period)
         combine(
-            transactionRepository.getGrossSalesBetween(startTime, endTime),
-            expenseRepository.getTotalExpenseBetween(startTime, endTime),
-            transactionRepository.getTransactionCountBetween(startTime, endTime),
+            combine(
+                transactionRepository.getGrossSalesBetween(startTime, endTime),
+                expenseRepository.getTotalExpenseBetween(startTime, endTime),
+                transactionRepository.getTransactionCountBetween(startTime, endTime)
+            ) { sales, exp, count -> Triple(sales, exp, count) },
+            transactionRepository.getTopSellingProductsBetween(startTime, endTime, 5),
             productRepository.getProductCount(),
             productRepository.getLowStockProducts()
-        ) { sales, expenses, count, productCount, lowStock ->
+        ) { (sales, expenses, count), topSelling, productCount, lowStock ->
             val gross = sales ?: 0.0
             val exp = expenses ?: 0.0
             val net = gross - exp
@@ -125,6 +130,7 @@ class DashboardViewModel @Inject constructor(
                 averageTicketSize = avgTicket,
                 totalProductCount = productCount,
                 lowStockProducts = lowStock,
+                topSellingProducts = topSelling,
                 todayGrossSales = gross,
                 todayExpenses = exp,
                 todayTransactionCount = count

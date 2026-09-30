@@ -245,6 +245,138 @@ fun DashboardScreen(
             }
         }
 
+        // Top Selling Products Section (PRD 7.29)
+        item {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
+                        contentDescription = null,
+                        tint = PrimaryBlue,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Produk Terlaris (${selectedPeriod.label})",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                    )
+                }
+
+                if (metrics.topSellingProducts.isNotEmpty()) {
+                    Surface(
+                        color = PrimaryBlue.copy(alpha = 0.12f),
+                        shape = CircleShape
+                    ) {
+                        Text(
+                            text = "Top ${metrics.topSellingProducts.size}",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = PrimaryBlue,
+                                fontWeight = FontWeight.Bold
+                            ),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        if (metrics.topSellingProducts.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Text(
+                        text = "Belum ada produk terjual pada periode ini.",
+                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500),
+                        modifier = Modifier.padding(16.dp)
+                    )
+                }
+            }
+        } else {
+            items(metrics.topSellingProducts.size) { index ->
+                val item = metrics.topSellingProducts[index]
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Surface(
+                                shape = CircleShape,
+                                color = when (index) {
+                                    0 -> Color(0xFFFFD700).copy(alpha = 0.25f)
+                                    1 -> Color(0xFFC0C0C0).copy(alpha = 0.35f)
+                                    2 -> Color(0xFFCD7F32).copy(alpha = 0.25f)
+                                    else -> Slate200
+                                },
+                                modifier = Modifier.size(32.dp)
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "${index + 1}",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        color = when (index) {
+                                            0 -> Color(0xFFB8860B)
+                                            1 -> Slate700
+                                            2 -> Color(0xFF8B4513)
+                                            else -> Slate700
+                                        }
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = item.productName,
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = Slate900
+                                    )
+                                )
+                                Text(
+                                    text = "${item.totalQty.toInt()} item terjual",
+                                    style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = CurrencyFormatter.format(item.totalRevenue, settings.currencySymbol),
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryBlue
+                            )
+                        )
+                    }
+                }
+            }
+        }
+
         // Low Stock Alert Section
         item {
             Spacer(modifier = Modifier.height(6.dp))

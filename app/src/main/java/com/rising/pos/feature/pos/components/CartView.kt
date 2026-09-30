@@ -439,13 +439,32 @@ private fun CartItemRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = item.product.name,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        color = Slate900
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = item.product.name,
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = Slate900
+                        )
                     )
-                )
+                    if (item.variant != null) {
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(4.dp),
+                            color = PrimaryBlue.copy(alpha = 0.12f)
+                        ) {
+                            Text(
+                                text = item.variant.name,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = PrimaryBlue,
+                                    fontSize = 10.sp
+                                ),
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                            )
+                        }
+                    }
+                }
                 Text(
                     text = CurrencyFormatter.format(item.unitPrice, currencySymbol),
                     style = MaterialTheme.typography.bodySmall.copy(color = Slate500)

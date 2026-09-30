@@ -71,6 +71,7 @@ import com.rising.pos.feature.pos.components.HeldOrdersDialog
 import com.rising.pos.feature.pos.components.HoldCartDialog
 import com.rising.pos.feature.pos.components.ProductCard
 import com.rising.pos.feature.pos.components.ReceiptSuccessDialog
+import com.rising.pos.feature.pos.components.VariantPickerDialog
 import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
@@ -134,7 +135,7 @@ fun PosScreen(
                     ProductGrid(
                         products = products,
                         currencySymbol = settings.currencySymbol,
-                        onProductClick = viewModel::addToCart,
+                        onProductClick = viewModel::onProductClicked,
                         columns = 3,
                         modifier = Modifier.weight(1f)
                     )
@@ -195,7 +196,7 @@ fun PosScreen(
                     ProductGrid(
                         products = products,
                         currencySymbol = settings.currencySymbol,
-                        onProductClick = viewModel::addToCart,
+                        onProductClick = viewModel::onProductClicked,
                         columns = 2,
                         modifier = Modifier
                             .weight(1f)
@@ -400,6 +401,19 @@ fun PosScreen(
                 printErrorMessage = uiState.printErrorMessage,
                 onPrintReceipt = { viewModel.printReceipt(completedTrx) },
                 onDismiss = viewModel::dismissSuccessDialog
+            )
+        }
+
+        // Variant Picker Dialog
+        uiState.selectedProductForVariants?.let { product ->
+            VariantPickerDialog(
+                product = product,
+                variants = uiState.availableVariants,
+                currencySymbol = settings.currencySymbol,
+                onSelectVariant = { variant ->
+                    viewModel.addProductVariantToCart(product, variant)
+                },
+                onDismiss = viewModel::dismissVariantPicker
             )
         }
     }

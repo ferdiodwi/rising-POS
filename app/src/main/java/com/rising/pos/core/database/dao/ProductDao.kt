@@ -78,4 +78,14 @@ interface ProductDao {
 
     @Query("DELETE FROM product_variants WHERE product_id = :productId")
     suspend fun deleteVariantsByProductId(productId: String)
+
+    @Transaction
+    @Query("SELECT * FROM products WHERE id = :productId LIMIT 1")
+    suspend fun getProductWithVariants(productId: String): ProductWithVariants?
+
+    @Query("SELECT * FROM product_variants WHERE product_id = :productId")
+    fun getVariantsByProductId(productId: String): Flow<List<ProductVariantEntity>>
+
+    @Query("SELECT * FROM product_variants WHERE product_id = :productId")
+    suspend fun getVariantsByProductIdSync(productId: String): List<ProductVariantEntity>
 }

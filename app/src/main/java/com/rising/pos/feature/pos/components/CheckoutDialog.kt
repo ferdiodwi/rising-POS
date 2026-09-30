@@ -96,6 +96,15 @@ fun CheckoutDialog(
     var selectedMethod by remember { mutableStateOf(PaymentMethod.CASH) }
     var cashInput by remember { mutableStateOf(calc.grandTotal.toInt().toString()) }
 
+    var isSplitPayment by remember { mutableStateOf(false) }
+    var splitMethod1 by remember { mutableStateOf(PaymentMethod.CASH) }
+    var splitAmount1Input by remember { mutableStateOf((calc.grandTotal / 2).toInt().toString()) }
+    var splitMethod2 by remember { mutableStateOf(PaymentMethod.QRIS) }
+
+    val splitAmount1 = splitAmount1Input.toDoubleOrNull() ?: 0.0
+    val splitAmount2 = maxOf(0.0, calc.grandTotal - splitAmount1)
+    val isSplitValid = splitAmount1 > 0 && splitAmount2 > 0 && (splitAmount1 + splitAmount2 == calc.grandTotal)
+
     val cashAmount = cashInput.toDoubleOrNull() ?: 0.0
     val changeAmount = maxOf(0.0, cashAmount - calc.grandTotal)
     val isCashSufficient = cashAmount >= calc.grandTotal
@@ -259,124 +268,238 @@ fun CheckoutDialog(
 
                 Spacer(modifier = Modifier.height(14.dp))
 
-                // Payment Method Selector
-                Text(
-                    text = "Metode Pembayaran",
-                    style = MaterialTheme.typography.labelLarge.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        color = Slate900
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                // Payment Method Selector & Split Toggle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    listOf(
-                        PaymentMethod.CASH to "Tunai",
-                        PaymentMethod.QRIS to "QRIS",
-                        PaymentMethod.BANK_TRANSFER to "Transfer Bank",
-                        PaymentMethod.DEBIT_CARD to "Kartu Debit"
-                    ).forEach { (method, label) ->
-                        val isSelected = selectedMethod == method
-                        FilterChip(
-                            selected = isSelected,
-                            onClick = { selectedMethod = method },
-                            label = { Text(label) },
-                            leadingIcon = {
-                                val icon = when (method) {
-                                    PaymentMethod.CASH -> Icons.Default.Money
-                                    PaymentMethod.QRIS -> Icons.Default.QrCode
-                                    PaymentMethod.BANK_TRANSFER -> Icons.Default.AccountBalance
-                                    else -> Icons.Default.CreditCard
-                                }
-                                Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
-                                selectedLabelColor = PrimaryBlue
-                            )
-                        )
-                    }
-                }
-
-                // If CASH: Show Quick Cash Buttons and Tendered Amount Input
-                if (selectedMethod == PaymentMethod.CASH) {
-                    Spacer(modifier = Modifier.height(16.dp))
-
                     Text(
-                        text = "Uang Diterima",
+                        text = "Metode Pembayaran",
                         style = MaterialTheme.typography.labelLarge.copy(
                             fontWeight = FontWeight.SemiBold,
                             color = Slate900
                         )
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(
+                            selected = !isSplitPayment,
+                            onClick = { isSplitPayment = false },
+                            label = { Text("Penuh", fontSize = 11.sp) }
+                        )
+                        FilterChip(
+                            selected = isSplitPayment,
+                            onClick = { isSplitPayment = true },
+                            label = { Text("Split / Bagi", fontSize = 11.sp) }
+                        )
+                    }
+                }
 
-                    // Quick Cash Chips
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                        modifier = Modifier.fillMaxWidth()
+                Spacer(modifier = Modifier.height(8.dp))
+
+                if (isSplitPayment) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Slate200)
                     ) {
-                        OutlinedButton(
-                            onClick = { cashInput = calc.grandTotal.toInt().toString() },
-                            shape = RoundedCornerShape(8.dp),
-                            contentPadding = ButtonDefaults.ContentPadding
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            Text("Uang Pas", fontSize = 12.sp)
-                        }
+                            Text(
+                                text = "1. Pembayaran Pertama",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
+                            )
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf(
+                                    PaymentMethod.CASH to "Tunai",
+                                    PaymentMethod.QRIS to "QRIS",
+                                    PaymentMethod.BANK_TRANSFER to "Transfer",
+                                    PaymentMethod.DEBIT_CARD to "Debit"
+                                ).forEach { (method, label) ->
+                                    FilterChip(
+                                        selected = splitMethod1 == method,
+                                        onClick = { splitMethod1 = method },
+                                        label = { Text(label, fontSize = 11.sp) }
+                                    )
+                                }
+                            }
 
-                        listOf(10_000, 20_000, 50_000, 100_000).forEach { addAmount ->
-                            OutlinedButton(
-                                onClick = {
-                                    val current = cashInput.toDoubleOrNull() ?: 0.0
-                                    cashInput = (current + addAmount).toInt().toString()
-                                },
-                                shape = RoundedCornerShape(8.dp)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text("+${addAmount / 1000}k", fontSize = 12.sp)
+                                OutlinedTextField(
+                                    value = splitAmount1Input,
+                                    onValueChange = { splitAmount1Input = it.filter { ch -> ch.isDigit() } },
+                                    prefix = { Text("${settings.currencySymbol} ", fontSize = 12.sp) },
+                                    label = { Text("Nominal Bagian 1", fontSize = 11.sp) },
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        splitAmount1Input = (calc.grandTotal / 2).toInt().toString()
+                                    },
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("50:50", fontSize = 11.sp)
+                                }
+                            }
+
+                            HorizontalDivider(color = Slate200)
+
+                            Text(
+                                text = "2. Pembayaran Kedua (Sisa)",
+                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
+                            )
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                listOf(
+                                    PaymentMethod.QRIS to "QRIS",
+                                    PaymentMethod.BANK_TRANSFER to "Transfer",
+                                    PaymentMethod.DEBIT_CARD to "Debit",
+                                    PaymentMethod.CASH to "Tunai"
+                                ).forEach { (method, label) ->
+                                    FilterChip(
+                                        selected = splitMethod2 == method,
+                                        onClick = { splitMethod2 = method },
+                                        label = { Text(label, fontSize = 11.sp) }
+                                    )
+                                }
+                            }
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Sisa Tagihan Bagian 2:",
+                                    style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
+                                )
+                                Text(
+                                    text = CurrencyFormatter.format(splitAmount2, settings.currencySymbol),
+                                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = PrimaryBlue)
+                                )
                             }
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = cashInput,
-                        onValueChange = { cashInput = it.filter { ch -> ch.isDigit() } },
-                        prefix = { Text("${settings.currencySymbol} ") },
-                        label = { Text("Nominal Uang Tunai") },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        singleLine = true,
-                        isError = !isCashSufficient,
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Change display
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                } else {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
                     ) {
+                        listOf(
+                            PaymentMethod.CASH to "Tunai",
+                            PaymentMethod.QRIS to "QRIS",
+                            PaymentMethod.BANK_TRANSFER to "Transfer Bank",
+                            PaymentMethod.DEBIT_CARD to "Kartu Debit"
+                        ).forEach { (method, label) ->
+                            val isSelected = selectedMethod == method
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = { selectedMethod = method },
+                                label = { Text(label) },
+                                leadingIcon = {
+                                    val icon = when (method) {
+                                        PaymentMethod.CASH -> Icons.Default.Money
+                                        PaymentMethod.QRIS -> Icons.Default.QrCode
+                                        PaymentMethod.BANK_TRANSFER -> Icons.Default.AccountBalance
+                                        else -> Icons.Default.CreditCard
+                                    }
+                                    Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
+                                    selectedLabelColor = PrimaryBlue
+                                )
+                            )
+                        }
+                    }
+
+                    // If CASH: Show Quick Cash Buttons and Tendered Amount Input
+                    if (selectedMethod == PaymentMethod.CASH) {
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         Text(
-                            text = "Kembalian:",
-                            style = MaterialTheme.typography.bodyMedium.copy(color = Slate500)
-                        )
-                        Text(
-                            text = CurrencyFormatter.format(changeAmount, settings.currencySymbol),
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = if (isCashSufficient) SuccessGreen else DangerRed
+                            text = "Uang Diterima",
+                            style = MaterialTheme.typography.labelLarge.copy(
+                                fontWeight = FontWeight.SemiBold,
+                                color = Slate900
                             )
                         )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Quick Cash Chips
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedButton(
+                                onClick = { cashInput = calc.grandTotal.toInt().toString() },
+                                shape = RoundedCornerShape(8.dp),
+                                contentPadding = ButtonDefaults.ContentPadding
+                            ) {
+                                Text("Uang Pas", fontSize = 12.sp)
+                            }
+
+                            listOf(10_000, 20_000, 50_000, 100_000).forEach { addAmount ->
+                                OutlinedButton(
+                                    onClick = {
+                                        val current = cashInput.toDoubleOrNull() ?: 0.0
+                                        cashInput = (current + addAmount).toInt().toString()
+                                    },
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text("+${addAmount / 1000}k", fontSize = 12.sp)
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        OutlinedTextField(
+                            value = cashInput,
+                            onValueChange = { cashInput = it.filter { ch -> ch.isDigit() } },
+                            prefix = { Text("${settings.currencySymbol} ") },
+                            label = { Text("Nominal Uang Tunai") },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            isError = !isCashSufficient,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Change display
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Kembalian:",
+                                style = MaterialTheme.typography.bodyMedium.copy(color = Slate500)
+                            )
+                            Text(
+                                text = CurrencyFormatter.format(changeAmount, settings.currencySymbol),
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (isCashSufficient) SuccessGreen else DangerRed
+                                )
+                            )
+                        }
                     }
                 }
 
@@ -408,19 +531,44 @@ fun CheckoutDialog(
 
                     Button(
                         onClick = {
-                            val paid = if (selectedMethod == PaymentMethod.CASH) cashAmount else calc.grandTotal
+                            val paid = if (isSplitPayment) {
+                                calc.grandTotal
+                            } else if (selectedMethod == PaymentMethod.CASH) {
+                                cashAmount
+                            } else {
+                                calc.grandTotal
+                            }
+
                             val combinedNote = buildString {
                                 if (tableNumber.isNotBlank() && selectedOrderType == OrderType.DINE_IN) {
                                     append("Meja: ${tableNumber.trim()}")
+                                }
+                                if (isSplitPayment) {
+                                    if (isNotEmpty()) append(" • ")
+                                    val m1 = when (splitMethod1) {
+                                        PaymentMethod.CASH -> "Tunai"
+                                        PaymentMethod.QRIS -> "QRIS"
+                                        PaymentMethod.BANK_TRANSFER -> "Transfer"
+                                        else -> "Debit"
+                                    }
+                                    val m2 = when (splitMethod2) {
+                                        PaymentMethod.CASH -> "Tunai"
+                                        PaymentMethod.QRIS -> "QRIS"
+                                        PaymentMethod.BANK_TRANSFER -> "Transfer"
+                                        else -> "Debit"
+                                    }
+                                    append("Split: $m1 ${CurrencyFormatter.format(splitAmount1, settings.currencySymbol)} + $m2 ${CurrencyFormatter.format(splitAmount2, settings.currencySymbol)}")
                                 }
                                 if (orderNote.isNotBlank()) {
                                     if (isNotEmpty()) append(" • ")
                                     append(orderNote.trim())
                                 }
                             }.ifBlank { null }
-                            onConfirmPayment(selectedMethod, paid, selectedOrderType, combinedNote)
+
+                            val finalMethod = if (isSplitPayment) splitMethod1 else selectedMethod
+                            onConfirmPayment(finalMethod, paid, selectedOrderType, combinedNote)
                         },
-                        enabled = !isProcessing && (selectedMethod != PaymentMethod.CASH || isCashSufficient),
+                        enabled = !isProcessing && if (isSplitPayment) isSplitValid else (selectedMethod != PaymentMethod.CASH || isCashSufficient),
                         modifier = Modifier
                             .weight(1.5f)
                             .height(48.dp),

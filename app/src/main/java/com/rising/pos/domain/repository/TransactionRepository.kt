@@ -1,5 +1,6 @@
 package com.rising.pos.domain.repository
 
+import com.rising.pos.core.database.entity.TopSellingProduct
 import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.model.PaymentMethod
 import com.rising.pos.core.model.TransactionStatus
@@ -37,5 +38,6 @@ interface TransactionRepository {
     suspend fun deleteHeldTransaction(transactionId: String): Result<Unit>
     fun getGrossSalesBetween(startDate: Long, endDate: Long): Flow<Double?>
     fun getTransactionCountBetween(startDate: Long, endDate: Long): Flow<Int>
+    fun getTopSellingProductsBetween(startDate: Long, endDate: Long, limit: Int = 5): Flow<List<TopSellingProduct>>
 }
 

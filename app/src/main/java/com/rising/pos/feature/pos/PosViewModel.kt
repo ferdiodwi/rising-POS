@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import com.rising.pos.core.database.entity.ModifierEntity
+import com.rising.pos.core.database.entity.ProductVariantEntity
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
@@ -46,7 +47,9 @@ data class PosUiState(
     val lastCompletedTransaction: TransactionWithDetails? = null,
     val isPrinting: Boolean = false,
     val printMessage: String? = null,
-    val printErrorMessage: String? = null
+    val printErrorMessage: String? = null,
+    val selectedProductForVariants: ProductEntity? = null,
+    val availableVariants: List<ProductVariantEntity> = emptyList()
 )
 
 @HiltViewModel
@@ -124,6 +127,59 @@ class PosViewModel @Inject constructor(
             } else {
                 updateSearchQuery(trimmed)
             }
+        }
+    }
+
+    fun onProductClicked(product: ProductEntity) {
+        viewModelScope.launch {
+            val variants = productRepository.getVariantsByProductId(product.id)
+            if (variants.isNotEmpty()) {
+                _uiState.update {
+                    it.copy(
+                        selectedProductForVariants = product,
+                        availableVariants = variants
+                    )
+                }
+            } else {
+                addToCart(product)
+            }
+        }
+    }
+
+    fun addProductVariantToCart(product: ProductEntity, variant: ProductVariantEntity) {
+        _uiState.update { state ->
+            val existingItemIndex = state.cart.items.indexOfFirst {
+                it.product.id == product.id && it.variant?.id == variant.id && it.selectedModifiers.isEmpty()
+            }
+
+            val updatedItems = if (existingItemIndex != -1) {
+                state.cart.items.mapIndexed { index, item ->
+                    if (index == existingItemIndex) {
+                        item.copy(quantity = item.quantity + 1)
+                    } else item
+                }
+            } else {
+                state.cart.items + CartItem(
+                    product = product,
+                    variant = variant,
+                    quantity = 1.0
+                )
+            }
+
+            state.copy(
+                cart = state.cart.copy(items = updatedItems),
+                selectedProductForVariants = null,
+                availableVariants = emptyList()
+            )
+        }
+    }
+
+    fun dismissVariantPicker() {
+        _uiState.update {
+            it.copy(
+                selectedProductForVariants = null,
+                availableVariants = emptyList()
+            )
         }
     }
 

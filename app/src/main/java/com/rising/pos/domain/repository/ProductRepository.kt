@@ -16,6 +16,7 @@ interface ProductRepository {
     suspend fun getProductByBarcode(barcode: String): ProductWithCategory?
     suspend fun getProductById(id: String): ProductEntity?
     fun getProductDetails(id: String): Flow<ProductWithVariants?>
+    suspend fun getVariantsByProductId(productId: String): List<ProductVariantEntity>
     suspend fun saveProduct(product: ProductEntity, variants: List<ProductVariantEntity> = emptyList())
     suspend fun updateStock(productId: String, newStock: Double)
     suspend fun deleteProduct(product: ProductEntity)

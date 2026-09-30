@@ -6,6 +6,7 @@ import com.rising.pos.core.database.dao.ProductDao
 import com.rising.pos.core.database.dao.StockMovementDao
 import com.rising.pos.core.database.dao.TransactionDao
 import com.rising.pos.core.database.entity.StockMovementEntity
+import com.rising.pos.core.database.entity.TopSellingProduct
 import com.rising.pos.core.database.entity.TransactionEntity
 import com.rising.pos.core.database.entity.TransactionItemEntity
 import com.rising.pos.core.database.entity.TransactionItemModifierEntity
@@ -374,5 +375,8 @@ class TransactionRepositoryImpl @Inject constructor(
 
     override fun getTransactionCountBetween(startDate: Long, endDate: Long): Flow<Int> =
         transactionDao.getTransactionCountBetween(startDate, endDate)
+
+    override fun getTopSellingProductsBetween(startDate: Long, endDate: Long, limit: Int): Flow<List<TopSellingProduct>> =
+        transactionDao.getTopSellingProductsBetween(startDate, endDate, limit)
 }
 

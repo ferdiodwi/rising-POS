@@ -20,6 +20,15 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
+import com.rising.pos.core.database.entity.ProductVariantEntity
+
+data class VariantFormItem(
+    val id: String = UUID.randomUUID().toString(),
+    val name: String = "",
+    val price: String = "",
+    val stock: String = "0"
+)
+
 data class ProductFormState(
     val id: String = "",
     val name: String = "",
@@ -32,7 +41,9 @@ data class ProductFormState(
     val sku: String = "",
     val trackStock: Boolean = true,
     val minStock: String = "5",
-    val isFavorite: Boolean = false
+    val isFavorite: Boolean = false,
+    val hasVariants: Boolean = false,
+    val variants: List<VariantFormItem> = emptyList()
 )
 
 data class ProductUiState(
@@ -96,24 +107,38 @@ class ProductViewModel @Inject constructor(
 
     fun openEditProductForm(item: ProductWithCategory) {
         val p = item.product
-        _uiState.update {
-            it.copy(
-                isFormOpen = true,
-                formState = ProductFormState(
-                    id = p.id,
-                    name = p.name,
-                    categoryId = p.categoryId,
-                    sellingPrice = p.sellingPrice.toInt().toString(),
-                    costPrice = p.costPrice.toInt().toString(),
-                    stock = p.stock.toInt().toString(),
-                    unit = p.unit,
-                    barcode = p.barcode ?: "",
-                    sku = p.sku ?: "",
-                    trackStock = p.trackStock,
-                    minStock = p.minStock.toInt().toString(),
-                    isFavorite = p.isFavorite
+        viewModelScope.launch {
+            val variants = productRepository.getVariantsByProductId(p.id)
+            val variantItems = variants.map {
+                val finalPrice = p.sellingPrice + it.priceAdjustment
+                VariantFormItem(
+                    id = it.id,
+                    name = it.name,
+                    price = finalPrice.toInt().toString(),
+                    stock = (it.stock ?: p.stock).toInt().toString()
                 )
-            )
+            }
+            _uiState.update {
+                it.copy(
+                    isFormOpen = true,
+                    formState = ProductFormState(
+                        id = p.id,
+                        name = p.name,
+                        categoryId = p.categoryId,
+                        sellingPrice = p.sellingPrice.toInt().toString(),
+                        costPrice = p.costPrice.toInt().toString(),
+                        stock = p.stock.toInt().toString(),
+                        unit = p.unit,
+                        barcode = p.barcode ?: "",
+                        sku = p.sku ?: "",
+                        trackStock = p.trackStock,
+                        minStock = p.minStock.toInt().toString(),
+                        isFavorite = p.isFavorite,
+                        hasVariants = variantItems.isNotEmpty(),
+                        variants = variantItems
+                    )
+                )
+            }
         }
     }
 
@@ -123,6 +148,44 @@ class ProductViewModel @Inject constructor(
 
     fun updateForm(form: ProductFormState) {
         _uiState.update { it.copy(formState = form) }
+    }
+
+    fun addVariant() {
+        val current = _uiState.value.formState
+        val defaultPrice = current.sellingPrice
+        val newVariant = VariantFormItem(price = defaultPrice)
+        _uiState.update {
+            it.copy(
+                formState = current.copy(
+                    hasVariants = true,
+                    variants = current.variants + newVariant
+                )
+            )
+        }
+    }
+
+    fun removeVariant(variantId: String) {
+        val current = _uiState.value.formState
+        val updated = current.variants.filter { it.id != variantId }
+        _uiState.update {
+            it.copy(
+                formState = current.copy(
+                    variants = updated,
+                    hasVariants = updated.isNotEmpty()
+                )
+            )
+        }
+    }
+
+    fun updateVariant(variantId: String, name: String, price: String, stock: String) {
+        val current = _uiState.value.formState
+        val updated = current.variants.map {
+            if (it.id == variantId) it.copy(name = name, price = price, stock = stock)
+            else it
+        }
+        _uiState.update {
+            it.copy(formState = current.copy(variants = updated))
+        }
     }
 
     fun saveProduct() {
@@ -150,8 +213,21 @@ class ProductViewModel @Inject constructor(
             isActive = true
         )
 
+        val variantEntities = if (form.hasVariants) {
+            form.variants.filter { it.name.isNotBlank() }.map { v ->
+                val variantPrice = v.price.toDoubleOrNull() ?: sellingPrice
+                ProductVariantEntity(
+                    id = v.id,
+                    productId = productEntity.id,
+                    name = v.name.trim(),
+                    priceAdjustment = variantPrice - sellingPrice,
+                    stock = v.stock.toDoubleOrNull()
+                )
+            }
+        } else emptyList()
+
         viewModelScope.launch {
-            productRepository.saveProduct(productEntity)
+            productRepository.saveProduct(productEntity, variantEntities)
             _uiState.update { it.copy(isFormOpen = false) }
         }
     }

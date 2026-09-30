@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -74,9 +76,11 @@ import com.rising.pos.core.database.entity.ProductWithCategory
 import com.rising.pos.core.util.CurrencyFormatter
 import com.rising.pos.ui.theme.DangerRed
 import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.Slate100
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
+import com.rising.pos.ui.theme.Slate800
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
 import com.rising.pos.ui.theme.WarningAmber
@@ -264,6 +268,9 @@ fun ProductScreen(
             categories = categories,
             currencySymbol = settings.currencySymbol,
             onFormChange = viewModel::updateForm,
+            onAddVariant = viewModel::addVariant,
+            onRemoveVariant = viewModel::removeVariant,
+            onUpdateVariant = viewModel::updateVariant,
             onDismiss = viewModel::closeForm,
             onSave = viewModel::saveProduct
         )
@@ -431,6 +438,9 @@ private fun ProductFormBottomSheet(
     categories: List<com.rising.pos.core.database.entity.CategoryEntity>,
     currencySymbol: String,
     onFormChange: (ProductFormState) -> Unit,
+    onAddVariant: () -> Unit,
+    onRemoveVariant: (String) -> Unit,
+    onUpdateVariant: (String, String, String, String) -> Unit,
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
@@ -581,6 +591,159 @@ private fun ProductFormBottomSheet(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
+            }
+
+            HorizontalDivider(color = Slate200)
+
+            // Varian Produk Section
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Produk Memiliki Varian",
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                    Text(
+                        "Contoh: Ukuran (Reguler/Large), Rasa, atau Level Pedas",
+                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
+                    )
+                }
+                Switch(
+                    checked = form.hasVariants,
+                    onCheckedChange = { isChecked ->
+                        if (isChecked && form.variants.isEmpty()) {
+                            onAddVariant()
+                        } else {
+                            onFormChange(form.copy(hasVariants = isChecked))
+                        }
+                    }
+                )
+            }
+
+            if (form.hasVariants) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Slate100.copy(alpha = 0.5f))
+                        .padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Text(
+                        "Daftar Varian",
+                        style = MaterialTheme.typography.labelLarge.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = Slate800
+                        )
+                    )
+
+                    form.variants.forEachIndexed { index, variant ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Slate200)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(10.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        "Varian #${index + 1}",
+                                        style = MaterialTheme.typography.labelMedium.copy(
+                                            fontWeight = FontWeight.Bold,
+                                            color = PrimaryBlue
+                                        )
+                                    )
+                                    IconButton(
+                                        onClick = { onRemoveVariant(variant.id) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Hapus Varian",
+                                            tint = DangerRed,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+                                }
+
+                                OutlinedTextField(
+                                    value = variant.name,
+                                    onValueChange = { newName ->
+                                        onUpdateVariant(variant.id, newName, variant.price, variant.stock)
+                                    },
+                                    label = { Text("Nama Varian *") },
+                                    placeholder = { Text("Contoh: Regular / Extra") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    OutlinedTextField(
+                                        value = variant.price,
+                                        onValueChange = { newPrice ->
+                                            onUpdateVariant(
+                                                variant.id,
+                                                variant.name,
+                                                newPrice.filter { ch -> ch.isDigit() },
+                                                variant.stock
+                                            )
+                                        },
+                                        label = { Text("Harga Jual") },
+                                        prefix = { Text("$currencySymbol ") },
+                                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                        singleLine = true,
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+
+                                    if (form.trackStock) {
+                                        OutlinedTextField(
+                                            value = variant.stock,
+                                            onValueChange = { newStock ->
+                                                onUpdateVariant(
+                                                    variant.id,
+                                                    variant.name,
+                                                    variant.price,
+                                                    newStock.filter { ch -> ch.isDigit() }
+                                                )
+                                            },
+                                            label = { Text("Stok") },
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                            singleLine = true,
+                                            modifier = Modifier.weight(1f),
+                                            shape = RoundedCornerShape(8.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    OutlinedButton(
+                        onClick = onAddVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = PrimaryBlue)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("+ Tambah Varian")
+                    }
+                }
             }
 
             OutlinedTextField(
