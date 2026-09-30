@@ -4,16 +4,29 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.rising.pos.core.datastore.AppPreferences
 import com.rising.pos.core.datastore.BusinessSettings
+import com.rising.pos.core.printer.BluetoothPrinterDevice
+import com.rising.pos.core.printer.BluetoothPrinterManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+data class SettingsUiState(
+    val pairedPrinters: List<BluetoothPrinterDevice> = emptyList(),
+    val isPrinterPickerOpen: Boolean = false,
+    val isTestingPrint: Boolean = false,
+    val printerStatusMessage: String? = null
+)
+
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    private val printerManager: BluetoothPrinterManager
 ) : ViewModel() {
 
     val settings: StateFlow<BusinessSettings> = appPreferences.settingsFlow.stateIn(
@@ -21,6 +34,82 @@ class SettingsViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = BusinessSettings()
     )
+
+    private val _uiState = MutableStateFlow(SettingsUiState())
+    val uiState = _uiState.asStateFlow()
+
+    fun openPrinterPicker() {
+        val printers = printerManager.getPairedPrinters()
+        _uiState.update { it.copy(pairedPrinters = printers, isPrinterPickerOpen = true) }
+    }
+
+    fun closePrinterPicker() {
+        _uiState.update { it.copy(isPrinterPickerOpen = false) }
+    }
+
+    fun selectPrinter(device: BluetoothPrinterDevice) {
+        val current = settings.value
+        viewModelScope.launch {
+            appPreferences.updatePrinterSettings(
+                macAddress = device.address,
+                name = device.name,
+                paperWidthMm = current.printerPaperWidthMm,
+                autoPrintReceipt = current.autoPrintReceipt
+            )
+            _uiState.update { it.copy(isPrinterPickerOpen = false) }
+        }
+    }
+
+    fun setPaperWidth(widthMm: Int) {
+        val current = settings.value
+        viewModelScope.launch {
+            appPreferences.updatePrinterSettings(
+                macAddress = current.printerMacAddress,
+                name = current.printerName,
+                paperWidthMm = widthMm,
+                autoPrintReceipt = current.autoPrintReceipt
+            )
+        }
+    }
+
+    fun setAutoPrint(autoPrint: Boolean) {
+        val current = settings.value
+        viewModelScope.launch {
+            appPreferences.updatePrinterSettings(
+                macAddress = current.printerMacAddress,
+                name = current.printerName,
+                paperWidthMm = current.printerPaperWidthMm,
+                autoPrintReceipt = autoPrint
+            )
+        }
+    }
+
+    fun testPrint() {
+        val current = settings.value
+        if (current.printerMacAddress.isBlank()) {
+            _uiState.update { it.copy(printerStatusMessage = "Pilih printer Bluetooth terlebih dahulu.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isTestingPrint = true, printerStatusMessage = null) }
+            val result = printerManager.testPrint(
+                macAddress = current.printerMacAddress,
+                storeName = current.name,
+                paperWidthMm = current.printerPaperWidthMm
+            )
+            result.onSuccess {
+                _uiState.update { it.copy(isTestingPrint = false, printerStatusMessage = "Uji cetak berhasil terkirim ke printer.") }
+            }.onFailure { err ->
+                _uiState.update { it.copy(isTestingPrint = false, printerStatusMessage = "Gagal cetak: ${err.message}") }
+            }
+        }
+    }
+
+    fun clearPrinterStatus() {
+        _uiState.update { it.copy(printerStatusMessage = null) }
+    }
+
 
     fun updateFeatureToggles(
         isTableEnabled: Boolean,

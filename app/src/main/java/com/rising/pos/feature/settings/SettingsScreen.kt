@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -16,6 +18,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -30,16 +33,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.rising.pos.ui.theme.DangerRed
+import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
+import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
+import com.rising.pos.ui.theme.SuccessGreen
 
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsState()
+    val uiState by viewModel.uiState.collectAsState()
 
     var name by remember(settings.name) { mutableStateOf(settings.name) }
     var phone by remember(settings.phone) { mutableStateOf(settings.phone) }
@@ -268,9 +277,133 @@ fun SettingsScreen(
             }
         }
 
+        // Section 4: Printer Struk Thermal Bluetooth (PRD Section 7.33)
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Printer Struk Thermal (ESC/POS)",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
+                )
+                Text(
+                    text = "Hubungkan printer thermal Bluetooth untuk mencetak struk kasir secara instan.",
+                    style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
+                )
+
+                HorizontalDivider(color = Slate200)
+
+                // Current Connected Printer Status
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (settings.printerName.isNotBlank()) settings.printerName else "Belum Ada Printer Dipilih",
+                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
+                        )
+                        Text(
+                            text = if (settings.printerMacAddress.isNotBlank()) settings.printerMacAddress else "Ketuk 'Pilih Printer' untuk menghubungkan",
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                color = if (settings.printerMacAddress.isNotBlank()) PrimaryBlue else Slate500,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                            )
+                        )
+                    }
+
+                    OutlinedButton(
+                        onClick = viewModel::openPrinterPicker,
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Pilih Printer", fontSize = 12.sp)
+                    }
+                }
+
+                HorizontalDivider(color = Slate200)
+
+                // Paper Width Selection
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        text = "Ukuran Kertas Struk:",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, color = Slate700)
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        androidx.compose.material3.FilterChip(
+                            selected = settings.printerPaperWidthMm == 58,
+                            onClick = { viewModel.setPaperWidth(58) },
+                            label = { Text("58 mm (Standar Mini)") }
+                        )
+                        androidx.compose.material3.FilterChip(
+                            selected = settings.printerPaperWidthMm == 80,
+                            onClick = { viewModel.setPaperWidth(80) },
+                            label = { Text("80 mm (Lebar)") }
+                        )
+                    }
+                }
+
+                SettingToggleRow(
+                    title = "Cetak Struk Otomatis",
+                    subtitle = "Langsung cetak struk sesaat setelah transaksi kasir berhasil",
+                    checked = settings.autoPrintReceipt,
+                    onCheckedChange = viewModel::setAutoPrint
+                )
+
+                // Test Print Button & Feedback
+                Button(
+                    onClick = viewModel::testPrint,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    enabled = !uiState.isTestingPrint && settings.printerMacAddress.isNotBlank(),
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = com.rising.pos.ui.theme.PrimaryBlue
+                    )
+                ) {
+                    if (uiState.isTestingPrint) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Mengirim ke Printer...")
+                    } else {
+                        Text("Uji Cetak (Test Print)")
+                    }
+                }
+
+                uiState.printerStatusMessage?.let { msg ->
+                    Text(
+                        text = msg,
+                        style = MaterialTheme.typography.bodySmall.copy(
+                            color = if (msg.contains("berhasil", ignoreCase = true)) com.rising.pos.ui.theme.SuccessGreen else com.rising.pos.ui.theme.DangerRed,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    )
+                }
+            }
+        }
+
         Spacer(modifier = Modifier.height(20.dp))
     }
+
+    if (uiState.isPrinterPickerOpen) {
+        com.rising.pos.feature.settings.components.PrinterPickerDialog(
+            printers = uiState.pairedPrinters,
+            currentSelectedMac = settings.printerMacAddress,
+            onDismiss = viewModel::closePrinterPicker,
+            onSelectPrinter = viewModel::selectPrinter
+        )
+    }
 }
+
 
 @Composable
 private fun SettingToggleRow(

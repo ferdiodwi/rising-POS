@@ -13,8 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalance
 import androidx.compose.material.icons.filled.Check
@@ -50,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.rising.pos.core.datastore.BusinessSettings
+import com.rising.pos.core.model.BusinessType
+import com.rising.pos.core.model.OrderType
 import com.rising.pos.core.model.PaymentMethod
 import com.rising.pos.core.util.CurrencyFormatter
 import com.rising.pos.domain.model.CartState
@@ -68,7 +72,7 @@ fun CheckoutDialog(
     isProcessing: Boolean,
     errorMessage: String?,
     onDismiss: () -> Unit,
-    onConfirmPayment: (PaymentMethod, Double) -> Unit
+    onConfirmPayment: (PaymentMethod, Double, OrderType, String?) -> Unit
 ) {
     val calc = cart.calculateTotals(
         isTaxEnabled = settings.isTaxEnabled,
@@ -77,6 +81,16 @@ fun CheckoutDialog(
         isServiceChargeEnabled = settings.isServiceChargeEnabled,
         serviceChargePercentage = settings.serviceChargePercentage
     )
+
+    var selectedOrderType by remember {
+        mutableStateOf(
+            if (cart.orderType != OrderType.RETAIL) cart.orderType
+            else if (settings.type == BusinessType.CAFE) OrderType.DINE_IN
+            else cart.orderType
+        )
+    }
+    var tableNumber by remember { mutableStateOf(cart.tableNumber ?: "") }
+    var orderNote by remember { mutableStateOf(cart.note ?: "") }
 
     var selectedMethod by remember { mutableStateOf(PaymentMethod.CASH) }
     var cashInput by remember { mutableStateOf(calc.grandTotal.toInt().toString()) }
@@ -98,6 +112,7 @@ fun CheckoutDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
                 // Title
                 Row(
@@ -149,7 +164,67 @@ fun CheckoutDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Order Type Selector (if Cafe or Table Enabled)
+                if (settings.type == BusinessType.CAFE || settings.isTableEnabled) {
+                    Text(
+                        text = "Tipe Pesanan",
+                        style = MaterialTheme.typography.labelMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            color = Slate900
+                        )
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        listOf(
+                            OrderType.DINE_IN to "Dine In",
+                            OrderType.TAKEAWAY to "Bungkus",
+                            OrderType.DELIVERY to "Delivery"
+                        ).forEach { (type, label) ->
+                            FilterChip(
+                                selected = selectedOrderType == type,
+                                onClick = { selectedOrderType = type },
+                                label = { Text(label, fontSize = 12.sp) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
+                                    selectedLabelColor = PrimaryBlue
+                                )
+                            )
+                        }
+                    }
+
+                    if (settings.isTableEnabled && selectedOrderType == OrderType.DINE_IN) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(
+                            value = tableNumber,
+                            onValueChange = { tableNumber = it },
+                            label = { Text("Nomor Meja", fontSize = 12.sp) },
+                            placeholder = { Text("Contoh: Meja 03", fontSize = 12.sp) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            shape = RoundedCornerShape(10.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+
+                // Customer / Order Note Field
+                OutlinedTextField(
+                    value = orderNote,
+                    onValueChange = { orderNote = it },
+                    label = { Text("Catatan Pesanan (Opsional)", fontSize = 12.sp) },
+                    placeholder = { Text("Contoh: Less ice, jangan pedas", fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(10.dp)
+                )
+
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Payment Method Selector
                 Text(
@@ -301,7 +376,16 @@ fun CheckoutDialog(
                     Button(
                         onClick = {
                             val paid = if (selectedMethod == PaymentMethod.CASH) cashAmount else calc.grandTotal
-                            onConfirmPayment(selectedMethod, paid)
+                            val combinedNote = buildString {
+                                if (tableNumber.isNotBlank() && selectedOrderType == OrderType.DINE_IN) {
+                                    append("Meja: ${tableNumber.trim()}")
+                                }
+                                if (orderNote.isNotBlank()) {
+                                    if (isNotEmpty()) append(" • ")
+                                    append(orderNote.trim())
+                                }
+                            }.ifBlank { null }
+                            onConfirmPayment(selectedMethod, paid, selectedOrderType, combinedNote)
                         },
                         enabled = !isProcessing && (selectedMethod != PaymentMethod.CASH || isCashSufficient),
                         modifier = Modifier

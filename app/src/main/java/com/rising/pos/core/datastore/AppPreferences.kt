@@ -37,7 +37,12 @@ data class BusinessSettings(
     val taxPercentage: Double = 11.0,
     val isTaxInclusive: Boolean = true,
     val isServiceChargeEnabled: Boolean = false,
-    val serviceChargePercentage: Double = 5.0
+    val serviceChargePercentage: Double = 5.0,
+    // Printer
+    val printerMacAddress: String = "",
+    val printerName: String = "",
+    val printerPaperWidthMm: Int = 58,
+    val autoPrintReceipt: Boolean = false
 )
 
 @Singleton
@@ -65,6 +70,11 @@ class AppPreferences @Inject constructor(
         val IS_TAX_INCLUSIVE = booleanPreferencesKey("is_tax_inclusive")
         val IS_SERVICE_CHARGE_ENABLED = booleanPreferencesKey("is_service_charge_enabled")
         val SERVICE_CHARGE_PERCENTAGE = doublePreferencesKey("service_charge_percentage")
+
+        val PRINTER_MAC_ADDRESS = stringPreferencesKey("printer_mac_address")
+        val PRINTER_NAME = stringPreferencesKey("printer_name")
+        val PRINTER_PAPER_WIDTH = androidx.datastore.preferences.core.intPreferencesKey("printer_paper_width")
+        val AUTO_PRINT_RECEIPT = booleanPreferencesKey("auto_print_receipt")
     }
 
     val settingsFlow: Flow<BusinessSettings> = context.dataStore.data.map { prefs ->
@@ -93,9 +103,14 @@ class AppPreferences @Inject constructor(
             taxPercentage = prefs[Keys.TAX_PERCENTAGE] ?: 11.0,
             isTaxInclusive = prefs[Keys.IS_TAX_INCLUSIVE] ?: true,
             isServiceChargeEnabled = prefs[Keys.IS_SERVICE_CHARGE_ENABLED] ?: false,
-            serviceChargePercentage = prefs[Keys.SERVICE_CHARGE_PERCENTAGE] ?: 5.0
+            serviceChargePercentage = prefs[Keys.SERVICE_CHARGE_PERCENTAGE] ?: 5.0,
+            printerMacAddress = prefs[Keys.PRINTER_MAC_ADDRESS] ?: "",
+            printerName = prefs[Keys.PRINTER_NAME] ?: "",
+            printerPaperWidthMm = prefs[Keys.PRINTER_PAPER_WIDTH] ?: 58,
+            autoPrintReceipt = prefs[Keys.AUTO_PRINT_RECEIPT] ?: false
         )
     }
+
 
     suspend fun updateBusinessProfile(
         name: String,
@@ -182,4 +197,19 @@ class AppPreferences @Inject constructor(
             prefs[Keys.IS_ONBOARDING_COMPLETED] = completed
         }
     }
+
+    suspend fun updatePrinterSettings(
+        macAddress: String,
+        name: String,
+        paperWidthMm: Int,
+        autoPrintReceipt: Boolean
+    ) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.PRINTER_MAC_ADDRESS] = macAddress
+            prefs[Keys.PRINTER_NAME] = name
+            prefs[Keys.PRINTER_PAPER_WIDTH] = paperWidthMm
+            prefs[Keys.AUTO_PRINT_RECEIPT] = autoPrintReceipt
+        }
+    }
 }
+

@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
@@ -78,6 +79,8 @@ fun TransactionDetailDialog(
     transactionWithDetails: TransactionWithDetails,
     settings: BusinessSettings,
     isProcessing: Boolean = false,
+    isPrinting: Boolean = false,
+    onPrintReceipt: () -> Unit = {},
     onDismiss: () -> Unit,
     onVoidTransaction: (transactionId: String, reason: String) -> Unit
 ) {
@@ -297,7 +300,9 @@ fun TransactionDetailDialog(
                             val shareIntent = Intent.createChooser(sendIntent, "Bagikan Struk Transaksi")
                             context.startActivity(shareIntent)
                         },
-                        modifier = Modifier.weight(1f).height(46.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
                         Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -305,22 +310,54 @@ fun TransactionDetailDialog(
                         Text("Bagikan", fontSize = 13.sp)
                     }
 
-                    // Void button (only if transaction is completed)
-                    if (trx.status == TransactionStatus.COMPLETED) {
-                        Button(
-                            onClick = { showVoidConfirmDialog = true },
-                            modifier = Modifier.weight(1f).height(46.dp),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
-                            enabled = !isProcessing
-                        ) {
-                            if (isProcessing) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
-                            } else {
-                                Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Void (Batal)", fontSize = 13.sp)
-                            }
+                    // Print Thermal Receipt
+                    Button(
+                        onClick = onPrintReceipt,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
+                        enabled = !isPrinting && !isProcessing
+                    ) {
+                        if (isPrinting) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Mencetak...", fontSize = 13.sp)
+                        } else {
+                            Icon(Icons.Default.Print, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Cetak", fontSize = 13.sp)
+                        }
+                    }
+                }
+
+                // Void button (only if transaction is completed)
+                if (trx.status == TransactionStatus.COMPLETED) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Button(
+                        onClick = { showVoidConfirmDialog = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(46.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
+                        enabled = !isProcessing && !isPrinting
+                    ) {
+                        if (isProcessing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                color = Color.White,
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("Batalkan Transaksi (Void)", fontSize = 13.sp)
                         }
                     }
                 }

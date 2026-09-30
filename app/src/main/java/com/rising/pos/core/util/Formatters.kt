@@ -72,6 +72,9 @@ object ReceiptFormatter {
         if (!trx.cashierId.isNullOrEmpty()) sb.appendLine(twoColumns("Kasir:", trx.cashierId))
         sb.appendLine(twoColumns("Tipe:", trx.orderType.name))
         sb.appendLine(twoColumns("Status:", trx.status.name))
+        if (!trx.note.isNullOrEmpty()) {
+            sb.appendLine("Catatan: ${trx.note}")
+        }
         sb.appendLine(line('-'))
 
         for (itemDetail in items) {

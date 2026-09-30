@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.datastore.AppPreferences
 import com.rising.pos.core.datastore.BusinessSettings
+import com.rising.pos.core.printer.BluetoothPrinterManager
 import com.rising.pos.domain.repository.TransactionRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ import javax.inject.Inject
 data class TransactionUiState(
     val selectedTransaction: TransactionWithDetails? = null,
     val isProcessing: Boolean = false,
+    val isPrinting: Boolean = false,
     val errorMessage: String? = null,
     val successMessage: String? = null
 )
@@ -26,7 +28,8 @@ data class TransactionUiState(
 @HiltViewModel
 class TransactionViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    private val printerManager: BluetoothPrinterManager
 ) : ViewModel() {
 
     val settings: StateFlow<BusinessSettings> = appPreferences.settingsFlow.stateIn(
@@ -92,6 +95,41 @@ class TransactionViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    fun printReceipt(transactionWithDetails: TransactionWithDetails) {
+        val currentSettings = settings.value
+        if (currentSettings.printerMacAddress.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "Printer thermal belum dipilih di Pengaturan.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isPrinting = true, errorMessage = null, successMessage = null) }
+            val result = printerManager.printReceipt(
+                macAddress = currentSettings.printerMacAddress,
+                transactionWithDetails = transactionWithDetails,
+                settings = currentSettings
+            )
+            result.fold(
+                onSuccess = {
+                    _uiState.update {
+                        it.copy(
+                            isPrinting = false,
+                            successMessage = "Struk transaksi #${transactionWithDetails.transaction.receiptNumber} berhasil dicetak!"
+                        )
+                    }
+                },
+                onFailure = { err ->
+                    _uiState.update {
+                        it.copy(
+                            isPrinting = false,
+                            errorMessage = err.localizedMessage ?: "Gagal mencetak struk."
+                        )
+                    }
+                }
+            )
         }
     }
 

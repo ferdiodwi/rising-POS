@@ -14,6 +14,7 @@ import com.rising.pos.domain.model.CartItem
 import com.rising.pos.domain.model.CartState
 import com.rising.pos.domain.repository.ProductRepository
 import com.rising.pos.domain.repository.TransactionRepository
+import com.rising.pos.core.printer.BluetoothPrinterManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,14 +37,18 @@ data class PosUiState(
     val isHeldOrdersListDialogOpen: Boolean = false,
     val isProcessingPayment: Boolean = false,
     val paymentErrorMessage: String? = null,
-    val lastCompletedTransaction: TransactionWithDetails? = null
+    val lastCompletedTransaction: TransactionWithDetails? = null,
+    val isPrinting: Boolean = false,
+    val printMessage: String? = null,
+    val printErrorMessage: String? = null
 )
 
 @HiltViewModel
 class PosViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val transactionRepository: TransactionRepository,
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    private val printerManager: BluetoothPrinterManager
 ) : ViewModel() {
 
     val settings: StateFlow<BusinessSettings> = appPreferences.settingsFlow.stateIn(
@@ -93,6 +98,20 @@ class PosViewModel @Inject constructor(
 
     fun updateSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun scanBarcode(barcode: String) {
+        val trimmed = barcode.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            val matched = productRepository.getProductByBarcode(trimmed)
+            if (matched != null) {
+                addToCart(matched.product)
+                _uiState.update { it.copy(searchQuery = "") }
+            } else {
+                updateSearchQuery(trimmed)
+            }
+        }
     }
 
     fun addToCart(product: ProductEntity) {
@@ -161,10 +180,15 @@ class PosViewModel @Inject constructor(
 
     fun processPayment(
         paymentMethod: PaymentMethod,
-        cashPaidAmount: Double
+        cashPaidAmount: Double,
+        orderType: OrderType = _uiState.value.cart.orderType,
+        note: String? = _uiState.value.cart.note
     ) {
         val currentSettings = settings.value
-        val currentCart = _uiState.value.cart
+        val currentCart = _uiState.value.cart.copy(
+            orderType = orderType,
+            note = if (!note.isNullOrBlank()) note else _uiState.value.cart.note
+        )
         val calc = currentCart.calculateTotals(
             isTaxEnabled = currentSettings.isTaxEnabled,
             taxPercentage = currentSettings.taxPercentage,
@@ -199,8 +223,14 @@ class PosViewModel @Inject constructor(
                             isCheckoutDialogOpen = false,
                             isCartSheetOpen = false,
                             cart = CartState(), // Clear cart
-                            lastCompletedTransaction = completedTrx
+                            lastCompletedTransaction = completedTrx,
+                            printMessage = null,
+                            printErrorMessage = null
                         )
+                    }
+
+                    if (currentSettings.autoPrintReceipt && currentSettings.printerMacAddress.isNotBlank()) {
+                        printReceipt(completedTrx)
                     }
                 },
                 onFailure = { error ->
@@ -215,8 +245,51 @@ class PosViewModel @Inject constructor(
         }
     }
 
+    fun printReceipt(transactionWithDetails: TransactionWithDetails? = _uiState.value.lastCompletedTransaction) {
+        val trx = transactionWithDetails ?: return
+        val currentSettings = settings.value
+        if (currentSettings.printerMacAddress.isBlank()) {
+            _uiState.update { it.copy(printErrorMessage = "Printer belum dipilih di Pengaturan.") }
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isPrinting = true, printErrorMessage = null, printMessage = null) }
+            val result = printerManager.printReceipt(
+                macAddress = currentSettings.printerMacAddress,
+                transactionWithDetails = trx,
+                settings = currentSettings
+            )
+            result.fold(
+                onSuccess = {
+                    _uiState.update {
+                        it.copy(
+                            isPrinting = false,
+                            printMessage = "Struk berhasil dicetak!"
+                        )
+                    }
+                },
+                onFailure = { err ->
+                    _uiState.update {
+                        it.copy(
+                            isPrinting = false,
+                            printErrorMessage = err.localizedMessage ?: "Gagal mencetak struk."
+                        )
+                    }
+                }
+            )
+        }
+    }
+
     fun dismissSuccessDialog() {
-        _uiState.update { it.copy(lastCompletedTransaction = null) }
+        _uiState.update {
+            it.copy(
+                lastCompletedTransaction = null,
+                isPrinting = false,
+                printMessage = null,
+                printErrorMessage = null
+            )
+        }
     }
 
     fun openHoldDialog() {

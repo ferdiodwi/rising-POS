@@ -166,6 +166,8 @@ fun TransactionScreen(
             transactionWithDetails = trx,
             settings = settings,
             isProcessing = uiState.isProcessing,
+            isPrinting = uiState.isPrinting,
+            onPrintReceipt = { viewModel.printReceipt(trx) },
             onDismiss = { viewModel.selectTransaction(null) },
             onVoidTransaction = { trxId, reason ->
                 viewModel.voidTransaction(trxId, reason)

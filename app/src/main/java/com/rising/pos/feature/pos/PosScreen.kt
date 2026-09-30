@@ -22,11 +22,14 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material.icons.filled.Store
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -102,6 +105,7 @@ fun PosScreen(
                         searchQuery = uiState.searchQuery,
                         heldOrdersCount = heldTransactions.size,
                         onSearchChange = viewModel::updateSearchQuery,
+                        onScanBarcode = viewModel::scanBarcode,
                         onOpenHeldOrders = viewModel::openHeldOrdersList
                     )
 
@@ -161,6 +165,7 @@ fun PosScreen(
                         searchQuery = uiState.searchQuery,
                         heldOrdersCount = heldTransactions.size,
                         onSearchChange = viewModel::updateSearchQuery,
+                        onScanBarcode = viewModel::scanBarcode,
                         onOpenHeldOrders = viewModel::openHeldOrdersList
                     )
 
@@ -316,6 +321,10 @@ fun PosScreen(
             ReceiptSuccessDialog(
                 transactionWithDetails = completedTrx,
                 settings = settings,
+                isPrinting = uiState.isPrinting,
+                printMessage = uiState.printMessage,
+                printErrorMessage = uiState.printErrorMessage,
+                onPrintReceipt = { viewModel.printReceipt(completedTrx) },
                 onDismiss = viewModel::dismissSuccessDialog
             )
         }
@@ -329,6 +338,7 @@ private fun PosHeader(
     searchQuery: String,
     heldOrdersCount: Int = 0,
     onSearchChange: (String) -> Unit,
+    onScanBarcode: (String) -> Unit = {},
     onOpenHeldOrders: () -> Unit = {}
 ) {
     Row(
@@ -402,12 +412,11 @@ private fun PosHeader(
             }
         }
 
-        // Search Bar
-
+        // Search Bar with Barcode Scanner Enter Action
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchChange,
-            placeholder = { Text("Cari produk...", fontSize = 13.sp) },
+            placeholder = { Text("Cari / scan...", fontSize = 13.sp) },
             leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Slate500, modifier = Modifier.size(18.dp)) },
             trailingIcon = if (searchQuery.isNotEmpty()) {
                 {
@@ -416,6 +425,10 @@ private fun PosHeader(
                     }
                 }
             } else null,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(
+                onSearch = { onScanBarcode(searchQuery) }
+            ),
             singleLine = true,
             modifier = Modifier
                 .width(220.dp)
