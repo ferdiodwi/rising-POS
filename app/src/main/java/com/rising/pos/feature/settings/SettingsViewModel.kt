@@ -9,6 +9,9 @@ import com.rising.pos.core.model.AppTheme
 import com.rising.pos.core.export.DataExportManager
 import com.rising.pos.core.printer.BluetoothPrinterDevice
 import com.rising.pos.core.printer.BluetoothPrinterManager
+import android.content.Intent
+import com.rising.pos.core.update.AppUpdateManager
+import com.rising.pos.core.update.model.UpdateState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -36,8 +39,11 @@ data class SettingsUiState(
 class SettingsViewModel @Inject constructor(
     private val appPreferences: AppPreferences,
     private val printerManager: BluetoothPrinterManager,
-    private val dataExportManager: DataExportManager
+    private val dataExportManager: DataExportManager,
+    private val appUpdateManager: AppUpdateManager
 ) : ViewModel() {
+
+    val updateState: StateFlow<UpdateState> = appUpdateManager.updateState
 
     val settings: StateFlow<BusinessSettings> = appPreferences.settingsFlow.stateIn(
         scope = viewModelScope,
@@ -346,5 +352,29 @@ class SettingsViewModel @Inject constructor(
 
     fun closePinSetupDialog() {
         _uiState.update { it.copy(isPinSetupDialogOpen = false) }
+    }
+
+    fun checkForUpdates() {
+        viewModelScope.launch {
+            appUpdateManager.checkForUpdates()
+        }
+    }
+
+    fun downloadUpdate(downloadUrl: String, versionTag: String) {
+        viewModelScope.launch {
+            appUpdateManager.downloadApk(downloadUrl, versionTag)
+        }
+    }
+
+    fun installUpdate() {
+        appUpdateManager.installApk()
+    }
+
+    fun canInstallPackages(): Boolean = appUpdateManager.canInstallPackages()
+
+    fun getUnknownSourcesSettingsIntent(): Intent? = appUpdateManager.getUnknownSourcesSettingsIntent()
+
+    fun dismissUpdate() {
+        appUpdateManager.resetState()
     }
 }

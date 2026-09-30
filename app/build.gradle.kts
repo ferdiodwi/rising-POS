@@ -106,9 +106,10 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // ── Coroutines & Serialization ────────────────────────────────────────────
+    // ── Coroutines, Serialization & Networking ──────────────────────────────
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
+    implementation(libs.okhttp)
 
     // ── Unit Tests ────────────────────────────────────────────────────────────
     testImplementation(libs.junit)

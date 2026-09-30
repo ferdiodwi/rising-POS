@@ -57,6 +57,8 @@ import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
+import com.rising.pos.feature.settings.components.AppUpdateCard
+import com.rising.pos.feature.settings.components.AppUpdateDialog
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
 import com.rising.pos.ui.theme.WarningAmber
@@ -68,6 +70,7 @@ fun SettingsScreen(
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val updateState by viewModel.updateState.collectAsState()
 
     var name by remember(settings.name) { mutableStateOf(settings.name) }
     var phone by remember(settings.phone) { mutableStateOf(settings.phone) }
@@ -706,6 +709,12 @@ fun SettingsScreen(
             }
         }
 
+        // ── In-App Update (GitHub Releases) ───────────────────────────────────
+        AppUpdateCard(
+            updateState = updateState,
+            onCheckUpdate = viewModel::checkForUpdates
+        )
+
         Spacer(modifier = Modifier.height(20.dp))
     }
 
@@ -725,6 +734,19 @@ fun SettingsScreen(
             onSavePin = viewModel::updatePinSecurity
         )
     }
+
+    AppUpdateDialog(
+        updateState = updateState,
+        canInstallPackages = viewModel.canInstallPackages(),
+        onDownload = { url, tag -> viewModel.downloadUpdate(url, tag) },
+        onInstall = viewModel::installUpdate,
+        onOpenUnknownSourcesSettings = {
+            viewModel.getUnknownSourcesSettingsIntent()?.let { intent ->
+                context.startActivity(intent)
+            }
+        },
+        onDismiss = viewModel::dismissUpdate
+    )
 
     if (isPinAuthForRestoreOpen) {
         SecurityPinDialog(
