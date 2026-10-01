@@ -1,6 +1,9 @@
 package com.rising.pos.feature.inventory
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Arrangement
+import com.rising.pos.ui.components.WorkspaceHeader
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -45,10 +48,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -82,7 +83,7 @@ fun InventoryScreen(
     val trackedProducts by viewModel.trackedProducts.collectAsState()
     val recentMovements by viewModel.recentMovements.collectAsState()
 
-    val tabs = listOf("Daftar Stok Produk", "Riwayat Pergerakan Stok")
+    val tabs = listOf("Persediaan", "Riwayat stok")
     val dateFormatter = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
 
     Column(
@@ -90,38 +91,18 @@ fun InventoryScreen(
             .fillMaxSize()
             .padding(16.dp)
     ) {
-        // Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "Inventori & Stok",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                )
-                Text(
-                    text = "Pantau keluar masuk & penyesuaian barang",
-                    style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                )
-            }
-
+            WorkspaceHeader("Stok produk", "Pantau persediaan dan catat perubahan stok.")
             Button(
                 onClick = { viewModel.openStockAction(StockActionType.RESTOCK) },
+                modifier = Modifier.padding(top = 12.dp),
                 shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = SuccessGreen)
+                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
             ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Stok Masuk", fontSize = 12.sp)
+                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Stok masuk")
             }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
+            Spacer(Modifier.height(16.dp))
 
         // Tabs
         PrimaryTabRow(
@@ -320,7 +301,8 @@ private fun MovementItemRow(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier

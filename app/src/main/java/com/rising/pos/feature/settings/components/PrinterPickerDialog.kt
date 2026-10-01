@@ -20,7 +20,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bluetooth
 import androidx.compose.material.icons.filled.Print
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -32,7 +31,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -61,7 +59,7 @@ fun PrinterPickerDialog(
                 Icon(
                     imageVector = Icons.Default.Print,
                     contentDescription = null,
-                    tint = PrimaryBlue,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(24.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -160,7 +158,7 @@ fun PrinterPickerDialog(
                                         Text(
                                             text = "Terpilih",
                                             style = MaterialTheme.typography.labelSmall.copy(
-                                                color = PrimaryBlue,
+                                                color = MaterialTheme.colorScheme.primary,
                                                 fontWeight = FontWeight.Bold
                                             )
                                         )

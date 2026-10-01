@@ -1,8 +1,13 @@
 package com.rising.pos.feature.customer
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import com.rising.pos.ui.components.WorkspaceHeader
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -26,10 +31,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -40,14 +43,12 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.database.entity.CustomerWithStats
 import com.rising.pos.core.util.CurrencyFormatter
@@ -81,14 +82,11 @@ fun CustomerScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = viewModel::openAddCustomer,
-                containerColor = PrimaryBlue,
-                contentColor = Color.White,
-                shape = CircleShape
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Tambah Pelanggan")
-            }
+            ExtendedFloatingActionButton(
+                onClick = viewModel::openAddCustomer, containerColor = PrimaryBlue, contentColor = Color.White,
+                shape = RoundedCornerShape(14.dp),
+                icon = { Icon(Icons.Default.Add, null) }, text = { Text("Tambah pelanggan") }
+            )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
@@ -98,28 +96,8 @@ fun CustomerScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Data Pelanggan",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                    )
-                    Text(
-                        text = "${customers.size} Pelanggan Terdaftar",
-                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
+            WorkspaceHeader("Pelanggan", "${customers.size} pelanggan ditampilkan")
+            Spacer(Modifier.height(16.dp))
 
             // Search Bar
             OutlinedTextField(
@@ -165,6 +143,7 @@ fun CustomerScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(customers, key = { it.customer.id }) { item ->
@@ -246,7 +225,8 @@ private fun CustomerCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(14.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier

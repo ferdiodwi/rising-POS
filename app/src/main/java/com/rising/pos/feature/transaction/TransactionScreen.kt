@@ -1,6 +1,12 @@
 package com.rising.pos.feature.transaction
 
-import androidx.compose.foundation.clickable
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.ui.text.style.TextOverflow
+import com.rising.pos.core.model.PaymentMethod
+import com.rising.pos.ui.components.WorkspaceHeader
+import com.rising.pos.ui.components.WorkspaceEmptyState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,39 +17,30 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.util.CurrencyFormatter
-import com.rising.pos.feature.pos.components.ReceiptSuccessDialog
 import com.rising.pos.ui.theme.PrimaryBlue
-import com.rising.pos.ui.theme.Slate100
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
-import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
 import java.text.SimpleDateFormat
@@ -55,7 +52,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -65,7 +61,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.style.TextDecoration
 import com.rising.pos.core.model.TransactionStatus
 import com.rising.pos.feature.transaction.components.TransactionDetailDialog
@@ -114,31 +109,12 @@ fun TransactionScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Riwayat Transaksi",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                    )
-                    Text(
-                        text = if (searchQuery.isNotBlank() || statusFilter != null) {
-                            "${transactions.size} dari ${allTransactions.size} Transaksi"
-                        } else {
-                            "${allTransactions.size} Transaksi Tersimpan"
-                        },
-                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
+            WorkspaceHeader(
+                "Riwayat transaksi",
+                if (searchQuery.isNotBlank() || statusFilter != null) "${transactions.size} dari ${allTransactions.size} transaksi"
+                else "${allTransactions.size} transaksi tersimpan"
+            )
+            Spacer(Modifier.height(16.dp))
 
             // Search Bar
             OutlinedTextField(
@@ -221,27 +197,12 @@ fun TransactionScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
-                            contentDescription = null,
-                            tint = Slate500,
-                            modifier = Modifier.size(56.dp)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = if (allTransactions.isEmpty()) "Belum Ada Transaksi" else "Tidak Ada Transaksi yang Cocok",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = if (allTransactions.isEmpty()) {
-                                "Transaksi yang selesai akan tercatat otomatis di sini."
-                            } else {
-                                "Coba ubah kata kunci pencarian atau ganti filter status transaksi."
-                            },
-                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                        )
-                    }
+                    WorkspaceEmptyState(
+                        Icons.AutoMirrored.Filled.ReceiptLong,
+                        if (allTransactions.isEmpty()) "Belum ada transaksi" else "Transaksi tidak ditemukan",
+                        if (allTransactions.isEmpty()) "Selesaikan pembayaran di menu Kasir. Struk dan detailnya akan tersimpan di sini."
+                        else "Coba kata kunci lain atau ubah filter status."
+                    )
                 }
             } else {
                 LazyColumn(
@@ -314,125 +275,52 @@ private fun TransactionItemCard(
     val isVoided = trx.status == TransactionStatus.CANCELLED
     val isRefunded = trx.status == TransactionStatus.REFUNDED
 
+    val paymentLabel = when (trx.paymentMethod) {
+        PaymentMethod.CASH -> "Tunai"
+        PaymentMethod.QRIS -> "QRIS"
+        PaymentMethod.BANK_TRANSFER -> "Transfer bank"
+        PaymentMethod.DEBIT_CARD -> "Kartu debit"
+        PaymentMethod.CREDIT_CARD -> "Kartu kredit"
+        PaymentMethod.E_WALLET -> "Dompet digital"
+        PaymentMethod.OTHER -> "Lainnya"
+    }
+    val statusLabel = when (trx.status) {
+        TransactionStatus.COMPLETED -> "Selesai"
+        TransactionStatus.CANCELLED -> "Dibatalkan"
+        TransactionStatus.REFUNDED -> "Dikembalikan"
+        TransactionStatus.HELD -> "Tertunda"
+    }
+    val statusColor = when (trx.status) {
+        TransactionStatus.CANCELLED -> DangerRed
+        TransactionStatus.REFUNDED, TransactionStatus.HELD -> WarningAmber
+        else -> SuccessGreen
+    }
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isVoided) Slate100 else MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isVoided) 0.5.dp else 1.5.dp)
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, Slate200)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = trx.receiptNumber,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontFamily = FontFamily.Monospace,
-                            color = if (isVoided) Slate500 else Slate900,
-                            textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None
-                        )
-                    )
-
-                    Surface(
-                        color = PrimaryBlue.copy(alpha = 0.1f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(
-                            text = trx.paymentMethod.name,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = PrimaryBlue,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 9.sp
-                            ),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-
-                    if (isVoided) {
-                        Surface(
-                            color = DangerRed.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = "VOID",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = DangerRed,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 9.sp
-                                ),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    } else if (isRefunded) {
-                        Surface(
-                            color = WarningAmber.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = "REFUND",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = WarningAmber,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 9.sp
-                                ),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = itemsSummary,
-                    style = MaterialTheme.typography.bodySmall.copy(color = Slate700),
-                    maxLines = 1
-                )
-
-                Spacer(modifier = Modifier.height(2.dp))
-
-                Text(
-                    text = dateStr,
-                    style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
-                )
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(dateStr, style = MaterialTheme.typography.bodySmall, color = Slate500, modifier = Modifier.weight(1f))
+                Text(statusLabel, style = MaterialTheme.typography.labelMedium, color = statusColor)
             }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = CurrencyFormatter.format(trx.grandTotal, currencySymbol),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.ExtraBold,
-                        color = when {
-                            isVoided -> DangerRed
-                            isRefunded -> WarningAmber
-                            else -> SuccessGreen
-                        },
-                        textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None
-                    )
-                )
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = null,
-                    tint = Slate500,
-                    modifier = Modifier.size(18.dp)
-                )
+            Text(trx.receiptNumber, style = MaterialTheme.typography.titleSmall, color = Slate900)
+            Text(itemsSummary, style = MaterialTheme.typography.bodyMedium, color = Slate500,
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
+            androidx.compose.material3.HorizontalDivider(color = Slate200)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(CurrencyFormatter.format(trx.grandTotal, currencySymbol),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None
+                        ), color = Slate900)
+                    Text(paymentLabel, style = MaterialTheme.typography.bodySmall, color = Slate500)
+                }
+                Icon(Icons.Default.ChevronRight, null, tint = Slate500, modifier = Modifier.size(20.dp))
             }
         }
     }
 }
-

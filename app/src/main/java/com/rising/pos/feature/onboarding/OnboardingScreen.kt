@@ -1,7 +1,11 @@
 package com.rising.pos.feature.onboarding
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,7 +22,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Devices
 import androidx.compose.material.icons.filled.LocationOn
@@ -35,12 +38,10 @@ import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -50,10 +51,8 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.model.BusinessType
 import com.rising.pos.ui.theme.PrimaryBlue
-import com.rising.pos.ui.theme.Slate100
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate900
-import com.rising.pos.ui.theme.SuccessGreen
 
 @Composable
 fun OnboardingScreen(
@@ -69,6 +68,7 @@ fun OnboardingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .safeDrawingPadding()
                 .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -84,7 +84,7 @@ fun OnboardingScreen(
                 Icon(
                     imageVector = Icons.Default.PointOfSale,
                     contentDescription = null,
-                    tint = PrimaryBlue,
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(38.dp)
                 )
             }
@@ -100,7 +100,7 @@ fun OnboardingScreen(
             )
 
             Text(
-                text = "Aplikasi Kasir Fleksibel, Offline-First & Cepat",
+                text = "Siapkan toko. Mulai berjualan.",
                 style = MaterialTheme.typography.bodyMedium.copy(color = Slate500),
                 modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
             )
@@ -111,14 +111,14 @@ fun OnboardingScreen(
                     .padding(horizontal = 4.dp),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
                     Text(
-                        text = "1. Profil Toko Anda",
+                        text = "Profil toko",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.SemiBold,
                             color = Slate900
@@ -131,7 +131,7 @@ fun OnboardingScreen(
                         label = { Text("Nama Toko / Usaha *") },
                         placeholder = { Text("Contoh: Kedai Kopi Rising") },
                         leadingIcon = {
-                            Icon(Icons.Default.Storefront, contentDescription = null, tint = PrimaryBlue)
+                            Icon(Icons.Default.Storefront, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
@@ -143,7 +143,7 @@ fun OnboardingScreen(
                         style = MaterialTheme.typography.labelLarge.copy(color = Slate900)
                     )
 
-                    Row(
+                    FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -163,7 +163,7 @@ fun OnboardingScreen(
                                 } else null,
                                 colors = FilterChipDefaults.filterChipColors(
                                     selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
-                                    selectedLabelColor = PrimaryBlue
+                                    selectedLabelColor = MaterialTheme.colorScheme.primary
                                 )
                             )
                         }
@@ -196,7 +196,7 @@ fun OnboardingScreen(
                     OutlinedTextField(
                         value = state.deviceId,
                         onValueChange = viewModel::updateDeviceId,
-                        label = { Text("Prefix Perangkat (untuk Multi-Device)") },
+                        label = { Text("Kode perangkat") },
                         leadingIcon = {
                             Icon(Icons.Default.Devices, contentDescription = null, tint = Slate500)
                         },
@@ -233,7 +233,7 @@ fun OnboardingScreen(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = "Mulai Masuk Kasir",
+                            text = "Mulai berjualan",
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White

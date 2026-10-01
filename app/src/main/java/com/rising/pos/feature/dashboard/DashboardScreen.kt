@@ -1,59 +1,32 @@
 package com.rising.pos.feature.dashboard
 
-import androidx.compose.foundation.background
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import com.rising.pos.ui.theme.DangerRed
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.MoneyOff
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.util.CurrencyFormatter
-import com.rising.pos.ui.theme.PrimaryBlue
-import com.rising.pos.ui.theme.Slate200
-import com.rising.pos.ui.theme.Slate500
-import com.rising.pos.ui.theme.Slate700
-import com.rising.pos.ui.theme.Slate900
-import com.rising.pos.ui.theme.SuccessGreen
-import com.rising.pos.ui.theme.WarningAmber
+import com.rising.pos.ui.components.WorkspaceEmptyState
+import com.rising.pos.ui.components.WorkspaceHeader
+import com.rising.pos.ui.theme.*
 
 @Composable
 fun DashboardScreen(
@@ -65,432 +38,130 @@ fun DashboardScreen(
     val metrics by viewModel.metrics.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
+    fun money(value: Double) = CurrencyFormatter.format(value, settings.currencySymbol)
 
     LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
+        item { WorkspaceHeader("Laporan usaha", "Pantau penjualan dan kebutuhan toko.") }
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Column {
-                    Text(
-                        text = "Dashboard & Laporan",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(DashboardPeriod.entries) { period ->
+                    FilterChip(
+                        selected = selectedPeriod == period,
+                        onClick = { viewModel.setPeriod(period) },
+                        label = { Text(period.label) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
-                    )
-                    Text(
-                        text = "Ringkasan Penjualan (${selectedPeriod.label})",
-                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
                     )
                 }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            }
+        }
+        item {
+            ReportSurface {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Omzet · ${selectedPeriod.label}", style = MaterialTheme.typography.bodyMedium, color = Slate500)
+                    Text(money(metrics.grossSales), style = MaterialTheme.typography.headlineLarge, color = Slate900)
+                    Text("${metrics.transactionCount} transaksi selesai", style = MaterialTheme.typography.bodyMedium, color = Slate500)
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp), color = Slate200)
+                    ReportValue("Rata-rata transaksi", money(metrics.averageTicketSize))
+                    ReportValue("Pengeluaran", money(metrics.expenses))
+                    ReportValue("Selisih pemasukan", money(metrics.netProfit))
+                    Text("Selisih = omzet − pengeluaran tercatat. Belum memperhitungkan harga modal produk.",
+                        style = MaterialTheme.typography.bodySmall, color = Slate500,
+                        modifier = Modifier.padding(top = 4.dp))
+                }
+            }
+        }
+        // Stock needs attention independently of the selected sales period.
+        if (metrics.lowStockProducts.isNotEmpty()) {
+            item {
+                Surface(
+                    onClick = onNavigateToInventory,
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, WarningAmber.copy(alpha = 0.55f)),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    DashboardPeriod.entries.forEach { period ->
-                        FilterChip(
-                            selected = selectedPeriod == period,
-                            onClick = { viewModel.setPeriod(period) },
-                            label = { Text(period.label, fontSize = 12.sp) }
-                        )
+                    Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text("${metrics.lowStockProducts.size} produk perlu restok", style = MaterialTheme.typography.titleSmall, color = Slate900)
+                            Text("Periksa stok sebelum penjualan berikutnya.", style = MaterialTheme.typography.bodySmall, color = Slate500)
+                        }
+                        Icon(Icons.Default.ChevronRight, null, tint = Slate500)
                     }
                 }
             }
         }
-
-        // 2x2 Grid of Key Metric Cards
         item {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    MetricCard(
-                        title = "Omzet (${selectedPeriod.label})",
-                        value = CurrencyFormatter.format(metrics.grossSales, settings.currencySymbol),
-                        icon = Icons.Default.AttachMoney,
-                        iconTint = SuccessGreen,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    MetricCard(
-                        title = "Pengeluaran (${selectedPeriod.label})",
-                        value = CurrencyFormatter.format(metrics.expenses, settings.currencySymbol),
-                        icon = Icons.Default.MoneyOff,
-                        iconTint = DangerRed,
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToExpenses
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    MetricCard(
-                        title = "Estimasi Laba Bersih",
-                        value = CurrencyFormatter.format(metrics.netProfit, settings.currencySymbol),
-                        icon = Icons.Default.AccountBalanceWallet,
-                        iconTint = if (metrics.netProfit >= 0) SuccessGreen else DangerRed,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    MetricCard(
-                        title = "Transaksi (${selectedPeriod.label})",
-                        value = "${metrics.transactionCount} TRX",
-                        icon = Icons.Default.Receipt,
-                        iconTint = PrimaryBlue,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    MetricCard(
-                        title = "Rata-rata Transaksi",
-                        value = CurrencyFormatter.format(metrics.averageTicketSize, settings.currencySymbol),
-                        icon = Icons.AutoMirrored.Filled.TrendingUp,
-                        iconTint = PrimaryBlue,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    MetricCard(
-                        title = "Total Produk Aktif",
-                        value = "${metrics.totalProductCount} Item",
-                        icon = Icons.Default.Category,
-                        iconTint = Slate700,
-                        modifier = Modifier.weight(1f),
-                        onClick = onNavigateToInventory
-                    )
+                Text("Kelola usaha", style = MaterialTheme.typography.titleMedium, color = Slate900)
+                ReportSurface {
+                    Column {
+                        OperationalRow("Stok produk", "${metrics.totalProductCount} produk aktif", Icons.Default.Inventory2, onNavigateToInventory)
+                        HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
+                        OperationalRow("Pengeluaran", "Catat biaya operasional toko", Icons.Default.MoneyOff, onNavigateToExpenses)
+                        HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
+                        OperationalRow("Pelanggan", "Kontak dan riwayat pembelian", Icons.Default.People, onNavigateToCustomers)
+                    }
                 }
             }
         }
-
-        // Quick Shortcuts Section
         item {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Pintasan Operasional",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable(onClick = onNavigateToInventory),
-                        color = Color.White,
-                        shape = RoundedCornerShape(12.dp),
-                        shadowElevation = 1.dp
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(Icons.Default.Inventory, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text("Inventaris", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, color = Slate900))
-                        }
-                    }
-
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable(onClick = onNavigateToExpenses),
-                        color = Color.White,
-                        shape = RoundedCornerShape(12.dp),
-                        shadowElevation = 1.dp
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(Icons.Default.MoneyOff, contentDescription = null, tint = DangerRed, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text("Pengeluaran", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, color = Slate900))
-                        }
-                    }
-
-                    Surface(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable(onClick = onNavigateToCustomers),
-                        color = Color.White,
-                        shape = RoundedCornerShape(12.dp),
-                        shadowElevation = 1.dp
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(12.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(Icons.Default.People, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(24.dp))
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text("Pelanggan", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, color = Slate900))
-                        }
-                    }
-                }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("Produk terlaris", style = MaterialTheme.typography.titleMedium, color = Slate900)
+                Text(selectedPeriod.label, style = MaterialTheme.typography.bodySmall, color = Slate500)
             }
         }
-
-        // Top Selling Products Section (PRD 7.29)
-        item {
-            Spacer(modifier = Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.TrendingUp,
-                        contentDescription = null,
-                        tint = PrimaryBlue,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Produk Terlaris (${selectedPeriod.label})",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                    )
-                }
-
-                if (metrics.topSellingProducts.isNotEmpty()) {
-                    Surface(
-                        color = PrimaryBlue.copy(alpha = 0.12f),
-                        shape = CircleShape
-                    ) {
-                        Text(
-                            text = "Top ${metrics.topSellingProducts.size}",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = PrimaryBlue,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
-                    }
-                }
-            }
-        }
-
         if (metrics.topSellingProducts.isEmpty()) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Text(
-                        text = "Belum ada produk terjual pada periode ini.",
-                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500),
-                        modifier = Modifier.padding(16.dp)
-                    )
+                ReportSurface {
+                    WorkspaceEmptyState(Icons.Default.Receipt, "Belum ada penjualan", "Produk terlaris akan muncul setelah ada transaksi pada periode ini.")
                 }
             }
         } else {
-            items(metrics.topSellingProducts.size) { index ->
-                val item = metrics.topSellingProducts[index]
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Surface(
-                                shape = CircleShape,
-                                color = when (index) {
-                                    0 -> Color(0xFFFFD700).copy(alpha = 0.25f)
-                                    1 -> Color(0xFFC0C0C0).copy(alpha = 0.35f)
-                                    2 -> Color(0xFFCD7F32).copy(alpha = 0.25f)
-                                    else -> Slate200
-                                },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Text(
-                                        text = "${index + 1}",
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = when (index) {
-                                            0 -> Color(0xFFB8860B)
-                                            1 -> Slate700
-                                            2 -> Color(0xFF8B4513)
-                                            else -> Slate700
-                                        }
-                                    )
+            item {
+                ReportSurface {
+                    Column {
+                        metrics.topSellingProducts.forEachIndexed { index, product ->
+                            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("${index + 1}".padStart(2, '0'), style = MaterialTheme.typography.labelLarge, color = Slate500)
+                                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(product.productName, style = MaterialTheme.typography.titleSmall, color = Slate900)
+                                    Text("${product.totalQty.toInt()} item terjual", style = MaterialTheme.typography.bodySmall, color = Slate500)
+                                    Text(money(product.totalRevenue), style = MaterialTheme.typography.labelLarge, color = Slate900)
                                 }
                             }
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column {
-                                Text(
-                                    text = item.productName,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = Slate900
-                                    )
-                                )
-                                Text(
-                                    text = "${item.totalQty.toInt()} item terjual",
-                                    style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
-                                )
-                            }
+                            if (index < metrics.topSellingProducts.lastIndex) HorizontalDivider(color = Slate200, modifier = Modifier.padding(horizontal = 16.dp))
                         }
-
-                        Text(
-                            text = CurrencyFormatter.format(item.totalRevenue, settings.currencySymbol),
-                            style = MaterialTheme.typography.bodyMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = PrimaryBlue
-                            )
-                        )
                     }
                 }
             }
         }
-
-        // Low Stock Alert Section
         item {
-            Spacer(modifier = Modifier.height(6.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Warning,
-                        contentDescription = null,
-                        tint = WarningAmber,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Peringatan Stok Menipis",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                    )
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (metrics.lowStockProducts.isNotEmpty()) {
-                        Surface(
-                            color = WarningAmber.copy(alpha = 0.15f),
-                            shape = CircleShape
-                        ) {
-                            Text(
-                                text = "${metrics.lowStockProducts.size} item",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = WarningAmber,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    androidx.compose.material3.TextButton(onClick = onNavigateToInventory) {
-                        Text(
-                            text = "Kelola Stok",
-                            style = MaterialTheme.typography.labelMedium.copy(
-                                color = PrimaryBlue,
-                                fontWeight = FontWeight.Bold
-                            )
-                        )
-                    }
-                }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("Kondisi stok", style = MaterialTheme.typography.titleMedium, color = Slate900, modifier = Modifier.weight(1f))
+                TextButton(onClick = onNavigateToInventory) { Text("Kelola stok") }
             }
         }
-
         if (metrics.lowStockProducts.isEmpty()) {
             item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Text(
-                        text = "Semua stok produk dalam kondisi aman.",
-                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500),
-                        modifier = Modifier.padding(16.dp)
-                    )
-                }
+                Text("Tidak ada peringatan stok menipis.", style = MaterialTheme.typography.bodyMedium, color = Slate500)
             }
         } else {
             items(metrics.lowStockProducts, key = { it.id }) { product ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onNavigateToInventory),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = product.name,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Slate900
-                                )
-                            )
-                            Text(
-                                text = "Batas minimum: ${product.minStock.toInt()} ${product.unit}",
-                                style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
-                            )
-                        }
-
-                        Surface(
-                            color = if (product.stock <= 0) Color.Red.copy(alpha = 0.15f) else WarningAmber.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = if (product.stock <= 0) "Habis" else "Sisa ${product.stock.toInt()} ${product.unit}",
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    color = if (product.stock <= 0) Color.Red else WarningAmber,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
+                ReportSurface {
+                    Column(Modifier.fillMaxWidth().clickable(onClick = onNavigateToInventory).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(product.name, style = MaterialTheme.typography.titleSmall, color = Slate900)
+                        Text(if (product.stock <= 0) "Stok habis" else "Sisa ${product.stock.toInt()} ${product.unit}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (product.stock <= 0) DangerRed else WarningAmber)
+                        Text("Minimum ${product.minStock.toInt()} ${product.unit}", style = MaterialTheme.typography.bodySmall, color = Slate500)
                     }
                 }
             }
@@ -499,60 +170,29 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun MetricCard(
-    title: String,
-    value: String,
-    icon: ImageVector,
-    iconTint: Color,
-    modifier: Modifier = Modifier,
-    onClick: (() -> Unit)? = null
-) {
-    Card(
-        modifier = modifier.then(
-            if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
-        ),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(iconTint.copy(alpha = 0.12f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+private fun ReportSurface(content: @Composable () -> Unit) {
+    Surface(modifier = Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(12.dp), border = BorderStroke(1.dp, Slate200), content = content)
+}
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodySmall.copy(color = Slate500, fontSize = 11.sp)
-            )
-
-            Spacer(modifier = Modifier.height(2.dp))
-
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900,
-                    fontSize = 15.sp
-                ),
-                maxLines = 1
-            )
-        }
+@Composable
+private fun ReportValue(label: String, value: String) {
+    // Stack the value when text scaling or large amounts would crowd a two-column row.
+    Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(label, style = MaterialTheme.typography.bodySmall, color = Slate500)
+        Text(value, style = MaterialTheme.typography.titleMedium, color = Slate900)
     }
 }
 
+@Composable
+private fun OperationalRow(title: String, description: String, icon: ImageVector, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        Icon(icon, null, tint = Slate500, modifier = Modifier.size(22.dp))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = Slate900)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = Slate500)
+        }
+        Icon(Icons.Default.ChevronRight, null, tint = Slate500, modifier = Modifier.size(20.dp))
+    }
+}

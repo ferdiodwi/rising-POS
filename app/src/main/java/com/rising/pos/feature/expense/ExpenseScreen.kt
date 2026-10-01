@@ -1,6 +1,11 @@
 package com.rising.pos.feature.expense
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Arrangement
+import com.rising.pos.ui.components.WorkspaceHeader
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -28,7 +33,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,7 +45,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -76,14 +79,11 @@ fun ExpenseScreen(
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = viewModel::openForm,
-                containerColor = DangerRed,
-                contentColor = Color.White,
-                shape = CircleShape
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Catat Pengeluaran")
-            }
+            ExtendedFloatingActionButton(
+                onClick = viewModel::openForm, containerColor = PrimaryBlue, contentColor = Color.White,
+                shape = RoundedCornerShape(14.dp),
+                icon = { Icon(Icons.Default.Add, null) }, text = { Text("Catat pengeluaran") }
+            )
         }
     ) { paddingValues ->
         Column(
@@ -92,28 +92,15 @@ fun ExpenseScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Header
-            Column {
-                Text(
-                    text = "Buku Pengeluaran",
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                )
-                Text(
-                    text = "Catat biaya operasional & belanja bahan baku",
-                    style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
+            WorkspaceHeader("Pengeluaran", "Catat biaya operasional dan belanja toko.")
+            Spacer(Modifier.height(16.dp))
 
             // Total Expense Card
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = DangerRed.copy(alpha = 0.08f)),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
                 Row(
@@ -190,6 +177,7 @@ fun ExpenseScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(expenses, key = { it.id }) { item ->

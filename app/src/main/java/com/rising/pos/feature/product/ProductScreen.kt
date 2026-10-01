@@ -1,7 +1,8 @@
 package com.rising.pos.feature.product
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,7 +18,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -29,6 +29,10 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.foundation.layout.PaddingValues
+import com.rising.pos.ui.components.WorkspaceHeader
+import com.rising.pos.ui.components.WorkspaceEmptyState
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
@@ -42,7 +46,6 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,17 +55,14 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -70,7 +70,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.database.entity.ProductWithCategory
 import com.rising.pos.core.util.CurrencyFormatter
@@ -79,10 +78,8 @@ import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.Slate100
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
-import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate800
 import com.rising.pos.ui.theme.Slate900
-import com.rising.pos.ui.theme.SuccessGreen
 import com.rising.pos.ui.theme.WarningAmber
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -100,14 +97,14 @@ fun ProductScreen(
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = viewModel::openAddProductForm,
                 containerColor = PrimaryBlue,
                 contentColor = Color.White,
-                shape = CircleShape
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Tambah Produk")
-            }
+                shape = RoundedCornerShape(14.dp),
+                icon = { Icon(Icons.Default.Add, null) },
+                text = { Text("Tambah produk") }
+            )
         }
     ) { paddingValues ->
         Column(
@@ -116,49 +113,19 @@ fun ProductScreen(
                 .padding(paddingValues)
                 .padding(16.dp)
         ) {
-            // Header & Action Bar
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Katalog Produk",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                    )
-                    Text(
-                        text = "${products.size} Produk Terdaftar",
-                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                    )
+            WorkspaceHeader("Produk", "${products.size} produk ditampilkan")
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)) {
+                OutlinedButton(onClick = onNavigateToInventory, shape = RoundedCornerShape(10.dp)) {
+                    Icon(Icons.Default.Inventory2, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Kelola stok")
                 }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = onNavigateToInventory,
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(Icons.Default.Inventory2, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Stok", fontSize = 12.sp)
-                    }
-
-                    OutlinedButton(
-                        onClick = viewModel::openCategoryDialog,
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Icon(Icons.Default.Category, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("+ Kategori", fontSize = 12.sp)
-                    }
+                OutlinedButton(onClick = viewModel::openCategoryDialog, shape = RoundedCornerShape(10.dp)) {
+                    Icon(Icons.Default.Category, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Kategori")
                 }
             }
-
-
-            Spacer(modifier = Modifier.height(14.dp))
 
             // Search Bar
             OutlinedTextField(
@@ -196,7 +163,7 @@ fun ProductScreen(
                         label = { Text("Semua") },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
-                            selectedLabelColor = PrimaryBlue
+                            selectedLabelColor = MaterialTheme.colorScheme.primary
                         )
                     )
                 }
@@ -209,7 +176,7 @@ fun ProductScreen(
                         label = { Text(cat.name) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
-                            selectedLabelColor = PrimaryBlue
+                            selectedLabelColor = MaterialTheme.colorScheme.primary
                         )
                     )
                 }
@@ -225,27 +192,17 @@ fun ProductScreen(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.Inventory2,
-                            contentDescription = null,
-                            tint = Slate500,
-                            modifier = Modifier.size(56.dp)
-                        )
-                        Spacer(modifier = Modifier.height(10.dp))
-                        Text(
-                            text = "Belum Ada Produk",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = "Tekan tombol + di pojok kanan bawah untuk menambah produk baru.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                        )
-                    }
+                    WorkspaceEmptyState(
+                        Icons.Default.Inventory2,
+                        if (uiState.searchQuery.isNotBlank() || uiState.selectedCategoryId != null) "Produk tidak ditemukan" else "Buat katalog pertama",
+                        if (uiState.searchQuery.isNotBlank() || uiState.selectedCategoryId != null) "Coba kata kunci lain atau pilih kategori Semua."
+                        else "Ketuk Tambah produk untuk mengisi nama, harga, dan stok barang jualan."
+                    )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(products, key = { it.product.id }) { item ->
@@ -346,85 +303,26 @@ private fun ProductItemRow(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+        border = BorderStroke(1.dp, Slate200)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = p.name,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                    )
-                    if (item.category != null) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Surface(
-                            color = Slate200.copy(alpha = 0.6f),
-                            shape = RoundedCornerShape(4.dp)
-                        ) {
-                            Text(
-                                text = item.category.name,
-                                style = MaterialTheme.typography.labelSmall.copy(color = Slate700),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Jual: ${CurrencyFormatter.format(p.sellingPrice, currencySymbol)}",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = PrimaryBlue
-                        )
-                    )
-
-                    if (p.costPrice > 0) {
-                        Text(
-                            text = "Modal: ${CurrencyFormatter.format(p.costPrice, currencySymbol)}",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                        )
-                    }
-
-                    if (p.trackStock) {
-                        val stockColor = when {
-                            isOutOfStock -> DangerRed
-                            isLowStock -> WarningAmber
-                            else -> SuccessGreen
-                        }
-                        Text(
-                            text = "Stok: ${p.stock.toInt()} ${p.unit}",
-                            style = MaterialTheme.typography.bodySmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = stockColor
-                            )
-                        )
-                    }
-                }
-            }
-
-            Row {
-                IconButton(onClick = onEdit) {
-                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Slate700)
-                }
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(item.category?.name ?: "Tanpa kategori", style = MaterialTheme.typography.labelSmall, color = Slate500)
+            Text(p.name, style = MaterialTheme.typography.titleMedium, color = Slate900)
+            Text(CurrencyFormatter.format(p.sellingPrice, currencySymbol), style = MaterialTheme.typography.titleMedium, color = Slate900)
+            if (p.costPrice > 0) Text("Modal ${CurrencyFormatter.format(p.costPrice, currencySymbol)}", style = MaterialTheme.typography.bodySmall, color = Slate500)
+            HorizontalDivider(color = Slate200, modifier = Modifier.padding(top = 6.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (!p.trackStock) "Stok tidak dilacak" else if (isOutOfStock) "Stok habis" else "Stok ${p.stock.toInt()} ${p.unit}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = when { isOutOfStock -> DangerRed; isLowStock -> WarningAmber; else -> Slate500 },
+                    modifier = Modifier.weight(1f)
+                )
+                TextButton(onClick = onEdit) { Text("Edit") }
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Default.Delete, contentDescription = "Hapus", tint = DangerRed)
+                    Icon(Icons.Default.Delete, "Hapus ${p.name}", tint = Slate500, modifier = Modifier.size(20.dp))
                 }
             }
         }
@@ -549,7 +447,7 @@ private fun ProductFormBottomSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text("Kelola Stok Otomatis", style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold))
                     Text("Stok berkurang otomatis saat checkout", style = MaterialTheme.typography.bodySmall.copy(color = Slate500))
                 }

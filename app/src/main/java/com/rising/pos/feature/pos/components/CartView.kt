@@ -1,6 +1,7 @@
 package com.rising.pos.feature.pos.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,8 +25,6 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -143,7 +142,7 @@ fun CartView(
                 Surface(
                     color = PrimaryBlue.copy(alpha = 0.1f),
                     shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.clickable { onOpenCustomerPicker() }
+                    modifier = Modifier.heightIn(min = 48.dp).clickable { onOpenCustomerPicker() }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -152,7 +151,7 @@ fun CartView(
                         Icon(
                             imageVector = Icons.Default.Person,
                             contentDescription = null,
-                            tint = PrimaryBlue,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(16.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -166,12 +165,12 @@ fun CartView(
                         Spacer(modifier = Modifier.width(6.dp))
                         IconButton(
                             onClick = onRemoveCustomer,
-                            modifier = Modifier.size(18.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Lepas Pelanggan",
-                                tint = PrimaryBlue,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(13.dp)
                             )
                         }
@@ -181,7 +180,7 @@ fun CartView(
                 Surface(
                     color = Slate200.copy(alpha = 0.5f),
                     shape = RoundedCornerShape(20.dp),
-                    modifier = Modifier.clickable { onOpenCustomerPicker() }
+                    modifier = Modifier.heightIn(min = 48.dp).clickable { onOpenCustomerPicker() }
                 ) {
                     Row(
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
@@ -235,7 +234,7 @@ fun CartView(
                         )
                     )
                     Text(
-                        text = "Pilih produk di samping untuk menambah item.",
+                        text = "Pilih produk dari katalog untuk mulai membuat pesanan.",
                         style = MaterialTheme.typography.bodySmall.copy(color = Slate500),
                         textAlign = TextAlign.Center,
                         modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
@@ -287,6 +286,7 @@ fun CartView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .heightIn(min = 48.dp)
                         .clickable(onClick = onOpenDiscountDialog),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
@@ -318,7 +318,7 @@ fun CartView(
                         Text(
                             "+ Tambah Diskon",
                             style = MaterialTheme.typography.bodySmall.copy(
-                                color = PrimaryBlue,
+                                color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.SemiBold
                             )
                         )
@@ -326,6 +326,14 @@ fun CartView(
                             "-",
                             style = MaterialTheme.typography.bodySmall.copy(color = Slate400)
                         )
+                    }
+                }
+
+                if (calc.serviceCharge > 0) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Biaya layanan", style = MaterialTheme.typography.bodySmall, color = Slate500)
+                        Text(CurrencyFormatter.format(calc.serviceCharge, settings.currencySymbol),
+                            style = MaterialTheme.typography.bodySmall, color = Slate700)
                     }
                 }
 
@@ -373,23 +381,23 @@ fun CartView(
                     OutlinedButton(
                         onClick = onHoldCart,
                         modifier = Modifier
-                            .weight(0.32f)
+                            .weight(0.38f)
                             .height(52.dp),
                         shape = RoundedCornerShape(14.dp)
                     ) {
                         Icon(Icons.Default.Pause, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Tahan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text("Simpan", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
 
                     Button(
                         onClick = onCheckout,
                         modifier = Modifier
-                            .weight(0.68f)
+                            .weight(0.62f)
                             .height(52.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = SuccessGreen
+                            containerColor = PrimaryBlue
                         )
                     ) {
                         Row(
@@ -425,103 +433,31 @@ private fun CartItemRow(
     onUpdateQuantity: (String, Double) -> Unit,
     onRemoveItem: (String) -> Unit
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Slate200.copy(alpha = 0.35f)),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = item.product.name,
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.SemiBold,
-                            color = Slate900
-                        )
-                    )
-                    if (item.variant != null) {
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = PrimaryBlue.copy(alpha = 0.12f)
-                        ) {
-                            Text(
-                                text = item.variant.name,
-                                style = MaterialTheme.typography.labelSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = PrimaryBlue,
-                                    fontSize = 10.sp
-                                ),
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                }
-                Text(
-                    text = CurrencyFormatter.format(item.unitPrice, currencySymbol),
-                    style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                )
-                Text(
-                    text = "Total: ${CurrencyFormatter.format(item.totalPrice, currencySymbol)}",
-                    style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = SuccessGreen
-                    )
-                )
-            }
-
-            // Quantity Controls
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(item.product.name, style = MaterialTheme.typography.titleSmall, color = Slate900)
+        item.variant?.let { Text(it.name, style = MaterialTheme.typography.bodySmall, color = Slate500) }
+        Text(CurrencyFormatter.format(item.unitPrice, currencySymbol) + " / " + item.product.unit,
+            style = MaterialTheme.typography.bodySmall, color = Slate500)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(CurrencyFormatter.format(item.totalPrice, currencySymbol),
+                style = MaterialTheme.typography.titleSmall, color = Slate900, modifier = Modifier.weight(1f))
+            IconButton(
+                onClick = {
+                    if (item.quantity <= 1) onRemoveItem(item.cartItemId)
+                    else onUpdateQuantity(item.cartItemId, -1.0)
+                }, modifier = Modifier.size(48.dp)
             ) {
-                IconButton(
-                    onClick = { onUpdateQuantity(item.cartItemId, -1.0) },
-                    modifier = Modifier.size(30.dp)
-                ) {
-                    Icon(
-                        imageVector = if (item.quantity <= 1) Icons.Default.DeleteOutline else Icons.Default.Remove,
-                        contentDescription = "Kurang",
-                        tint = if (item.quantity <= 1) DangerRed else Slate700,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Surface(
-                    color = Color.White,
-                    shape = RoundedCornerShape(6.dp),
-                    shadowElevation = 1.dp
-                ) {
-                    Text(
-                        text = item.quantity.toInt().toString(),
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        ),
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                    )
-                }
-
-                IconButton(
-                    onClick = { onUpdateQuantity(item.cartItemId, 1.0) },
-                    modifier = Modifier.size(30.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Tambah",
-                        tint = Slate700,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                Icon(if (item.quantity <= 1) Icons.Default.DeleteOutline else Icons.Default.Remove,
+                    if (item.quantity <= 1) "Hapus ${item.product.name}" else "Kurangi ${item.product.name}",
+                    tint = Slate500, modifier = Modifier.size(20.dp))
+            }
+            Text(item.quantity.toInt().toString(), style = MaterialTheme.typography.titleSmall, color = Slate900,
+                modifier = Modifier.padding(horizontal = 8.dp))
+            IconButton(onClick = { onUpdateQuantity(item.cartItemId, 1.0) }, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Default.Add, "Tambah ${item.product.name}", tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp))
             }
         }
+        HorizontalDivider(color = Slate200)
     }
 }

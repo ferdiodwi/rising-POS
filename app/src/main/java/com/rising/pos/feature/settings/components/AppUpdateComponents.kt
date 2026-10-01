@@ -1,8 +1,5 @@
 package com.rising.pos.feature.settings.components
 
-import android.content.Intent
-import android.net.Uri
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,7 +38,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -96,7 +92,7 @@ fun AppUpdateCard(
                         Icon(
                             imageVector = Icons.Default.SystemUpdate,
                             contentDescription = "Update APK",
-                            tint = PrimaryBlue,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -124,7 +120,7 @@ fun AppUpdateCard(
                         text = "Resmi",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
-                        color = PrimaryBlue,
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
@@ -388,7 +384,7 @@ fun AppUpdateDialog(
                     CircularProgressIndicator(
                         progress = { updateState.progress },
                         modifier = Modifier.size(48.dp),
-                        color = PrimaryBlue,
+                        color = MaterialTheme.colorScheme.primary,
                         strokeWidth = 4.dp
                     )
                 },
@@ -408,7 +404,7 @@ fun AppUpdateDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(8.dp),
-                            color = PrimaryBlue,
+                            color = MaterialTheme.colorScheme.primary,
                             trackColor = Slate200
                         )
 

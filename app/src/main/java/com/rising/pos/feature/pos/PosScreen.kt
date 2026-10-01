@@ -1,6 +1,11 @@
 package com.rising.pos.feature.pos
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.background
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.text.style.TextOverflow
+import com.rising.pos.ui.components.WorkspaceEmptyState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,7 +33,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Store
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -46,18 +50,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.util.CurrencyFormatter
 import androidx.compose.material.icons.filled.PauseCircle
@@ -75,9 +75,7 @@ import com.rising.pos.feature.pos.components.VariantPickerDialog
 import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
-import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
-import com.rising.pos.ui.theme.SuccessGreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,7 +92,7 @@ fun PosScreen(
     var newCustomerFormState by remember { mutableStateOf(CustomerFormState()) }
 
     val configuration = LocalConfiguration.current
-    val isTablet = configuration.screenWidthDp >= 600
+    val isTablet = configuration.screenWidthDp >= 840
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -135,6 +133,7 @@ fun PosScreen(
                     ProductGrid(
                         products = products,
                         currencySymbol = settings.currencySymbol,
+                        isFiltered = uiState.searchQuery.isNotBlank() || uiState.selectedCategoryId != null,
                         onProductClick = viewModel::onProductClicked,
                         columns = 3,
                         modifier = Modifier.weight(1f)
@@ -148,7 +147,8 @@ fun PosScreen(
                         .fillMaxHeight(),
                     shape = RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                 ) {
                     CartView(
                         cart = uiState.cart,
@@ -167,10 +167,11 @@ fun PosScreen(
         } else {
 
             // ── Phone Layout (Vertical + Sticky Bottom Cart Bar) ─────────────
-            Box(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .weight(1f)
+                        .fillMaxWidth()
                         .padding(16.dp)
                 ) {
                     PosHeader(
@@ -196,11 +197,12 @@ fun PosScreen(
                     ProductGrid(
                         products = products,
                         currencySymbol = settings.currencySymbol,
+                        isFiltered = uiState.searchQuery.isNotBlank() || uiState.selectedCategoryId != null,
                         onProductClick = viewModel::onProductClicked,
                         columns = 2,
                         modifier = Modifier
                             .weight(1f)
-                            .padding(bottom = if (uiState.cart.items.isNotEmpty()) 72.dp else 0.dp)
+
                     )
                 }
 
@@ -216,13 +218,14 @@ fun PosScreen(
 
                     Card(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(horizontal = 16.dp)
+                            .padding(bottom = 12.dp)
                             .clickable { viewModel.setCartSheetOpen(true) },
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Slate900),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                        colors = CardDefaults.cardColors(containerColor = PrimaryBlue),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -231,11 +234,11 @@ fun PosScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
                                 Box(
                                     modifier = Modifier
                                         .size(36.dp)
-                                        .background(SuccessGreen, CircleShape),
+                                        .background(Color.White.copy(alpha = 0.16f), CircleShape),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
@@ -246,7 +249,7 @@ fun PosScreen(
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
-                                Column {
+                                Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                                     Text(
                                         text = "${uiState.cart.totalItemCount.toInt()} Item",
                                         style = MaterialTheme.typography.labelSmall.copy(color = Color.LightGray)
@@ -263,10 +266,10 @@ fun PosScreen(
 
                             Surface(
                                 shape = RoundedCornerShape(8.dp),
-                                color = SuccessGreen
+                                color = Color.White.copy(alpha = 0.16f)
                             ) {
                                 Text(
-                                    text = "Lihat Keranjang",
+                                    text = "Lihat pesanan",
                                     style = MaterialTheme.typography.labelMedium.copy(
                                         fontWeight = FontWeight.Bold,
                                         color = Color.White
@@ -429,100 +432,42 @@ private fun PosHeader(
     onScanBarcode: (String) -> Unit = {},
     onOpenHeldOrders: () -> Unit = {}
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .background(PrimaryBlue.copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Store, contentDescription = null, tint = PrimaryBlue)
-            }
-            Column {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text("Kasir", style = MaterialTheme.typography.headlineSmall, color = Slate900)
                 Text(
-                    text = storeName,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
+                    storeName.ifBlank { "Toko saya" } + " · " + deviceId,
+                    style = MaterialTheme.typography.bodySmall, color = Slate500,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
-                Surface(
-                    color = Slate200,
-                    shape = RoundedCornerShape(4.dp)
-                ) {
-                    Text(
-                        text = "POS $deviceId",
-                        style = MaterialTheme.typography.labelSmall.copy(
-                            fontSize = 9.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate700
-                        ),
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
-                    )
-                }
             }
-
             if (heldOrdersCount > 0) {
-                Surface(
-                    modifier = Modifier.clickable(onClick = onOpenHeldOrders),
-                    shape = RoundedCornerShape(20.dp),
-                    color = PrimaryBlue.copy(alpha = 0.12f)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PauseCircle,
-                            contentDescription = null,
-                            tint = PrimaryBlue,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "$heldOrdersCount Tertunda",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = PrimaryBlue,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
-                            )
-                        )
-                    }
+                TextButton(onClick = onOpenHeldOrders) {
+                    Icon(Icons.Default.PauseCircle, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Tertunda ($heldOrdersCount)")
                 }
             }
         }
-
-        // Search Bar with Barcode Scanner Enter Action
         OutlinedTextField(
             value = searchQuery,
             onValueChange = onSearchChange,
-            placeholder = { Text("Cari / scan...", fontSize = 13.sp) },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Slate500, modifier = Modifier.size(18.dp)) },
+            placeholder = { Text("Cari produk atau scan barcode") },
+            leadingIcon = { Icon(Icons.Default.Search, null, tint = Slate500) },
             trailingIcon = if (searchQuery.isNotEmpty()) {
-                {
-                    IconButton(onClick = { onSearchChange("") }) {
-                        Icon(Icons.Default.Clear, contentDescription = "Clear", tint = Slate500, modifier = Modifier.size(16.dp))
-                    }
-                }
+                { IconButton(onClick = { onSearchChange("") }) {
+                    Icon(Icons.Default.Clear, "Hapus pencarian", tint = Slate500)
+                } }
             } else null,
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(
-                onSearch = { onScanBarcode(searchQuery) }
-            ),
+            keyboardActions = KeyboardActions(onSearch = { onScanBarcode(searchQuery) }),
             singleLine = true,
-            modifier = Modifier
-                .width(220.dp)
-                .height(46.dp),
-            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
+                unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                focusedContainerColor = MaterialTheme.colorScheme.surface,
                 unfocusedBorderColor = Slate200,
                 focusedBorderColor = PrimaryBlue
             )
@@ -547,7 +492,7 @@ private fun CategoriesRow(
                 label = { Text("Semua") },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
-                    selectedLabelColor = PrimaryBlue
+                    selectedLabelColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -560,7 +505,7 @@ private fun CategoriesRow(
                 label = { Text(cat.name) },
                 colors = FilterChipDefaults.filterChipColors(
                     selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
-                    selectedLabelColor = PrimaryBlue
+                    selectedLabelColor = MaterialTheme.colorScheme.primary
                 )
             )
         }
@@ -573,6 +518,7 @@ private fun ProductGrid(
     currencySymbol: String,
     onProductClick: (com.rising.pos.core.database.entity.ProductEntity) -> Unit,
     columns: Int,
+    isFiltered: Boolean,
     modifier: Modifier = Modifier
 ) {
     if (products.isEmpty()) {
@@ -580,14 +526,16 @@ private fun ProductGrid(
             modifier = modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "Belum ada produk. Tambahkan produk di menu Produk.",
-                style = MaterialTheme.typography.bodyMedium.copy(color = Slate500)
+            WorkspaceEmptyState(
+                icon = Icons.Default.Search,
+                title = if (isFiltered) "Produk tidak ditemukan" else "Siap mulai berjualan?",
+                description = if (isFiltered) "Coba kata kunci lain atau pilih kategori Semua."
+                    else "Tambahkan barang jualan lewat menu Produk. Setelah itu, pilih produk di sini untuk membuat pesanan."
             )
         }
     } else {
         LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
+            columns = GridCells.Adaptive(if (columns == 3) 160.dp else 145.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = PaddingValues(vertical = 4.dp),
