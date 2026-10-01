@@ -1,39 +1,47 @@
 package com.rising.pos.feature.expense
 
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import com.rising.pos.ui.components.WorkspaceHeader
-import androidx.compose.material3.ExtendedFloatingActionButton
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.MoneyOff
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.LocalShipping
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.StoreMallDirectory
+import androidx.compose.material.icons.outlined.TrendingDown
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -42,21 +50,28 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.database.entity.ExpenseEntity
 import com.rising.pos.core.util.CurrencyFormatter
+import com.rising.pos.ui.components.WorkspaceEmptyState
 import com.rising.pos.ui.theme.DangerRed
-import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.DangerRedContainer
+import com.rising.pos.ui.theme.PosTextStyles
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
@@ -65,7 +80,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Pengeluaran operasional.
+ *
+ * Ringkasan total di atas (satu angka menonjol), daftar di bawah dengan ikon
+ * kategori. Form menonjolkan nominal karena itu input paling penting.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun ExpenseScreen(
     viewModel: ExpenseViewModel = hiltViewModel()
@@ -75,109 +96,99 @@ fun ExpenseScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     val totalExpense = expenses.sumOf { it.amount }
-    val dateFormatter = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
+    val dateFormatter = SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+    var expenseToDelete by remember { mutableStateOf<ExpenseEntity?>(null) }
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = viewModel::openForm, containerColor = PrimaryBlue, contentColor = Color.White,
-                shape = RoundedCornerShape(14.dp),
-                icon = { Icon(Icons.Default.Add, null) }, text = { Text("Catat pengeluaran") }
-            )
+            Button(
+                onClick = viewModel::openForm,
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                modifier = Modifier.height(56.dp)
+            ) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                Spacer(Modifier.width(8.dp))
+                Text("Catat pengeluaran", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            }
         }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            WorkspaceHeader("Pengeluaran", "Catat biaya operasional dan belanja toko.")
             Spacer(Modifier.height(16.dp))
 
-            // Total Expense Card
-            Card(
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Pengeluaran", style = MaterialTheme.typography.headlineSmall, color = Slate900)
+                Text(
+                    "Catat biaya operasional dan belanja toko.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Slate500
+                )
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            // Ringkasan total
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = DangerRed.copy(alpha = 0.08f)),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+                color = DangerRedContainer
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth().padding(18.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = "TOTAL PENGELUARAN TERCATAT",
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = DangerRed,
-                                letterSpacing = 0.8.sp
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = CurrencyFormatter.format(totalExpense, settings.currencySymbol),
-                            style = MaterialTheme.typography.headlineSmall.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                color = Slate900
-                            )
-                        )
-                    }
-
-                    Surface(
-                        color = DangerRed.copy(alpha = 0.15f),
-                        shape = CircleShape,
-                        modifier = Modifier.size(44.dp)
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
-                                imageVector = Icons.Default.MoneyOff,
+                                Icons.Outlined.TrendingDown,
                                 contentDescription = null,
                                 tint = DangerRed,
-                                modifier = Modifier.size(24.dp)
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                "Total pengeluaran tercatat",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = DangerRed
                             )
                         }
+                        Text(
+                            CurrencyFormatter.format(totalExpense, settings.currencySymbol),
+                            style = PosTextStyles.displayMoney,
+                            color = Slate900
+                        )
+                        Text(
+                            "${expenses.size} catatan",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Slate500
+                        )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(Modifier.height(16.dp))
 
-            // List of Expenses
             if (expenses.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = Icons.Default.MoneyOff,
-                            contentDescription = null,
-                            tint = Slate500,
-                            modifier = Modifier.size(56.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "Belum Ada Pengeluaran",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                        )
-                        Text(
-                            text = "Tekan tombol + di pojok kanan bawah untuk mencatat pengeluaran.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                        )
-                    }
+                    WorkspaceEmptyState(
+                        icon = Icons.Outlined.Payments,
+                        title = "Belum ada pengeluaran",
+                        description = "Catat biaya seperti belanja bahan, gaji, atau listrik agar laporan usaha akurat."
+                    )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 88.dp),
+                    contentPadding = PaddingValues(bottom = 96.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(expenses, key = { it.id }) { item ->
@@ -185,7 +196,7 @@ fun ExpenseScreen(
                             expense = item,
                             currencySymbol = settings.currencySymbol,
                             dateStr = dateFormatter.format(Date(item.date)),
-                            onDelete = { viewModel.deleteExpense(item) }
+                            onDelete = { expenseToDelete = item }
                         )
                     }
                 }
@@ -193,7 +204,6 @@ fun ExpenseScreen(
         }
     }
 
-    // Add Expense Bottom Sheet
     if (uiState.isFormOpen) {
         ExpenseFormBottomSheet(
             form = uiState.formState,
@@ -203,6 +213,39 @@ fun ExpenseScreen(
             onNotesChange = viewModel::updateNotes,
             onDismiss = viewModel::closeForm,
             onSave = viewModel::saveExpense
+        )
+    }
+
+    expenseToDelete?.let { item ->
+        AlertDialog(
+            onDismissRequest = { expenseToDelete = null },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = { Text("Hapus pengeluaran", style = MaterialTheme.typography.titleMedium, color = Slate900) },
+            text = {
+                Text(
+                    "Catatan ${item.category} sebesar ${CurrencyFormatter.format(item.amount, settings.currencySymbol)} akan dihapus.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Slate700
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteExpense(item)
+                        expenseToDelete = null
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = DangerRed)
+                ) {
+                    Text("Hapus", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { expenseToDelete = null }) {
+                    Text("Batal", style = MaterialTheme.typography.labelLarge, color = Slate700)
+                }
+            }
         )
     }
 }
@@ -216,70 +259,92 @@ private fun ExpenseItemRow(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+        border = BorderStroke(1.dp, Slate200),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        color = DangerRed.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
-                        Text(
-                            text = expense.category,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = DangerRed,
-                                fontWeight = FontWeight.Bold
-                            ),
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.size(8.dp))
-                    Text(
-                        text = dateStr,
-                        style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
-                    )
-                }
-
-                if (!expense.notes.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = expense.notes,
-                        style = MaterialTheme.typography.bodySmall.copy(color = Slate700)
+            Surface(
+                shape = CircleShape,
+                color = DangerRedContainer,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = categoryIcon(expense.category),
+                        contentDescription = null,
+                        tint = DangerRed,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
 
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.width(12.dp))
+
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    text = CurrencyFormatter.format(expense.amount, currencySymbol),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = DangerRed
-                    )
+                    text = expense.category,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = Slate900
                 )
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Hapus",
-                        tint = Slate500,
-                        modifier = Modifier.size(20.dp)
+                if (!expense.notes.isNullOrBlank()) {
+                    Text(
+                        text = expense.notes,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate500,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
+                Text(
+                    text = dateStr,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Slate500
+                )
+            }
+
+            Spacer(Modifier.width(8.dp))
+
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = CurrencyFormatter.format(expense.amount, currencySymbol),
+                    style = PosTextStyles.money,
+                    color = DangerRed
+                )
+            }
+
+            IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
+                Icon(
+                    Icons.Outlined.DeleteOutline,
+                    contentDescription = "Hapus pengeluaran ${expense.category}",
+                    tint = Slate500,
+                    modifier = Modifier.size(18.dp)
+                )
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+private fun categoryIcon(category: String): ImageVector = when (category) {
+    "Bahan Baku" -> Icons.Outlined.Inventory2
+    "Operasional" -> Icons.Outlined.Storefront
+    "Listrik & Air" -> Icons.Outlined.Bolt
+    "Transport / Kurir" -> Icons.Outlined.LocalShipping
+    "Gaji / Upah" -> Icons.Outlined.Payments
+    "Sewa Tempat" -> Icons.Outlined.StoreMallDirectory
+    "Maintenance / Servis" -> Icons.Outlined.Build
+    else -> Icons.Outlined.MoreHoriz
+}
+
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun ExpenseFormBottomSheet(
     form: ExpenseFormState,
@@ -290,34 +355,43 @@ private fun ExpenseFormBottomSheet(
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
+    val amountValue = form.amount.toLongOrNull() ?: 0L
+    val canSave = amountValue > 0
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp)
+                .verticalScroll(rememberScrollState())
+                .imePadding(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Text(
-                text = "Catat Pengeluaran Baru",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
+            Text("Catat pengeluaran", style = MaterialTheme.typography.titleLarge, color = Slate900)
+
+            // Nominal paling penting: input besar & menonjol.
+            OutlinedTextField(
+                value = form.amount,
+                onValueChange = onAmountChange,
+                label = { Text("Nominal pengeluaran") },
+                prefix = { Text("$currencySymbol ", style = PosTextStyles.priceCard) },
+                textStyle = PosTextStyles.priceCard,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
             )
 
-            HorizontalDivider(color = Slate200)
-
-            Text(
-                text = "Kategori Pengeluaran",
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
-            )
+            Text("Kategori", style = MaterialTheme.typography.titleSmall, color = Slate900)
 
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 defaultExpenseCategories.forEach { cat ->
@@ -325,57 +399,43 @@ private fun ExpenseFormBottomSheet(
                     FilterChip(
                         selected = isSelected,
                         onClick = { onCategoryChange(cat) },
-                        label = { Text(cat, fontSize = 12.sp) },
+                        label = { Text(cat) },
+                        shape = RoundedCornerShape(999.dp),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else Slate200
+                        ),
                         colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = DangerRed.copy(alpha = 0.15f),
-                            selectedLabelColor = DangerRed
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            labelColor = Slate500,
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.primary
                         )
                     )
                 }
             }
 
             OutlinedTextField(
-                value = form.amount,
-                onValueChange = onAmountChange,
-                label = { Text("Nominal Pengeluaran *") },
-                prefix = { Text("$currencySymbol ") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            OutlinedTextField(
                 value = form.notes,
                 onValueChange = onNotesChange,
-                label = { Text("Catatan / Keterangan (Opsional)") },
-                placeholder = { Text("Contoh: Beli beras 25kg & minyak goreng") },
+                label = { Text("Catatan (opsional)") },
+                placeholder = { Text("Contoh: Beli beras 25kg dan minyak goreng") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             )
-
-            Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 onClick = onSave,
-                enabled = form.amount.isNotBlank() && (form.amount.toDoubleOrNull() ?: 0.0) > 0,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
+                enabled = canSave,
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = DangerRed)
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text(
-                    text = "Simpan Pengeluaran",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
-                )
+                Text("Simpan pengeluaran", style = MaterialTheme.typography.titleMedium, color = Color.White)
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(8.dp))
         }
     }
 }

@@ -275,7 +275,7 @@ fun AppUpdateDialog(
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
-                                text = "${updateState.currentVersion} ➔ ${updateState.latestVersion}",
+                                text = "Versi ${updateState.currentVersion} ke ${updateState.latestVersion}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (isForce) DangerRed else PrimaryBlue,

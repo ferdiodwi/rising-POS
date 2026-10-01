@@ -1,5 +1,6 @@
 package com.rising.pos.feature.pos.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -16,13 +18,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.outlined.PlayArrow
+import androidx.compose.material.icons.outlined.ShoppingCart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,23 +33,27 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.util.CurrencyFormatter
 import com.rising.pos.ui.theme.DangerRed
-import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.PosTextStyles
 import com.rising.pos.ui.theme.Slate200
+import com.rising.pos.ui.theme.Slate400
 import com.rising.pos.ui.theme.Slate500
-import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
-import com.rising.pos.ui.theme.SuccessGreen
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Daftar pesanan yang ditahan. Setiap kartu: label, waktu, ringkasan item, total,
+ * lalu aksi Lanjut atau Hapus. Empty state menjelaskan kenapa kosong.
+ */
 @Composable
 fun HeldOrdersDialog(
     heldOrders: List<TransactionWithDetails>,
@@ -60,19 +66,12 @@ fun HeldOrdersDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-            ) {
-                // Header
+            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -82,135 +81,152 @@ fun HeldOrdersDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text(
-                            text = "Pesanan Tertunda",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Slate900
-                            )
-                        )
-                        Surface(
-                            color = PrimaryBlue.copy(alpha = 0.15f),
-                            shape = CircleShape
-                        ) {
-                            Text(
-                                text = "${heldOrders.size}",
-                                style = MaterialTheme.typography.labelSmall.copy(
+                        Text("Pesanan tertunda", style = MaterialTheme.typography.titleMedium, color = Slate900)
+                        if (heldOrders.isNotEmpty()) {
+                            Surface(color = MaterialTheme.colorScheme.primaryContainer, shape = CircleShape) {
+                                Text(
+                                    text = "${heldOrders.size}",
+                                    style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold
-                                ),
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                                )
+                            }
                         }
                     }
 
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                         Icon(Icons.Default.Close, contentDescription = "Tutup", tint = Slate500)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
-                HorizontalDivider(color = Slate200, thickness = 1.dp)
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(Modifier.height(12.dp))
 
                 if (heldOrders.isEmpty()) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(140.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Tidak ada pesanan tertunda.",
-                            style = MaterialTheme.typography.bodyMedium.copy(color = Slate500)
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.ShoppingCart,
+                                contentDescription = null,
+                                tint = Slate400,
+                                modifier = Modifier.size(44.dp)
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                "Belum ada pesanan tertunda",
+                                style = MaterialTheme.typography.titleSmall,
+                                color = Slate900
+                            )
+                            Text(
+                                "Pesanan yang Anda tahan akan muncul di sini untuk dilanjutkan nanti.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Slate500,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 } else {
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height((heldOrders.size * 105).coerceAtMost(360).dp),
+                            .heightIn(max = 400.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(heldOrders, key = { it.transaction.id }) { heldTrx ->
                             val trx = heldTrx.transaction
                             val timeStr = dateFormatter.format(Date(trx.createdAt))
-                            val itemsSummary = heldTrx.items.joinToString(", ") { "${it.item.productName} (${it.item.qty.toInt()})" }
+                            val itemsSummary = heldTrx.items.joinToString(", ") {
+                                "${it.item.productName} (${it.item.qty.toInt()})"
+                            }
 
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Slate200.copy(alpha = 0.35f)),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, Slate200),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            Text(
-                                                text = trx.note?.ifBlank { "Pesanan" } ?: "Pesanan",
-                                                style = MaterialTheme.typography.titleSmall.copy(
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Slate900
-                                                )
-                                            )
-                                            Text(
-                                                text = "• $timeStr",
-                                                style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
-                                            )
-                                        }
-
-                                        Spacer(modifier = Modifier.height(3.dp))
-
+                                Column(modifier = Modifier.fillMaxWidth().padding(14.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
                                         Text(
-                                            text = itemsSummary,
-                                            style = MaterialTheme.typography.bodySmall.copy(color = Slate700),
-                                            maxLines = 1
+                                            text = trx.note?.ifBlank { "Pesanan" } ?: "Pesanan",
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = Slate900,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f)
                                         )
-
-                                        Spacer(modifier = Modifier.height(3.dp))
-
                                         Text(
-                                            text = CurrencyFormatter.format(trx.grandTotal, currencySymbol),
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                color = SuccessGreen
-                                            )
+                                            text = timeStr,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Slate500
                                         )
                                     }
 
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(Modifier.height(4.dp))
 
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        IconButton(
-                                            onClick = { onDeleteOrder(trx.id) },
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Icon(
-                                                Icons.Default.Delete,
-                                                contentDescription = "Hapus",
-                                                tint = DangerRed,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
+                                    Text(
+                                        text = itemsSummary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Slate500,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
 
-                                        Button(
-                                            onClick = { onResumeOrder(heldTrx) },
-                                            shape = RoundedCornerShape(8.dp),
-                                            colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                                            modifier = Modifier.height(36.dp)
-                                        ) {
-                                            Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
-                                            Spacer(modifier = Modifier.width(4.dp))
-                                            Text("Lanjut", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(Modifier.height(10.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = CurrencyFormatter.format(trx.grandTotal, currencySymbol),
+                                            style = PosTextStyles.money,
+                                            color = Slate900
+                                        )
+
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            IconButton(
+                                                onClick = { onDeleteOrder(trx.id) },
+                                                modifier = Modifier.size(44.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Default.DeleteOutline,
+                                                    contentDescription = "Hapus pesanan tertunda",
+                                                    tint = DangerRed,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                            Spacer(Modifier.width(4.dp))
+                                            Button(
+                                                onClick = { onResumeOrder(heldTrx) },
+                                                shape = RoundedCornerShape(12.dp),
+                                                colors = ButtonDefaults.buttonColors(
+                                                    containerColor = MaterialTheme.colorScheme.primary
+                                                ),
+                                                modifier = Modifier.height(44.dp)
+                                            ) {
+                                                Icon(
+                                                    Icons.Outlined.PlayArrow,
+                                                    contentDescription = null,
+                                                    tint = Color.White,
+                                                    modifier = Modifier.size(18.dp)
+                                                )
+                                                Spacer(Modifier.width(4.dp))
+                                                Text(
+                                                    "Lanjut",
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = Color.White
+                                                )
+                                            }
                                         }
                                     }
                                 }

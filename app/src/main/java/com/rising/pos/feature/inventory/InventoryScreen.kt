@@ -1,16 +1,16 @@
 package com.rising.pos.feature.inventory
 
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import com.rising.pos.ui.components.WorkspaceHeader
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -22,10 +22,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Inventory
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.SouthWest
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.NorthEast
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -34,6 +36,8 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,39 +45,51 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.database.entity.ProductEntity
 import com.rising.pos.core.database.entity.StockMovementEntity
 import com.rising.pos.core.model.StockMovementType
+import com.rising.pos.ui.components.WorkspaceEmptyState
 import com.rising.pos.ui.theme.DangerRed
-import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.DangerRedContainer
+import com.rising.pos.ui.theme.PosTextStyles
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
+import com.rising.pos.ui.theme.SuccessGreenContainer
 import com.rising.pos.ui.theme.WarningAmber
+import com.rising.pos.ui.theme.WarningAmberContainer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Persediaan dan mutasi stok.
+ *
+ * Dua bagian dipisah dengan segmented control agar tidak menumpuk: Daftar stok
+ * (dengan status berikon) dan Riwayat mutasi (dengan arah masuk/keluar).
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InventoryScreen(
@@ -89,62 +105,69 @@ fun InventoryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp)
     ) {
-            WorkspaceHeader("Stok produk", "Pantau persediaan dan catat perubahan stok.")
+        Spacer(Modifier.height(16.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Stok produk", style = MaterialTheme.typography.headlineSmall, color = Slate900)
+                Text(
+                    "Pantau persediaan dan catat perubahan stok.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Slate500
+                )
+            }
             Button(
                 onClick = { viewModel.openStockAction(StockActionType.RESTOCK) },
-                modifier = Modifier.padding(top = 12.dp),
-                shape = RoundedCornerShape(10.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                modifier = Modifier.height(44.dp)
             ) {
-                Icon(Icons.Default.Add, null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("Stok masuk")
-            }
-            Spacer(Modifier.height(16.dp))
-
-        // Tabs
-        PrimaryTabRow(
-            selectedTabIndex = uiState.selectedTab,
-            containerColor = Color.Transparent,
-            divider = { HorizontalDivider(color = Slate200) }
-        ) {
-            tabs.forEachIndexed { index, title ->
-                Tab(
-                    selected = uiState.selectedTab == index,
-                    onClick = { viewModel.selectTab(index) },
-                    text = {
-                        Text(
-                            text = title,
-                            fontWeight = if (uiState.selectedTab == index) FontWeight.Bold else FontWeight.Normal,
-                            color = if (uiState.selectedTab == index) PrimaryBlue else Slate500
-                        )
-                    }
-                )
+                Text("Stok masuk", style = MaterialTheme.typography.labelLarge, color = Color.White)
             }
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        Spacer(Modifier.height(14.dp))
+
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            tabs.forEachIndexed { index, title ->
+                SegmentedButton(
+                    selected = uiState.selectedTab == index,
+                    onClick = { viewModel.selectTab(index) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = tabs.size),
+                    colors = SegmentedButtonDefaults.colors(
+                        activeContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        activeContentColor = MaterialTheme.colorScheme.primary,
+                        inactiveContainerColor = MaterialTheme.colorScheme.surface,
+                        inactiveContentColor = Slate500
+                    )
+                ) {
+                    Text(title)
+                }
+            }
+        }
+
+        Spacer(Modifier.height(14.dp))
 
         if (uiState.selectedTab == 0) {
-            // Tab 1: Tracked Products
             if (trackedProducts.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.Inventory, contentDescription = null, tint = Slate500, modifier = Modifier.size(56.dp))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Tidak ada produk dengan pelacakan stok.", style = MaterialTheme.typography.bodyMedium.copy(color = Slate500))
-                    }
+                    WorkspaceEmptyState(
+                        icon = Icons.Outlined.Inventory2,
+                        title = "Belum ada produk berstok",
+                        description = "Aktifkan \"Kelola stok otomatis\" pada produk di menu Produk agar stoknya bisa dipantau di sini."
+                    )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(trackedProducts, key = { it.id }) { product ->
@@ -158,24 +181,22 @@ fun InventoryScreen(
                 }
             }
         } else {
-            // Tab 2: Movement Log
             if (recentMovements.isEmpty()) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .weight(1f),
+                    modifier = Modifier.fillMaxWidth().weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.History, contentDescription = null, tint = Slate500, modifier = Modifier.size(56.dp))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Belum ada pergerakan stok tercatat.", style = MaterialTheme.typography.bodyMedium.copy(color = Slate500))
-                    }
+                    WorkspaceEmptyState(
+                        icon = Icons.Outlined.Inventory2,
+                        title = "Belum ada pergerakan stok",
+                        description = "Catat stok masuk atau koreksi stok, maka riwayatnya akan muncul di sini."
+                    )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(recentMovements, key = { it.id }) { movement ->
                         val matchedProduct = trackedProducts.find { it.id == movement.productId }
@@ -191,7 +212,6 @@ fun InventoryScreen(
         }
     }
 
-    // Stock Action Form BottomSheet
     if (uiState.isFormOpen) {
         StockActionBottomSheet(
             form = uiState.formState,
@@ -217,65 +237,121 @@ private fun ProductStockRow(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.5.dp)
+        border = BorderStroke(1.dp, Slate200),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = product.name,
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    val stockColor = when {
-                        isOutOfStock -> DangerRed
-                        isLowStock -> WarningAmber
-                        else -> SuccessGreen
-                    }
+        Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = "Stok Saat Ini: ${product.stock.toInt()} ${product.unit}",
-                        style = MaterialTheme.typography.bodyMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = stockColor
+                        text = product.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Slate900,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text(
+                            text = product.stock.toInt().toString(),
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = when {
+                                isOutOfStock -> DangerRed
+                                isLowStock -> WarningAmber
+                                else -> Slate900
+                            }
                         )
-                    )
-                    Text(
-                        text = " (Min: ${product.minStock.toInt()})",
-                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                    )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = product.unit,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Slate500,
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                    }
                 }
+
+                StockStatusChip(isOutOfStock = isOutOfStock, isLowStock = isLowStock)
             }
 
-            // Quick Actions
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "Batas minimum ${product.minStock.toInt()} ${product.unit}",
+                style = MaterialTheme.typography.labelMedium,
+                color = Slate500
+            )
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
                     onClick = onRestock,
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = ButtonDefaults.ContentPadding
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, Slate200),
+                    modifier = Modifier.height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
                 ) {
-                    Text("+ Masuk", fontSize = 11.sp, color = SuccessGreen)
+                    Icon(Icons.Outlined.NorthEast, contentDescription = null, tint = SuccessGreen, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Masuk", style = MaterialTheme.typography.labelMedium, color = SuccessGreen)
                 }
-                IconButton(onClick = onAdjust) {
-                    Icon(Icons.Default.Edit, contentDescription = "Koreksi", tint = Slate700, modifier = Modifier.size(18.dp))
+                OutlinedButton(
+                    onClick = onAdjust,
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, Slate200),
+                    modifier = Modifier.height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    Icon(Icons.Outlined.Tune, contentDescription = null, tint = Slate700, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Koreksi", style = MaterialTheme.typography.labelMedium, color = Slate700)
                 }
-                IconButton(onClick = onDamage) {
-                    Icon(Icons.Default.Warning, contentDescription = "Rusak", tint = DangerRed, modifier = Modifier.size(18.dp))
+                OutlinedButton(
+                    onClick = onDamage,
+                    shape = RoundedCornerShape(10.dp),
+                    border = BorderStroke(1.dp, Slate200),
+                    modifier = Modifier.height(40.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp)
+                ) {
+                    Icon(Icons.Outlined.SouthWest, contentDescription = null, tint = DangerRed, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Rusak", style = MaterialTheme.typography.labelMedium, color = DangerRed)
                 }
             }
         }
     }
 }
+
+/** Status stok: ikon + teks, bukan warna saja. */
+@Composable
+private fun StockStatusChip(isOutOfStock: Boolean, isLowStock: Boolean) {
+    val (container, content, icon, label) = when {
+        isOutOfStock -> Quad(DangerRedContainer, DangerRed, Icons.Outlined.Block, "Habis")
+        isLowStock -> Quad(WarningAmberContainer, WarningAmber, Icons.Outlined.WarningAmber, "Menipis")
+        else -> Quad(SuccessGreenContainer, SuccessGreen, null, "Aman")
+    }
+
+    Surface(shape = RoundedCornerShape(999.dp), color = container) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(5.dp))
+            }
+            Text(label, style = MaterialTheme.typography.labelSmall, color = content)
+        }
+    }
+}
+
+private data class Quad(
+    val container: Color,
+    val content: Color,
+    val icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    val label: String
+)
 
 @Composable
 private fun MovementItemRow(
@@ -284,73 +360,88 @@ private fun MovementItemRow(
     unit: String,
     dateStr: String
 ) {
-    val (badgeColor, typeLabel) = when (movement.type) {
-        StockMovementType.IN -> SuccessGreen to "MASUK"
-        StockMovementType.OUT -> DangerRed to "KELUAR"
-        StockMovementType.SALE -> PrimaryBlue to "PENJUALAN"
-        StockMovementType.ADJUSTMENT -> WarningAmber to "KOREKSI"
-        StockMovementType.REFUND -> PrimaryBlue to "REFUND / RETUR"
-        StockMovementType.DAMAGE -> DangerRed to "RUSAK"
-        StockMovementType.LOSS -> DangerRed to "HILANG"
+    val isIncoming = movement.qtyChange >= 0
+    val typeLabel = when (movement.type) {
+        StockMovementType.IN -> "Masuk"
+        StockMovementType.OUT -> "Keluar"
+        StockMovementType.SALE -> "Penjualan"
+        StockMovementType.ADJUSTMENT -> "Koreksi"
+        StockMovementType.REFUND -> "Refund"
+        StockMovementType.DAMAGE -> "Rusak"
+        StockMovementType.LOSS -> "Hilang"
     }
-
-
+    val accent = if (isIncoming) SuccessGreen else DangerRed
     val deltaSign = if (movement.qtyChange > 0) "+" else ""
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
+        border = BorderStroke(1.dp, Slate200),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        color = badgeColor.copy(alpha = 0.12f),
-                        shape = RoundedCornerShape(4.dp)
-                    ) {
-                        Text(
-                            text = typeLabel,
-                            style = MaterialTheme.typography.labelSmall.copy(
-                                color = badgeColor,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 9.sp
-                            ),
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = productName, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, color = Slate900))
-                }
-
-                if (!movement.reason.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(text = movement.reason, style = MaterialTheme.typography.bodySmall.copy(color = Slate500))
-                }
-                Text(text = dateStr, style = MaterialTheme.typography.labelSmall.copy(color = Slate500))
-            }
-
-            Column(horizontalAlignment = Alignment.End) {
-                Text(
-                    text = "$deltaSign${movement.qtyChange.toInt()} $unit",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = if (movement.qtyChange >= 0) SuccessGreen else DangerRed
+            // Ikon arah: masuk atau keluar
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = if (isIncoming) SuccessGreenContainer else DangerRedContainer,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = if (isIncoming) Icons.Outlined.NorthEast else Icons.Outlined.SouthWest,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(18.dp)
                     )
-                )
+                }
+            }
+
+            Spacer(Modifier.width(12.dp))
+
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = productName,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Slate900,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(typeLabel, style = MaterialTheme.typography.labelSmall, color = Slate500)
+                }
+                if (!movement.reason.isNullOrBlank()) {
+                    Text(
+                        text = movement.reason,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate500,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
                 Text(
-                    text = "${movement.qtyBefore.toInt()} → ${movement.qtyAfter.toInt()}",
-                    style = MaterialTheme.typography.labelSmall.copy(color = Slate500, fontFamily = FontFamily.Monospace)
+                    text = "$dateStr · ${movement.qtyBefore.toInt()} jadi ${movement.qtyAfter.toInt()} $unit",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Slate500
                 )
             }
+
+            Spacer(Modifier.width(12.dp))
+
+            Text(
+                text = "$deltaSign${movement.qtyChange.toInt()}",
+                style = PosTextStyles.priceCard,
+                color = accent
+            )
         }
     }
 }
@@ -369,37 +460,49 @@ private fun StockActionBottomSheet(
     var productDropdownExpanded by remember { mutableStateOf(false) }
 
     val title = when (form.actionType) {
-        StockActionType.RESTOCK -> "Catat Stok Masuk (Kulakan)"
-        StockActionType.ADJUSTMENT -> "Koreksi Fisik (Stock Opname)"
-        StockActionType.DAMAGE_LOSS -> "Catat Stok Rusak / Hilang"
+        StockActionType.RESTOCK -> "Catat stok masuk"
+        StockActionType.ADJUSTMENT -> "Koreksi stok fisik"
+        StockActionType.DAMAGE_LOSS -> "Catat stok rusak atau hilang"
+    }
+
+    val amountLabel = when (form.actionType) {
+        StockActionType.RESTOCK -> "Jumlah stok masuk"
+        StockActionType.ADJUSTMENT -> "Jumlah stok sebenarnya sekarang"
+        StockActionType.DAMAGE_LOSS -> "Jumlah stok rusak atau hilang"
+    }
+
+    val accent = when (form.actionType) {
+        StockActionType.RESTOCK -> SuccessGreen
+        StockActionType.ADJUSTMENT -> WarningAmber
+        StockActionType.DAMAGE_LOSS -> DangerRed
     }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp)
-                .verticalScroll(rememberScrollState()),
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 20.dp)
+                .verticalScroll(rememberScrollState())
+                .imePadding(),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Text(text = title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, color = Slate900))
+            Text(title, style = MaterialTheme.typography.titleLarge, color = Slate900)
 
-            HorizontalDivider(color = Slate200)
-
-            // Product Dropdown
             ExposedDropdownMenuBox(
                 expanded = productDropdownExpanded,
                 onExpandedChange = { productDropdownExpanded = it },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 OutlinedTextField(
-                    value = form.selectedProduct?.name ?: "Pilih Produk",
+                    value = form.selectedProduct?.name ?: "Pilih produk",
                     onValueChange = {},
                     readOnly = true,
-                    label = { Text("Produk *") },
+                    label = { Text("Produk") },
                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = productDropdownExpanded) },
                     modifier = Modifier
                         .menuAnchor(androidx.compose.material3.ExposedDropdownMenuAnchorType.PrimaryNotEditable)
@@ -413,7 +516,7 @@ private fun StockActionBottomSheet(
                 ) {
                     products.forEach { p ->
                         DropdownMenuItem(
-                            text = { Text("${p.name} (Stok: ${p.stock.toInt()} ${p.unit})") },
+                            text = { Text("${p.name} (stok ${p.stock.toInt()} ${p.unit})") },
                             onClick = {
                                 onSelectProduct(p)
                                 productDropdownExpanded = false
@@ -421,12 +524,6 @@ private fun StockActionBottomSheet(
                         )
                     }
                 }
-            }
-
-            val amountLabel = when (form.actionType) {
-                StockActionType.RESTOCK -> "Jumlah Stok Masuk"
-                StockActionType.ADJUSTMENT -> "Jumlah Stok Sebenarnya Sekarang"
-                StockActionType.DAMAGE_LOSS -> "Jumlah Stok Rusak / Hilang"
             }
 
             OutlinedTextField(
@@ -443,34 +540,61 @@ private fun StockActionBottomSheet(
             OutlinedTextField(
                 value = form.reasonInput,
                 onValueChange = onReasonChange,
-                label = { Text("Keterangan / Alasan (Opsional)") },
+                label = { Text("Keterangan (opsional)") },
                 placeholder = { Text("Contoh: Kulakan supplier A / Basi / Salah hitung") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            // Pratinjau stok setelah perubahan, agar kasir yakin sebelum menyimpan.
+            StockPreview(form = form)
+
+            Spacer(Modifier.height(4.dp))
 
             Button(
                 onClick = onSubmit,
                 enabled = form.selectedProduct != null && form.amountInput.isNotBlank(),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = when (form.actionType) {
-                        StockActionType.RESTOCK -> SuccessGreen
-                        StockActionType.ADJUSTMENT -> WarningAmber
-                        StockActionType.DAMAGE_LOSS -> DangerRed
-                    }
-                )
+                colors = ButtonDefaults.buttonColors(containerColor = accent)
             ) {
-                Text("Simpan Perubahan Stok", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Color.White))
+                Text("Simpan perubahan stok", style = MaterialTheme.typography.titleMedium, color = Color.White)
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+@Composable
+private fun StockPreview(form: StockFormState) {
+    val product = form.selectedProduct ?: return
+    val amount = form.amountInput.toDoubleOrNull() ?: return
+    val unit = product.unit
+
+    val after = when (form.actionType) {
+        StockActionType.RESTOCK -> product.stock + amount
+        StockActionType.ADJUSTMENT -> amount
+        StockActionType.DAMAGE_LOSS -> product.stock - amount
+    }
+
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Stok setelah perubahan", style = MaterialTheme.typography.bodyMedium, color = Slate700)
+            Text(
+                text = "${product.stock.toInt()} jadi ${after.toInt()} $unit",
+                style = MaterialTheme.typography.titleSmall,
+                color = Slate900
+            )
         }
     }
 }

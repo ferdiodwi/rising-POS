@@ -1,5 +1,6 @@
 package com.rising.pos.feature.customer.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,15 +17,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Notes
+import androidx.compose.material.icons.automirrored.outlined.Notes
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Email
+import androidx.compose.material.icons.outlined.LocationOn
+import androidx.compose.material.icons.outlined.Phone
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -40,26 +40,31 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.rising.pos.core.database.entity.CustomerWithStats
 import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.model.TransactionStatus
 import com.rising.pos.core.util.CurrencyFormatter
 import com.rising.pos.ui.theme.DangerRed
-import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.DangerRedContainer
+import com.rising.pos.ui.theme.PosTextStyles
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
+import com.rising.pos.ui.theme.SuccessGreenContainer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+/**
+ * Profil pelanggan: identitas, statistik belanja, kontak, dan riwayat transaksi.
+ */
 @Composable
 fun CustomerDetailDialog(
     customerWithStats: CustomerWithStats,
@@ -74,9 +79,7 @@ fun CustomerDetailDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(8.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
@@ -88,226 +91,167 @@ fun CustomerDetailDialog(
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "Profil Pelanggan",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                    )
-                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                    Text("Profil pelanggan", style = MaterialTheme.typography.titleMedium, color = Slate900)
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
                         Icon(Icons.Default.Close, contentDescription = "Tutup", tint = Slate500)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(14.dp))
 
-                // Avatar & Name
                 Box(
                     modifier = Modifier
                         .size(64.dp)
-                        .background(PrimaryBlue.copy(alpha = 0.12f), CircleShape),
+                        .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = cust.name.take(2).uppercase(),
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = PrimaryBlue
-                        )
+                        text = cust.name.trim().take(2).uppercase(),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
 
                 Text(
                     text = cust.name,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Slate900,
+                    textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
-                // Stats Cards Row
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        color = Slate200.copy(alpha = 0.4f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Total Belanja",
-                                style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = CurrencyFormatter.format(customerWithStats.totalSpent, currencySymbol),
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = SuccessGreen
-                                )
-                            )
-                        }
-                    }
-
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        color = Slate200.copy(alpha = 0.4f),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "Transaksi",
-                                style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "${customerWithStats.totalTransactions}x",
-                                style = MaterialTheme.typography.titleSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = PrimaryBlue
-                                )
-                            )
-                        }
-                    }
+                // Statistik belanja
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    StatTile(
+                        label = "Total belanja",
+                        value = CurrencyFormatter.format(customerWithStats.totalSpent, currencySymbol),
+                        accent = SuccessGreen,
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatTile(
+                        label = "Transaksi",
+                        value = "${customerWithStats.totalTransactions}x",
+                        accent = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
                 if (customerWithStats.lastTransactionDate != null) {
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(Modifier.height(10.dp))
                     Text(
-                        text = "Kunjungan terakhir: ${dateFormatter.format(Date(customerWithStats.lastTransactionDate))}",
-                        style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
+                        text = "Kunjungan terakhir ${dateFormatter.format(Date(customerWithStats.lastTransactionDate))}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Slate500
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(color = Slate200)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
 
-                // Contact Details
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    if (!cust.phone.isNullOrBlank()) {
-                        DetailItemRow(icon = Icons.Default.Phone, label = "Telepon", value = cust.phone)
+                // Kontak
+                val hasContact = !cust.phone.isNullOrBlank() || !cust.email.isNullOrBlank() ||
+                    !cust.address.isNullOrBlank() || !cust.notes.isNullOrBlank()
+
+                if (hasContact) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (!cust.phone.isNullOrBlank()) {
+                            DetailItemRow(icon = Icons.Outlined.Phone, label = "Telepon", value = cust.phone)
+                        }
+                        if (!cust.email.isNullOrBlank()) {
+                            DetailItemRow(icon = Icons.Outlined.Email, label = "Email", value = cust.email)
+                        }
+                        if (!cust.address.isNullOrBlank()) {
+                            DetailItemRow(icon = Icons.Outlined.LocationOn, label = "Alamat", value = cust.address)
+                        }
+                        if (!cust.notes.isNullOrBlank()) {
+                            DetailItemRow(icon = Icons.AutoMirrored.Outlined.Notes, label = "Catatan", value = cust.notes)
+                        }
                     }
-                    if (!cust.email.isNullOrBlank()) {
-                        DetailItemRow(icon = Icons.Default.Email, label = "Email", value = cust.email)
-                    }
-                    if (!cust.address.isNullOrBlank()) {
-                        DetailItemRow(icon = Icons.Default.LocationOn, label = "Alamat", value = cust.address)
-                    }
-                    if (!cust.notes.isNullOrBlank()) {
-                        DetailItemRow(icon = Icons.AutoMirrored.Filled.Notes, label = "Catatan", value = cust.notes)
-                    }
-                    if (cust.phone.isNullOrBlank() && cust.email.isNullOrBlank() && cust.address.isNullOrBlank() && cust.notes.isNullOrBlank()) {
-                        Text(
-                            text = "Belum ada detail kontak tambahan.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500),
-                            modifier = Modifier.padding(vertical = 4.dp)
-                        )
-                    }
+                } else {
+                    Text(
+                        text = "Belum ada detail kontak.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate500
+                    )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
                 HorizontalDivider(color = Slate200)
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(Modifier.height(12.dp))
 
-                // Purchase History
+                // Riwayat
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Text("Riwayat transaksi", style = MaterialTheme.typography.titleSmall, color = Slate900)
                     Text(
-                        text = "Riwayat Transaksi",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                    )
-                    Text(
-                        text = "${transactions.size} struk",
-                        style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
+                        "${transactions.size} struk",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Slate500
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(Modifier.height(10.dp))
 
                 if (transactions.isEmpty()) {
                     Text(
-                        text = "Belum ada riwayat transaksi.",
-                        style = MaterialTheme.typography.bodySmall.copy(color = Slate500),
+                        text = "Belum ada riwayat transaksi untuk pelanggan ini.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate500,
+                        textAlign = TextAlign.Center,
                         modifier = Modifier.padding(vertical = 12.dp)
                     )
                 } else {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         transactions.take(5).forEach { item ->
                             val trx = item.transaction
                             val isCompleted = trx.status == TransactionStatus.COMPLETED
                             Surface(
                                 modifier = Modifier.fillMaxWidth(),
-                                color = Color(0xFFF8FAFC),
-                                shape = RoundedCornerShape(10.dp)
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                shape = RoundedCornerShape(12.dp)
                             ) {
                                 Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(10.dp),
+                                    modifier = Modifier.fillMaxWidth().padding(12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Column {
+                                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                         Text(
                                             text = trx.receiptNumber,
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                fontFamily = FontFamily.Monospace,
-                                                color = Slate900
-                                            )
+                                            style = PosTextStyles.receiptNo,
+                                            color = Slate700,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
                                         Text(
                                             text = dateFormatter.format(Date(trx.createdAt)),
-                                            style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = Slate500
                                         )
                                     }
                                     Column(horizontalAlignment = Alignment.End) {
                                         Text(
                                             text = CurrencyFormatter.format(trx.grandTotal, currencySymbol),
-                                            style = MaterialTheme.typography.labelMedium.copy(
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isCompleted) Slate900 else DangerRed
-                                            )
+                                            style = PosTextStyles.money,
+                                            color = if (isCompleted) Slate900 else DangerRed
                                         )
-                                        Text(
-                                            text = trx.status.name,
-                                            style = MaterialTheme.typography.labelSmall.copy(
-                                                color = if (isCompleted) SuccessGreen else DangerRed,
-                                                fontSize = 10.sp
-                                            )
-                                        )
+                                        StatusTag(status = trx.status)
                                     }
                                 }
                             }
@@ -315,37 +259,29 @@ fun CustomerDetailDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(Modifier.height(20.dp))
 
-                // Bottom Action Buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     OutlinedButton(
                         onClick = onDelete,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp),
+                        modifier = Modifier.weight(1f).height(52.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = DangerRed)
+                        border = BorderStroke(1.dp, Slate200)
                     ) {
-                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Hapus", fontSize = 13.sp)
+                        Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = DangerRed, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Hapus", style = MaterialTheme.typography.labelLarge, color = DangerRed)
                     }
 
                     Button(
                         onClick = onEdit,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(44.dp),
+                        modifier = Modifier.weight(1f).height(52.dp),
                         shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Edit", fontSize = 13.sp)
+                        Icon(Icons.Outlined.Edit, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Edit", style = MaterialTheme.typography.labelLarge, color = Color.White)
                     }
                 }
             }
@@ -354,27 +290,66 @@ fun CustomerDetailDialog(
 }
 
 @Composable
-private fun DetailItemRow(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun StatTile(
     label: String,
-    value: String
+    value: String,
+    accent: Color,
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top
+    Surface(
+        modifier = modifier,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(12.dp)
     ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = Slate500)
+            Text(value, style = PosTextStyles.priceCard, color = accent)
+        }
+    }
+}
+
+/** Status singkat: warna + ikon + teks. */
+@Composable
+private fun StatusTag(status: TransactionStatus) {
+    val (container, content, label) = when (status) {
+        TransactionStatus.COMPLETED -> Triple(SuccessGreenContainer, SuccessGreen, "Selesai")
+        TransactionStatus.CANCELLED -> Triple(DangerRedContainer, DangerRed, "Void")
+        TransactionStatus.REFUNDED -> Triple(DangerRedContainer, DangerRed, "Refund")
+        TransactionStatus.HELD -> Triple(SuccessGreenContainer, SuccessGreen, "Ditahan")
+    }
+    Surface(shape = RoundedCornerShape(999.dp), color = container) {
+        Row(
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.ReceiptLong,
+                contentDescription = null,
+                tint = content,
+                modifier = Modifier.size(12.dp)
+            )
+            Spacer(Modifier.width(4.dp))
+            Text(label, style = MaterialTheme.typography.labelSmall, color = content)
+        }
+    }
+}
+
+@Composable
+private fun DetailItemRow(icon: ImageVector, label: String, value: String) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             tint = Slate500,
-            modifier = Modifier
-                .size(16.dp)
-                .padding(top = 2.dp)
+            modifier = Modifier.size(16.dp).padding(top = 2.dp)
         )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column {
-            Text(text = label, style = MaterialTheme.typography.labelSmall.copy(color = Slate500, fontSize = 11.sp))
-            Text(text = value, style = MaterialTheme.typography.bodySmall.copy(color = Slate900, fontWeight = FontWeight.Medium))
+        Spacer(Modifier.width(10.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = Slate500)
+            Text(value, style = MaterialTheme.typography.bodySmall, color = Slate900)
         }
     }
 }

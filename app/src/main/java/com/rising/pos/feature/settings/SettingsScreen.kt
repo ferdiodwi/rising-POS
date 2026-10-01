@@ -1,14 +1,12 @@
 package com.rising.pos.feature.settings
 
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.getValue
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.foundation.layout.FlowRow
-import com.rising.pos.ui.components.WorkspaceHeader
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,16 +15,37 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.LightMode
-import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.CreditCard
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.Inventory2
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.Print
+import androidx.compose.material.icons.outlined.QrCodeScanner
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.Restaurant
+import androidx.compose.material.icons.outlined.Restore
+import androidx.compose.material.icons.outlined.SettingsSuggest
+import androidx.compose.material.icons.outlined.TableRestaurant
+import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -34,39 +53,50 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import com.rising.pos.core.model.AppTheme
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.TextButton
+import com.rising.pos.core.model.AppTheme
+import com.rising.pos.feature.settings.components.AppUpdateCard
+import com.rising.pos.feature.settings.components.AppUpdateDialog
+import com.rising.pos.feature.settings.components.PrinterPickerDialog
 import com.rising.pos.ui.components.PinSetupDialog
 import com.rising.pos.ui.components.SecurityPinDialog
 import com.rising.pos.ui.theme.DangerRed
-import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.DangerRedContainer
 import com.rising.pos.ui.theme.Slate200
+import com.rising.pos.ui.theme.Slate400
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
-import com.rising.pos.feature.settings.components.AppUpdateCard
-import com.rising.pos.feature.settings.components.AppUpdateDialog
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
+import com.rising.pos.ui.theme.SuccessGreenContainer
 
+/**
+ * Pengaturan.
+ *
+ * Halaman ini banyak isi, jadi dipecah menjadi empat bagian lewat segmented
+ * control: Toko, Transaksi, Perangkat, Data dan akses. Setiap item punya ikon,
+ * judul, dan penjelasan singkat agar tidak terasa menakutkan.
+ */
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
@@ -97,659 +127,119 @@ fun SettingsScreen(
     val sectionScroll = rememberScrollState()
     LaunchedEffect(selectedSection) { sectionScroll.scrollTo(0) }
 
+    val sectionTitles = listOf("Toko", "Transaksi", "Perangkat", "Data dan akses")
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .padding(horizontal = 16.dp)
     ) {
-        WorkspaceHeader("Pengaturan", "Sesuaikan toko, struk, dan akses aplikasi.")
+        Spacer(Modifier.height(16.dp))
+
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("Pengaturan", style = MaterialTheme.typography.headlineSmall, color = Slate900)
+            Text(
+                "Sesuaikan toko, struk, dan akses aplikasi.",
+                style = MaterialTheme.typography.bodySmall,
+                color = Slate500
+            )
+        }
+
+        Spacer(Modifier.height(14.dp))
 
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(4) { index ->
+            items(sectionTitles.size) { index ->
                 FilterChip(
                     selected = selectedSection == index,
                     onClick = { selectedSection = index },
-                    label = { Text(listOf("Toko", "Transaksi", "Perangkat", "Data & akses")[index]) }
+                    label = { Text(sectionTitles[index]) },
+                    shape = RoundedCornerShape(999.dp),
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = if (selectedSection == index) MaterialTheme.colorScheme.primary else Slate200
+                    ),
+                    colors = FilterChipDefaults.filterChipColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        labelColor = Slate500,
+                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                        selectedLabelColor = MaterialTheme.colorScheme.primary
+                    )
                 )
             }
         }
+
+        Spacer(Modifier.height(14.dp))
+
         Column(
-            modifier = Modifier.weight(1f).verticalScroll(sectionScroll),
+            modifier = Modifier
+                .weight(1f)
+                .verticalScroll(sectionScroll),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (selectedSection == 0) {
-                // Section 1: Profil Toko & Device
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Profil Usaha & Struk",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
-                        )
-
-                        OutlinedTextField(
-                            value = name,
-                            onValueChange = { name = it },
-                            label = { Text("Nama Toko") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = phone,
-                            onValueChange = { phone = it },
-                            label = { Text("No. Telepon / WhatsApp") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = address,
-                            onValueChange = { address = it },
-                            label = { Text("Alamat") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = footerNote,
-                            onValueChange = { footerNote = it },
-                            label = { Text("Pesan di bagian bawah struk") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = deviceId,
-                            onValueChange = { deviceId = it },
-                            label = { Text("Kode perangkat pada struk") },
-                            supportingText = { Text("Contoh: A01 untuk kasir 1, B01 untuk kasir 2") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        Button(
-                            onClick = { viewModel.updateBusinessProfile(name, phone, address, footerNote, deviceId) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Text("Simpan Profil")
-                        }
+            when (selectedSection) {
+                0 -> StoreSection(
+                    name = name,
+                    onNameChange = { name = it },
+                    phone = phone,
+                    onPhoneChange = { phone = it },
+                    address = address,
+                    onAddressChange = { address = it },
+                    footerNote = footerNote,
+                    onFooterNoteChange = { footerNote = it },
+                    deviceId = deviceId,
+                    onDeviceIdChange = { deviceId = it },
+                    appTheme = settings.appTheme,
+                    onThemeChange = viewModel::setAppTheme,
+                    onSaveProfile = {
+                        viewModel.updateBusinessProfile(name, phone, address, footerNote, deviceId)
                     }
-                }
+                )
 
-                // Section 0: Tema & Tampilan
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Tema & Tampilan",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
-                        )
-                        Text(
-                            text = "Pilih tampilan yang nyaman untuk tempat kerja Anda.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                        )
+                1 -> TransactionSection(
+                    settings = settings,
+                    onUpdateFeatureToggles = viewModel::updateFeatureToggles,
+                    onUpdateTaxAndService = viewModel::updateTaxAndService
+                )
 
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            FilterChip(
-                                selected = settings.appTheme == AppTheme.LIGHT,
-                                onClick = { viewModel.setAppTheme(AppTheme.LIGHT) },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.LightMode,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                },
-                                label = { Text("Terang", fontSize = 12.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
-                                    selectedLabelColor = MaterialTheme.colorScheme.primary
-                                ),
-                                modifier = Modifier
-                            )
+                2 -> DeviceSection(
+                    settings = settings,
+                    isTestingPrint = uiState.isTestingPrint,
+                    printerStatusMessage = uiState.printerStatusMessage,
+                    onOpenPrinterPicker = viewModel::openPrinterPicker,
+                    onSetPaperWidth = viewModel::setPaperWidth,
+                    onSetAutoPrint = viewModel::setAutoPrint,
+                    onTestPrint = viewModel::testPrint
+                )
 
-                            FilterChip(
-                                selected = settings.appTheme == AppTheme.DARK,
-                                onClick = { viewModel.setAppTheme(AppTheme.DARK) },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.DarkMode,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                },
-                                label = { Text("Gelap", fontSize = 12.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
-                                    selectedLabelColor = MaterialTheme.colorScheme.primary
-                                ),
-                                modifier = Modifier
-                            )
-
-                            FilterChip(
-                                selected = settings.appTheme == AppTheme.SYSTEM,
-                                onClick = { viewModel.setAppTheme(AppTheme.SYSTEM) },
-                                leadingIcon = {
-                                    Icon(
-                                        Icons.Default.PhoneAndroid,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                },
-                                label = { Text("Sistem", fontSize = 12.sp) },
-                                colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = PrimaryBlue.copy(alpha = 0.15f),
-                                    selectedLabelColor = MaterialTheme.colorScheme.primary
-                                ),
-                                modifier = Modifier
-                            )
-                        }
-                    }
-                }
-            }
-            if (selectedSection == 1) {
-                // Section 2: Fitur Modular (PRD Section 8)
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Fitur toko",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
-                        )
-                        Text(
-                            text = "Aktifkan atau matikan fitur sesuai dengan jenis bisnis Anda.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                        )
-
-                        HorizontalDivider(color = Slate200)
-
-                        SettingToggleRow(
-                            title = "Pencatatan Stok",
-                            subtitle = "Otomatis catat stok masuk, keluar, dan sisa produk",
-                            checked = settings.isStockTrackingEnabled,
-                            onCheckedChange = {
-                                viewModel.updateFeatureToggles(
-                                    isTableEnabled = settings.isTableEnabled,
-                                    isModifierEnabled = settings.isModifierEnabled,
-                                    isBarcodeEnabled = settings.isBarcodeEnabled,
-                                    isStockTrackingEnabled = it
-                                )
-                            }
-                        )
-
-                        SettingToggleRow(
-                            title = "Nomor Meja",
-                            subtitle = "Cocok untuk kedai, restoran, atau kafe dine-in",
-                            checked = settings.isTableEnabled,
-                            onCheckedChange = {
-                                viewModel.updateFeatureToggles(
-                                    isTableEnabled = it,
-                                    isModifierEnabled = settings.isModifierEnabled,
-                                    isBarcodeEnabled = settings.isBarcodeEnabled,
-                                    isStockTrackingEnabled = settings.isStockTrackingEnabled
-                                )
-                            }
-                        )
-
-                        SettingToggleRow(
-                            title = "Topping & Modifier",
-                            subtitle = "Pilihan opsi tambahan seperti extra shot, gula, topping",
-                            checked = settings.isModifierEnabled,
-                            onCheckedChange = {
-                                viewModel.updateFeatureToggles(
-                                    isTableEnabled = settings.isTableEnabled,
-                                    isModifierEnabled = it,
-                                    isBarcodeEnabled = settings.isBarcodeEnabled,
-                                    isStockTrackingEnabled = settings.isStockTrackingEnabled
-                                )
-                            }
-                        )
-
-                        SettingToggleRow(
-                            title = "Barcode Scanner",
-                            subtitle = "Scan barcode fisik atau kamera untuk mencari produk",
-                            checked = settings.isBarcodeEnabled,
-                            onCheckedChange = {
-                                viewModel.updateFeatureToggles(
-                                    isTableEnabled = settings.isTableEnabled,
-                                    isModifierEnabled = settings.isModifierEnabled,
-                                    isBarcodeEnabled = it,
-                                    isStockTrackingEnabled = settings.isStockTrackingEnabled
-                                )
-                            }
-                        )
-                    }
-                }
-
-                // Section 3: Pajak & Biaya Layanan
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Pajak & Biaya Layanan",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
-                        )
-
-                        SettingToggleRow(
-                            title = "Aktifkan Pajak (PPN / PB1)",
-                            subtitle = "${settings.taxPercentage}% (Termasuk: ${if (settings.isTaxInclusive) "Ya" else "Tidak"})",
-                            checked = settings.isTaxEnabled,
-                            onCheckedChange = {
-                                viewModel.updateTaxAndService(
-                                    isTaxEnabled = it,
-                                    taxPercentage = settings.taxPercentage,
-                                    isTaxInclusive = settings.isTaxInclusive,
-                                    isServiceChargeEnabled = settings.isServiceChargeEnabled,
-                                    serviceChargePercentage = settings.serviceChargePercentage
-                                )
-                            }
-                        )
-
-                        SettingToggleRow(
-                            title = "Biaya Layanan (Service Charge)",
-                            subtitle = "${settings.serviceChargePercentage}%",
-                            checked = settings.isServiceChargeEnabled,
-                            onCheckedChange = {
-                                viewModel.updateTaxAndService(
-                                    isTaxEnabled = settings.isTaxEnabled,
-                                    taxPercentage = settings.taxPercentage,
-                                    isTaxInclusive = settings.isTaxInclusive,
-                                    isServiceChargeEnabled = it,
-                                    serviceChargePercentage = settings.serviceChargePercentage
-                                )
-                            }
-                        )
-                    }
-                }
-            }
-            if (selectedSection == 2) {
-                // Section 4: Printer Struk Thermal Bluetooth (PRD Section 7.33)
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Printer struk",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
-                        )
-                        Text(
-                            text = "Hubungkan printer thermal Bluetooth untuk mencetak struk kasir secara instan.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                        )
-
-                        HorizontalDivider(color = Slate200)
-
-                        // Current Connected Printer Status
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (settings.printerName.isNotBlank()) settings.printerName else "Belum Ada Printer Dipilih",
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
-                                )
-                                Text(
-                                    text = if (settings.printerMacAddress.isNotBlank()) settings.printerMacAddress else "Ketuk 'Pilih Printer' untuk menghubungkan",
-                                    style = MaterialTheme.typography.labelSmall.copy(
-                                        color = if (settings.printerMacAddress.isNotBlank()) PrimaryBlue else Slate500,
-                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                                    )
-                                )
-                            }
-
-                            OutlinedButton(
-                                onClick = viewModel::openPrinterPicker,
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Text("Pilih Printer", fontSize = 12.sp)
-                            }
-                        }
-
-                        HorizontalDivider(color = Slate200)
-
-                        // Paper Width Selection
-                        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(
-                                text = "Ukuran Kertas Struk:",
-                                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold, color = Slate700)
-                            )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                androidx.compose.material3.FilterChip(
-                                    selected = settings.printerPaperWidthMm == 58,
-                                    onClick = { viewModel.setPaperWidth(58) },
-                                    label = { Text("58 mm") }
-                                )
-                                androidx.compose.material3.FilterChip(
-                                    selected = settings.printerPaperWidthMm == 80,
-                                    onClick = { viewModel.setPaperWidth(80) },
-                                    label = { Text("80 mm") }
-                                )
-                            }
-                        }
-
-                        SettingToggleRow(
-                            title = "Cetak Struk Otomatis",
-                            subtitle = "Langsung cetak struk sesaat setelah transaksi kasir berhasil",
-                            checked = settings.autoPrintReceipt,
-                            onCheckedChange = viewModel::setAutoPrint
-                        )
-
-                        // Test Print Button & Feedback
-                        Button(
-                            onClick = viewModel::testPrint,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(10.dp),
-                            enabled = !uiState.isTestingPrint && settings.printerMacAddress.isNotBlank(),
-                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                                containerColor = com.rising.pos.ui.theme.PrimaryBlue
-                            )
-                        ) {
-                            if (uiState.isTestingPrint) {
-                                androidx.compose.material3.CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Mengirim ke Printer...")
-                            } else {
-                                Text("Cetak percobaan")
-                            }
-                        }
-
-                        uiState.printerStatusMessage?.let { msg ->
-                            Text(
-                                text = msg,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = if (msg.contains("berhasil", ignoreCase = true)) com.rising.pos.ui.theme.SuccessGreen else com.rising.pos.ui.theme.DangerRed,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-            if (selectedSection == 3) {
-                // Section 5: Ekspor Data & Backup Database (PRD 7.35 & 7.36)
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Ekspor & cadangan data",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
-                        )
-                        Text(
-                            text = "Unduh dan bagikan data usaha ke format spreadsheet (.csv) atau buat salinan database lokal.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                        )
-
-                        HorizontalDivider(color = Slate200)
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.exportTransactions(context) },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp),
-                                enabled = !uiState.isExporting
-                            ) {
-                                Text("Ekspor Transaksi", fontSize = 12.sp)
-                            }
-
-                            OutlinedButton(
-                                onClick = { viewModel.exportProducts(context) },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp),
-                                enabled = !uiState.isExporting
-                            ) {
-                                Text("Ekspor Produk", fontSize = 12.sp)
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            OutlinedButton(
-                                onClick = { viewModel.exportExpenses(context) },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp),
-                                enabled = !uiState.isExporting && !uiState.isRestoring
-                            ) {
-                                Text("Ekspor Biaya", fontSize = 12.sp)
-                            }
-
-                            OutlinedButton(
-                                onClick = { viewModel.exportCustomers(context) },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp),
-                                enabled = !uiState.isExporting && !uiState.isRestoring
-                            ) {
-                                Text("Ekspor Pelanggan", fontSize = 12.sp)
-                            }
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Button(
-                                onClick = { viewModel.backupDatabase(context) },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = PrimaryBlue),
-                                enabled = !uiState.isExporting && !uiState.isRestoring
-                            ) {
-                                Text("Cadangkan data", fontSize = 12.sp)
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    if (settings.isPinSecurityEnabled && settings.hasPin) {
-                                        isPinAuthForRestoreOpen = true
-                                    } else {
-                                        isRestoreConfirmationOpen = true
-                                    }
-                                },
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp),
-                                enabled = !uiState.isExporting && !uiState.isRestoring
-                            ) {
-                                Text("Pulihkan data", fontSize = 12.sp, color = DangerRed)
-                            }
-                        }
-
-                        if (uiState.isRestoring) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Sedang memulihkan database...",
-                                    style = MaterialTheme.typography.bodySmall.copy(color = Slate700)
-                                )
-                            }
-                        }
-
-                        uiState.restoreStatusMessage?.let { msg ->
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = if (uiState.isRestoreSuccess) SuccessGreen.copy(alpha = 0.12f) else DangerRed.copy(alpha = 0.12f)
-                                )
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = msg,
-                                        modifier = Modifier.weight(1f),
-                                        style = MaterialTheme.typography.bodySmall.copy(
-                                            color = if (uiState.isRestoreSuccess) SuccessGreen else DangerRed,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    )
-                                    TextButton(onClick = viewModel::clearRestoreStatus) {
-                                        Text("Tutup", fontSize = 11.sp)
-                                    }
-                                }
-                            }
-                        }
-
-                        uiState.exportStatusMessage?.let { msg ->
-                            Text(
-                                text = msg,
-                                style = MaterialTheme.typography.bodySmall.copy(
-                                    color = if (msg.contains("berhasil", ignoreCase = true)) SuccessGreen else DangerRed,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            )
-                        }
-                    }
-                }
-
-                // Section 6: Keamanan & PIN Owner (PRD 7.37 & MVP #18)
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Slate200),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Text(
-                            text = "Keamanan & PIN Owner",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = Slate900)
-                        )
-                        Text(
-                            text = "Minta PIN owner sebelum kasir membatalkan transaksi.",
-                            style = MaterialTheme.typography.bodySmall.copy(color = Slate500)
-                        )
-
-                        HorizontalDivider(color = Slate200)
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = if (settings.isPinSecurityEnabled) "PIN Aktif" else "PIN Nonaktif",
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (settings.isPinSecurityEnabled) SuccessGreen else Slate500
-                                    )
-                                )
-                                Text(
-                                    text = if (settings.isPinSecurityEnabled) "Aksi Void memerlukan verifikasi PIN" else "Kasir dapat membatalkan transaksi tanpa PIN",
-                                    style = MaterialTheme.typography.labelSmall.copy(color = Slate500)
-                                )
-                            }
-
-                            OutlinedButton(
-                                onClick = {
-                                    // Bila PIN sudah aktif, wajib verifikasi PIN lama dulu
-                                    // sebelum boleh mengubah atau menonaktifkannya.
-                                    if (settings.isPinSecurityEnabled && settings.hasPin) {
-                                        isPinAuthForSetupOpen = true
-                                    } else {
-                                        viewModel.openPinSetupDialog()
-                                    }
-                                },
-                                shape = RoundedCornerShape(10.dp)
-                            ) {
-                                Text(if (settings.isPinSecurityEnabled) "Ubah PIN" else "Atur PIN", fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-
-                // ── In-App Update (GitHub Releases) ───────────────────────────────────
-                AppUpdateCard(
+                3 -> DataSection(
+                    settings = settings,
+                    uiState = uiState,
                     updateState = updateState,
-                    onCheckUpdate = viewModel::checkForUpdates
+                    context = context,
+                    viewModel = viewModel,
+                    onOpenPinSetup = {
+                        if (settings.isPinSecurityEnabled && settings.hasPin) {
+                            isPinAuthForSetupOpen = true
+                        } else {
+                            viewModel.openPinSetupDialog()
+                        }
+                    },
+                    onRestoreClick = {
+                        if (settings.isPinSecurityEnabled && settings.hasPin) {
+                            isPinAuthForRestoreOpen = true
+                        } else {
+                            isRestoreConfirmationOpen = true
+                        }
+                    }
                 )
             }
-            Spacer(modifier = Modifier.height(20.dp))
+
+            Spacer(Modifier.height(20.dp))
         }
     }
 
     if (uiState.isPrinterPickerOpen) {
-        com.rising.pos.feature.settings.components.PrinterPickerDialog(
+        PrinterPickerDialog(
             printers = uiState.pairedPrinters,
             currentSelectedMac = settings.printerMacAddress,
             onDismiss = viewModel::closePrinterPicker,
@@ -781,8 +271,8 @@ fun SettingsScreen(
     if (isPinAuthForSetupOpen) {
         SecurityPinDialog(
             verifyPin = viewModel::verifyPin,
-            title = "Otorisasi Ubah PIN",
-            description = "Masukkan PIN Owner saat ini untuk mengubah atau menonaktifkan PIN.",
+            title = "Otorisasi ubah PIN",
+            description = "Masukkan PIN owner saat ini untuk mengubah atau menonaktifkan PIN.",
             onDismiss = { isPinAuthForSetupOpen = false },
             onSuccess = {
                 isPinAuthForSetupOpen = false
@@ -794,8 +284,8 @@ fun SettingsScreen(
     if (isPinAuthForRestoreOpen) {
         SecurityPinDialog(
             verifyPin = viewModel::verifyPin,
-            title = "Otorisasi Pulihkan Database",
-            description = "Masukkan PIN Owner untuk melanjutkan proses pemulihan database.",
+            title = "Otorisasi pulihkan database",
+            description = "Masukkan PIN owner untuk melanjutkan proses pemulihan database.",
             onDismiss = { isPinAuthForRestoreOpen = false },
             onSuccess = {
                 isPinAuthForRestoreOpen = false
@@ -807,16 +297,20 @@ fun SettingsScreen(
     if (isRestoreConfirmationOpen) {
         AlertDialog(
             onDismissRequest = { isRestoreConfirmationOpen = false },
+            shape = RoundedCornerShape(20.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text(
-                    text = "Konfirmasi Pemulihan Database",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, color = DangerRed)
+                    "Pulihkan database?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Slate900
                 )
             },
             text = {
                 Text(
-                    text = "PERINGATAN: Memulihkan database akan mengganti seluruh data yang ada saat ini (transaksi, produk, pelanggan, biaya) dengan data dari file cadangan yang dipilih.\n\nApakah Anda yakin ingin melanjutkan dan memilih file cadangan (.db)?",
-                    style = MaterialTheme.typography.bodyMedium.copy(color = Slate700)
+                    "Seluruh data saat ini (transaksi, produk, pelanggan, biaya) akan diganti dengan data dari file cadangan yang Anda pilih. Tindakan ini tidak bisa dibatalkan.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Slate700
                 )
             },
             confirmButton = {
@@ -825,37 +319,654 @@ fun SettingsScreen(
                         isRestoreConfirmationOpen = false
                         restoreFilePickerLauncher.launch("*/*")
                     },
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = DangerRed)
+                    colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Pilih File Cadangan")
+                    Text("Pilih file cadangan", style = MaterialTheme.typography.labelLarge, color = Color.White)
                 }
             },
             dismissButton = {
-                OutlinedButton(onClick = { isRestoreConfirmationOpen = false }) {
-                    Text("Batal")
+                OutlinedButton(
+                    onClick = { isRestoreConfirmationOpen = false },
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Slate200)
+                ) {
+                    Text("Batal", style = MaterialTheme.typography.labelLarge, color = Slate700)
                 }
             }
         )
     }
 }
 
+// ── Bagian 1: Toko ──────────────────────────────────────────────────────────
+
+@Composable
+private fun StoreSection(
+    name: String,
+    onNameChange: (String) -> Unit,
+    phone: String,
+    onPhoneChange: (String) -> Unit,
+    address: String,
+    onAddressChange: (String) -> Unit,
+    footerNote: String,
+    onFooterNoteChange: (String) -> Unit,
+    deviceId: String,
+    onDeviceIdChange: (String) -> Unit,
+    appTheme: AppTheme,
+    onThemeChange: (AppTheme) -> Unit,
+    onSaveProfile: () -> Unit
+) {
+    SettingsCard(title = "Profil usaha", icon = Icons.Outlined.Restaurant) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = onNameChange,
+            label = { Text("Nama toko") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        OutlinedTextField(
+            value = phone,
+            onValueChange = onPhoneChange,
+            label = { Text("Nomor telepon / WhatsApp") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        OutlinedTextField(
+            value = address,
+            onValueChange = onAddressChange,
+            label = { Text("Alamat") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        OutlinedTextField(
+            value = footerNote,
+            onValueChange = onFooterNoteChange,
+            label = { Text("Pesan di bagian bawah struk") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        OutlinedTextField(
+            value = deviceId,
+            onValueChange = onDeviceIdChange,
+            label = { Text("Kode perangkat pada struk") },
+            supportingText = { Text("Contoh: A01 untuk kasir 1, B01 untuk kasir 2") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Button(
+            onClick = onSaveProfile,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        ) {
+            Text("Simpan profil", style = MaterialTheme.typography.titleMedium, color = Color.White)
+        }
+    }
+
+    SettingsCard(title = "Tema", icon = Icons.Outlined.Tune) {
+        Text(
+            "Pilih tampilan yang nyaman untuk tempat kerja Anda.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Slate500
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ThemeChip("Terang", Icons.Outlined.LightMode, appTheme == AppTheme.LIGHT) {
+                onThemeChange(AppTheme.LIGHT)
+            }
+            ThemeChip("Gelap", Icons.Outlined.DarkMode, appTheme == AppTheme.DARK) {
+                onThemeChange(AppTheme.DARK)
+            }
+            ThemeChip("Sistem", Icons.Outlined.PhoneAndroid, appTheme == AppTheme.SYSTEM) {
+                onThemeChange(AppTheme.SYSTEM)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeChip(
+    label: String,
+    icon: ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        leadingIcon = { Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp)) },
+        label = { Text(label) },
+        shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary else Slate200
+        ),
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            labelColor = Slate500,
+            iconColor = Slate500,
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.primary,
+            selectedLeadingIconColor = MaterialTheme.colorScheme.primary
+        )
+    )
+}
+
+// ── Bagian 2: Transaksi ─────────────────────────────────────────────────────
+
+@Composable
+private fun TransactionSection(
+    settings: com.rising.pos.core.datastore.BusinessSettings,
+    onUpdateFeatureToggles: (Boolean, Boolean, Boolean, Boolean) -> Unit,
+    onUpdateTaxAndService: (Boolean, Double, Boolean, Boolean, Double) -> Unit
+) {
+    SettingsCard(title = "Fitur toko", icon = Icons.Outlined.SettingsSuggest) {
+        Text(
+            "Aktifkan atau matikan fitur sesuai kebutuhan usaha Anda.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Slate500
+        )
+        SettingToggleRow(
+            title = "Pencatatan stok",
+            subtitle = "Otomatis catat stok masuk, keluar, dan sisa produk",
+            icon = Icons.Outlined.Inventory2,
+            checked = settings.isStockTrackingEnabled,
+            onCheckedChange = {
+                onUpdateFeatureToggles(
+                    settings.isTableEnabled,
+                    settings.isModifierEnabled,
+                    settings.isBarcodeEnabled,
+                    it
+                )
+            }
+        )
+        SettingToggleRow(
+            title = "Nomor meja",
+            subtitle = "Cocok untuk kedai, restoran, atau kafe dine-in",
+            icon = Icons.Outlined.TableRestaurant,
+            checked = settings.isTableEnabled,
+            onCheckedChange = {
+                onUpdateFeatureToggles(
+                    it,
+                    settings.isModifierEnabled,
+                    settings.isBarcodeEnabled,
+                    settings.isStockTrackingEnabled
+                )
+            }
+        )
+        SettingToggleRow(
+            title = "Topping dan modifier",
+            subtitle = "Opsi tambahan seperti extra shot, gula, atau topping",
+            icon = Icons.Outlined.Bolt,
+            checked = settings.isModifierEnabled,
+            onCheckedChange = {
+                onUpdateFeatureToggles(
+                    settings.isTableEnabled,
+                    it,
+                    settings.isBarcodeEnabled,
+                    settings.isStockTrackingEnabled
+                )
+            }
+        )
+        SettingToggleRow(
+            title = "Barcode scanner",
+            subtitle = "Scan barcode fisik atau kamera untuk mencari produk",
+            icon = Icons.Outlined.QrCodeScanner,
+            checked = settings.isBarcodeEnabled,
+            onCheckedChange = {
+                onUpdateFeatureToggles(
+                    settings.isTableEnabled,
+                    settings.isModifierEnabled,
+                    it,
+                    settings.isStockTrackingEnabled
+                )
+            }
+        )
+    }
+
+    SettingsCard(title = "Pajak dan biaya layanan", icon = Icons.Outlined.CreditCard) {
+        SettingToggleRow(
+            title = "Aktifkan pajak (PPN / PB1)",
+            subtitle = "${settings.taxPercentage}% · ${if (settings.isTaxInclusive) "sudah termasuk" else "ditambahkan"}",
+            checked = settings.isTaxEnabled,
+            onCheckedChange = {
+                onUpdateTaxAndService(
+                    it,
+                    settings.taxPercentage,
+                    settings.isTaxInclusive,
+                    settings.isServiceChargeEnabled,
+                    settings.serviceChargePercentage
+                )
+            }
+        )
+        SettingToggleRow(
+            title = "Biaya layanan (service charge)",
+            subtitle = "${settings.serviceChargePercentage}% dari subtotal",
+            checked = settings.isServiceChargeEnabled,
+            onCheckedChange = {
+                onUpdateTaxAndService(
+                    settings.isTaxEnabled,
+                    settings.taxPercentage,
+                    settings.isTaxInclusive,
+                    it,
+                    settings.serviceChargePercentage
+                )
+            }
+        )
+    }
+}
+
+// ── Bagian 3: Perangkat ─────────────────────────────────────────────────────
+
+@Composable
+private fun DeviceSection(
+    settings: com.rising.pos.core.datastore.BusinessSettings,
+    isTestingPrint: Boolean,
+    printerStatusMessage: String?,
+    onOpenPrinterPicker: () -> Unit,
+    onSetPaperWidth: (Int) -> Unit,
+    onSetAutoPrint: (Boolean) -> Unit,
+    onTestPrint: () -> Unit
+) {
+    val hasPrinter = settings.printerMacAddress.isNotBlank()
+
+    SettingsCard(title = "Printer struk", icon = Icons.Outlined.Print) {
+        Text(
+            "Hubungkan printer thermal Bluetooth untuk mencetak struk kasir.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Slate500
+        )
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        text = if (hasPrinter) settings.printerName else "Belum ada printer dipilih",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Slate900
+                    )
+                    Text(
+                        text = if (hasPrinter) settings.printerMacAddress else "Ketuk pilih printer untuk menghubungkan",
+                        style = if (hasPrinter) {
+                            MaterialTheme.typography.labelMedium.copy(fontFamily = FontFamily.Monospace)
+                        } else {
+                            MaterialTheme.typography.labelMedium
+                        },
+                        color = if (hasPrinter) MaterialTheme.colorScheme.primary else Slate500
+                    )
+                }
+                OutlinedButton(
+                    onClick = onOpenPrinterPicker,
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Slate200)
+                ) {
+                    Text("Pilih printer", style = MaterialTheme.typography.labelLarge, color = Slate700)
+                }
+            }
+        }
+
+        Text("Ukuran kertas struk", style = MaterialTheme.typography.labelLarge, color = Slate700)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PaperWidthChip("58 mm", settings.printerPaperWidthMm == 58) { onSetPaperWidth(58) }
+            PaperWidthChip("80 mm", settings.printerPaperWidthMm == 80) { onSetPaperWidth(80) }
+        }
+
+        SettingToggleRow(
+            title = "Cetak struk otomatis",
+            subtitle = "Langsung cetak struk setelah transaksi berhasil",
+            checked = settings.autoPrintReceipt,
+            onCheckedChange = onSetAutoPrint
+        )
+
+        Button(
+            onClick = onTestPrint,
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            shape = RoundedCornerShape(12.dp),
+            enabled = !isTestingPrint && hasPrinter,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        ) {
+            if (isTestingPrint) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+                Spacer(Modifier.width(8.dp))
+                Text("Mengirim ke printer...", style = MaterialTheme.typography.labelLarge, color = Color.White)
+            } else {
+                Text("Cetak percobaan", style = MaterialTheme.typography.labelLarge, color = Color.White)
+            }
+        }
+
+        if (!hasPrinter) {
+            Text(
+                "Pilih printer terlebih dahulu untuk mencetak percobaan.",
+                style = MaterialTheme.typography.labelSmall,
+                color = Slate500
+            )
+        }
+
+        printerStatusMessage?.let { msg ->
+            PrinterFeedback(msg)
+        }
+    }
+}
+
+@Composable
+private fun PaperWidthChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        shape = RoundedCornerShape(999.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (selected) MaterialTheme.colorScheme.primary else Slate200
+        ),
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            labelColor = Slate500,
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.primary
+        )
+    )
+}
+
+@Composable
+private fun PrinterFeedback(message: String) {
+    val success = message.contains("berhasil", ignoreCase = true)
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = if (success) SuccessGreenContainer else DangerRedContainer
+    ) {
+        Text(
+            text = message,
+            style = MaterialTheme.typography.bodySmall,
+            color = if (success) SuccessGreen else DangerRed,
+            modifier = Modifier.padding(12.dp)
+        )
+    }
+}
+
+// ── Bagian 4: Data dan akses ────────────────────────────────────────────────
+
+@Composable
+private fun DataSection(
+    settings: com.rising.pos.core.datastore.BusinessSettings,
+    uiState: SettingsUiState,
+    updateState: com.rising.pos.core.update.model.UpdateState,
+    context: android.content.Context,
+    viewModel: SettingsViewModel,
+    onOpenPinSetup: () -> Unit,
+    onRestoreClick: () -> Unit
+) {
+    val busy = uiState.isExporting || uiState.isRestoring
+
+    SettingsCard(title = "Ekspor data", icon = Icons.Outlined.CloudUpload) {
+        Text(
+            "Unduh data usaha dalam format spreadsheet (.csv).",
+            style = MaterialTheme.typography.bodySmall,
+            color = Slate500
+        )
+        SettingActionRow(
+            title = "Ekspor transaksi",
+            subtitle = "Riwayat penjualan",
+            icon = Icons.Outlined.ReceiptLong,
+            enabled = !uiState.isExporting,
+            onClick = { viewModel.exportTransactions(context) }
+        )
+        SettingActionRow(
+            title = "Ekspor produk",
+            subtitle = "Daftar barang dan harga",
+            icon = Icons.Outlined.Inventory2,
+            enabled = !uiState.isExporting,
+            onClick = { viewModel.exportProducts(context) }
+        )
+        SettingActionRow(
+            title = "Ekspor biaya",
+            subtitle = "Catatan pengeluaran",
+            icon = Icons.Outlined.CreditCard,
+            enabled = !busy,
+            onClick = { viewModel.exportExpenses(context) }
+        )
+        SettingActionRow(
+            title = "Ekspor pelanggan",
+            subtitle = "Kontak dan riwayat belanja",
+            icon = Icons.Outlined.People,
+            enabled = !busy,
+            onClick = { viewModel.exportCustomers(context) }
+        )
+
+        uiState.exportStatusMessage?.let { msg ->
+            Text(
+                text = msg,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (msg.contains("berhasil", ignoreCase = true)) SuccessGreen else DangerRed
+            )
+        }
+    }
+
+    SettingsCard(title = "Cadangan dan pemulihan", icon = Icons.Outlined.CloudDownload) {
+        Text(
+            "Buat salinan database lokal, atau pulihkan dari file cadangan.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Slate500
+        )
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Button(
+                onClick = { viewModel.backupDatabase(context) },
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                enabled = !busy
+            ) {
+                Icon(Icons.Outlined.CloudDownload, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Cadangkan", style = MaterialTheme.typography.labelLarge, color = Color.White)
+            }
+            OutlinedButton(
+                onClick = onRestoreClick,
+                modifier = Modifier.weight(1f).height(52.dp),
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Slate200),
+                enabled = !busy
+            ) {
+                Icon(Icons.Outlined.Restore, contentDescription = null, tint = DangerRed, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Pulihkan", style = MaterialTheme.typography.labelLarge, color = DangerRed)
+            }
+        }
+
+        if (uiState.isRestoring) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Sedang memulihkan database...",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Slate700
+                )
+            }
+        }
+
+        uiState.restoreStatusMessage?.let { msg ->
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = if (uiState.isRestoreSuccess) SuccessGreenContainer else DangerRedContainer
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = msg,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (uiState.isRestoreSuccess) SuccessGreen else DangerRed
+                    )
+                    TextButton(onClick = viewModel::clearRestoreStatus) {
+                        Text("Tutup", style = MaterialTheme.typography.labelMedium, color = Slate700)
+                    }
+                }
+            }
+        }
+    }
+
+    SettingsCard(title = "Keamanan PIN owner", icon = Icons.Outlined.Lock) {
+        Text(
+            "Minta PIN owner sebelum kasir membatalkan transaksi atau memulihkan database.",
+            style = MaterialTheme.typography.bodySmall,
+            color = Slate500
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = if (settings.isPinSecurityEnabled) "PIN aktif" else "PIN nonaktif",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = if (settings.isPinSecurityEnabled) SuccessGreen else Slate900
+                )
+                Text(
+                    text = if (settings.isPinSecurityEnabled) {
+                        "Aksi void dan pemulihan memerlukan verifikasi PIN."
+                    } else {
+                        "Kasir dapat membatalkan transaksi tanpa PIN."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Slate500
+                )
+            }
+            OutlinedButton(
+                onClick = onOpenPinSetup,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, Slate200)
+            ) {
+                Text(
+                    if (settings.isPinSecurityEnabled) "Ubah PIN" else "Atur PIN",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = Slate700
+                )
+            }
+        }
+    }
+
+    AppUpdateCard(
+        updateState = updateState,
+        onCheckUpdate = viewModel::checkForUpdates
+    )
+}
+
+// ── Komponen bersama ────────────────────────────────────────────────────────
+
+@Composable
+private fun SettingsCard(
+    title: String,
+    icon: ImageVector? = null,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, Slate200),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) {
+                    Icon(icon, contentDescription = null, tint = Slate700, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(title, style = MaterialTheme.typography.titleMedium, color = Slate900)
+            }
+            content()
+        }
+    }
+}
 
 @Composable
 private fun SettingToggleRow(
     title: String,
     subtitle: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    icon: ImageVector? = null
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold, color = Slate900))
-            Text(subtitle, style = MaterialTheme.typography.bodySmall.copy(color = Slate500))
+        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(icon, contentDescription = null, tint = Slate400, modifier = Modifier.size(20.dp))
+                Spacer(Modifier.width(12.dp))
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, color = Slate900, fontWeight = FontWeight.SemiBold)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Slate500)
+            }
         }
+        Spacer(Modifier.width(12.dp))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
+    }
+}
+
+/** Baris aksi (navigasi/proses) dengan ikon, judul, dan chevron. */
+@Composable
+private fun SettingActionRow(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        color = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp, horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(icon, contentDescription = null, tint = Slate500, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.bodyMedium, color = Slate900)
+                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = Slate500)
+            }
+            Icon(
+                Icons.Outlined.ChevronRight,
+                contentDescription = null,
+                tint = Slate400,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
