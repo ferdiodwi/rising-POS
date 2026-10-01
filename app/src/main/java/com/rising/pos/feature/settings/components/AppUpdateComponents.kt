@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.NewReleases
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -120,7 +121,7 @@ fun AppUpdateCard(
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
-                        text = "GitHub Release",
+                        text = "Resmi",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = PrimaryBlue,
@@ -130,7 +131,7 @@ fun AppUpdateCard(
             }
 
             Text(
-                text = "Periksa dan pasang versi terbaru langsung dari repositori GitHub resmi tanpa perlu install manual dari browser.",
+                text = "Periksa dan pasang versi terbaru aplikasi secara langsung tanpa perlu download manual dari browser.",
                 style = MaterialTheme.typography.bodySmall.copy(color = Slate700)
             )
 
@@ -169,16 +170,16 @@ fun AppUpdateCard(
                             horizontalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.NewReleases,
+                                imageVector = if (updateState.isForceUpdate) Icons.Default.Warning else Icons.Default.NewReleases,
                                 contentDescription = null,
-                                tint = WarningAmber,
+                                tint = if (updateState.isForceUpdate) DangerRed else WarningAmber,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = "${updateState.latestVersion} tersedia!",
+                                text = if (updateState.isForceUpdate) "Update Wajib (${updateState.latestVersion})" else "${updateState.latestVersion} tersedia!",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = WarningAmber
+                                color = if (updateState.isForceUpdate) DangerRed else WarningAmber
                             )
                         }
                     }
@@ -191,7 +192,7 @@ fun AppUpdateCard(
                     }
                     else -> {
                         Text(
-                            text = "Repo: ferdiodwi/rising-POS",
+                            text = "Status: Siap diperiksa",
                             fontSize = 11.sp,
                             color = Slate500
                         )
@@ -231,7 +232,7 @@ fun AppUpdateCard(
 fun AppUpdateDialog(
     updateState: UpdateState,
     canInstallPackages: Boolean,
-    onDownload: (url: String, tag: String) -> Unit,
+    onDownload: (url: String, tag: String, isForce: Boolean) -> Unit,
     onInstall: () -> Unit,
     onOpenUnknownSourcesSettings: () -> Unit,
     onDismiss: () -> Unit
@@ -240,19 +241,25 @@ fun AppUpdateDialog(
 
     when (updateState) {
         is UpdateState.UpdateAvailable -> {
+            val isForce = updateState.isForceUpdate
             AlertDialog(
-                onDismissRequest = onDismiss,
+                onDismissRequest = {
+                    if (!isForce) onDismiss()
+                },
                 icon = {
                     Box(
                         modifier = Modifier
                             .size(48.dp)
-                            .background(PrimaryBlue.copy(alpha = 0.12f), RoundedCornerShape(12.dp)),
+                            .background(
+                                (if (isForce) DangerRed else PrimaryBlue).copy(alpha = 0.12f),
+                                RoundedCornerShape(12.dp)
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.CloudDownload,
+                            imageVector = if (isForce) Icons.Default.Warning else Icons.Default.CloudDownload,
                             contentDescription = null,
-                            tint = PrimaryBlue,
+                            tint = if (isForce) DangerRed else PrimaryBlue,
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -260,19 +267,22 @@ fun AppUpdateDialog(
                 title = {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Update Tersedia!",
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                            text = if (isForce) "Pembaruan Wajib!" else "Update Tersedia!",
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = if (isForce) DangerRed else Slate900
+                            )
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Surface(
-                            color = PrimaryBlue.copy(alpha = 0.1f),
+                            color = (if (isForce) DangerRed else PrimaryBlue).copy(alpha = 0.1f),
                             shape = RoundedCornerShape(6.dp)
                         ) {
                             Text(
                                 text = "${updateState.currentVersion} ➔ ${updateState.latestVersion}",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = PrimaryBlue,
+                                color = if (isForce) DangerRed else PrimaryBlue,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                             )
                         }
@@ -283,6 +293,32 @@ fun AppUpdateDialog(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        if (isForce) {
+                            Surface(
+                                color = DangerRed.copy(alpha = 0.08f),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Warning,
+                                        contentDescription = null,
+                                        tint = DangerRed,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                    Text(
+                                        text = "Versi aplikasi Anda sudah tidak didukung. Harap perbarui ke versi terbaru untuk melanjutkan penggunaan.",
+                                        fontSize = 11.5.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = DangerRed
+                                    )
+                                }
+                            }
+                        }
+
                         if (updateState.apkSize > 0) {
                             val sizeMb = updateState.apkSize.toDouble() / (1024.0 * 1024.0)
                             Text(
@@ -307,7 +343,7 @@ fun AppUpdateDialog(
                             shape = RoundedCornerShape(8.dp)
                         ) {
                             Text(
-                                text = updateState.releaseNotes.ifBlank { "Pembaruan versi ${updateState.latestVersion}" },
+                                text = updateState.releaseNotes,
                                 fontSize = 12.sp,
                                 color = Slate700,
                                 modifier = Modifier
@@ -320,9 +356,11 @@ fun AppUpdateDialog(
                 confirmButton = {
                     Button(
                         onClick = {
-                            onDownload(updateState.downloadUrl, updateState.latestVersion)
+                            onDownload(updateState.downloadUrl, updateState.latestVersion, isForce)
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isForce) DangerRed else PrimaryBlue
+                        )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Download,
@@ -330,20 +368,22 @@ fun AppUpdateDialog(
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Download & Pasang")
+                        Text(if (isForce) "Perbarui Sekarang" else "Download & Pasang")
                     }
                 },
-                dismissButton = {
-                    OutlinedButton(onClick = onDismiss) {
-                        Text("Nanti Saja")
+                dismissButton = if (!isForce) {
+                    {
+                        OutlinedButton(onClick = onDismiss) {
+                            Text("Nanti Saja")
+                        }
                     }
-                }
+                } else null
             )
         }
 
         is UpdateState.Downloading -> {
             AlertDialog(
-                onDismissRequest = { /* Prevent dismiss while downloading */ },
+                onDismissRequest = { /* Non-dismissible while downloading */ },
                 icon = {
                     CircularProgressIndicator(
                         progress = { updateState.progress },
@@ -407,8 +447,11 @@ fun AppUpdateDialog(
         }
 
         is UpdateState.Downloaded -> {
+            val isForce = updateState.isForceUpdate
             AlertDialog(
-                onDismissRequest = onDismiss,
+                onDismissRequest = {
+                    if (!isForce) onDismiss()
+                },
                 icon = {
                     Box(
                         modifier = Modifier
@@ -477,11 +520,13 @@ fun AppUpdateDialog(
                         Text(if (!canInstallPackages) "Beri Izin Install" else "Pasang Sekarang")
                     }
                 },
-                dismissButton = {
-                    OutlinedButton(onClick = onDismiss) {
-                        Text("Tutup")
+                dismissButton = if (!isForce) {
+                    {
+                        OutlinedButton(onClick = onDismiss) {
+                            Text("Tutup")
+                        }
                     }
-                }
+                } else null
             )
         }
 

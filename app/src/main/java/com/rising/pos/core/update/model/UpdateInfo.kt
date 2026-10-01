@@ -31,17 +31,24 @@ sealed interface UpdateState {
         val releaseNotes: String,
         val publishedAt: String?,
         val downloadUrl: String,
-        val apkSize: Long
+        val apkSize: Long,
+        val isForceUpdate: Boolean = false,
+        val minVersionCode: Int? = null
     ) : UpdateState
     data class UpToDate(val currentVersion: String) : UpdateState
     data class Downloading(
         val progress: Float, // 0.0f .. 1.0f
         val bytesDownloaded: Long,
-        val totalBytes: Long
+        val totalBytes: Long,
+        val isForceUpdate: Boolean = false
     ) : UpdateState
     data class Downloaded(
         val apkFile: File,
-        val latestVersion: String
+        val latestVersion: String,
+        val isForceUpdate: Boolean = false
     ) : UpdateState
-    data class Error(val message: String) : UpdateState
+    data class Error(
+        val message: String,
+        val isForceUpdate: Boolean = false
+    ) : UpdateState
 }

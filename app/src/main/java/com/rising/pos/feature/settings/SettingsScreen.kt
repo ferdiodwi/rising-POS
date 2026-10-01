@@ -738,7 +738,7 @@ fun SettingsScreen(
     AppUpdateDialog(
         updateState = updateState,
         canInstallPackages = viewModel.canInstallPackages(),
-        onDownload = { url, tag -> viewModel.downloadUpdate(url, tag) },
+        onDownload = { url, tag, isForce -> viewModel.downloadUpdate(url, tag, isForce) },
         onInstall = viewModel::installUpdate,
         onOpenUnknownSourcesSettings = {
             viewModel.getUnknownSourcesSettingsIntent()?.let { intent ->

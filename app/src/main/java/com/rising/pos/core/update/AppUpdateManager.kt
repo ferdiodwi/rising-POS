@@ -56,14 +56,16 @@ class AppUpdateManager @Inject constructor(
                 .url(url)
                 .addHeader("Accept", "application/vnd.github+json")
                 .addHeader("User-Agent", "RisingPOS-Android-App")
+                .addHeader("Cache-Control", "no-cache, no-store, must-revalidate")
+                .addHeader("Pragma", "no-cache")
                 .build()
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val errorMsg = when (response.code) {
-                        404 -> "Belum ada rilis publik di repository GitHub ($owner/$repo)."
-                        403 -> "Batas kuota akses GitHub API tercapai. Coba lagi beberapa saat lagi."
-                        else -> "Gagal memeriksa update (HTTP ${response.code})."
+                        404 -> "Belum ada pembaruan rilis untuk aplikasi ini."
+                        403 -> "Server pembaruan sedang sibuk. Silakan coba lagi beberapa saat lagi."
+                        else -> "Gagal memeriksa pembaruan (HTTP ${response.code})."
                     }
                     val state = UpdateState.Error(errorMsg)
                     _updateState.value = state
@@ -71,7 +73,7 @@ class AppUpdateManager @Inject constructor(
                 }
 
                 val responseBody = response.body?.string()
-                    ?: throw IOException("Empty response from GitHub API")
+                    ?: throw IOException("Respon server kosong")
 
                 val release = json.decodeFromString<GithubRelease>(responseBody)
 
@@ -81,25 +83,41 @@ class AppUpdateManager @Inject constructor(
                 }
 
                 val currentVersion = BuildConfig.VERSION_NAME
+                val currentVersionCode = BuildConfig.VERSION_CODE
                 val latestTag = release.tagName.trim().removePrefix("v").removePrefix("V")
 
-                val hasNewVersion = isNewerVersion(latestTag, currentVersion)
+                val rawBody = release.body ?: ""
+                val combinedReleaseText = "${release.name ?: ""}\n$rawBody"
+                val minVersionCode = extractMinVersionCode(combinedReleaseText)
+                val minVersionName = extractMinVersionName(combinedReleaseText)
+
+                val isCodeBelowMin = minVersionCode != null && currentVersionCode < minVersionCode
+                val isNameBelowMin = minVersionName != null && isNewerVersion(minVersionName, currentVersion)
+                val isForceUpdate = isCodeBelowMin || isNameBelowMin
+
+                val hasNewVersion = isNewerVersion(latestTag, currentVersion) || isForceUpdate
+                val cleanNotes = cleanReleaseNotes(rawBody).ifBlank {
+                    "Pembaruan versi ${release.tagName}"
+                }
 
                 if (hasNewVersion && apkAsset != null) {
                     val state = UpdateState.UpdateAvailable(
                         currentVersion = currentVersion,
                         latestVersion = release.tagName,
                         releaseName = release.name ?: release.tagName,
-                        releaseNotes = release.body ?: "Pembaruan versi ${release.tagName}",
+                        releaseNotes = cleanNotes,
                         publishedAt = release.publishedAt,
                         downloadUrl = apkAsset.browserDownloadUrl,
-                        apkSize = apkAsset.size
+                        apkSize = apkAsset.size,
+                        isForceUpdate = isForceUpdate,
+                        minVersionCode = minVersionCode
                     )
                     _updateState.value = state
                     state
                 } else if (hasNewVersion && apkAsset == null) {
                     val state = UpdateState.Error(
-                        "Versi baru ${release.tagName} tersedia, namun file APK belum diunggah ke GitHub Releases."
+                        "Versi baru ${release.tagName} tersedia, namun paket pembaruan sedang disiapkan.",
+                        isForceUpdate = isForceUpdate
                     )
                     _updateState.value = state
                     state
@@ -118,7 +136,8 @@ class AppUpdateManager @Inject constructor(
 
     suspend fun downloadApk(
         downloadUrl: String,
-        versionTag: String
+        versionTag: String,
+        isForceUpdate: Boolean = false
     ): Result<File> = withContext(Dispatchers.IO) {
         val sanitizedTag = versionTag.replace("[^a-zA-Z0-9.-]".toRegex(), "_")
         val fileName = "rising-pos-$sanitizedTag.apk"
@@ -131,7 +150,8 @@ class AppUpdateManager @Inject constructor(
         _updateState.value = UpdateState.Downloading(
             progress = 0f,
             bytesDownloaded = 0L,
-            totalBytes = 0L
+            totalBytes = 0L,
+            isForceUpdate = isForceUpdate
         )
 
         try {
@@ -143,7 +163,7 @@ class AppUpdateManager @Inject constructor(
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     val err = "Gagal mengunduh APK (HTTP ${response.code})"
-                    _updateState.value = UpdateState.Error(err)
+                    _updateState.value = UpdateState.Error(err, isForceUpdate = isForceUpdate)
                     return@withContext Result.failure(IOException(err))
                 }
 
@@ -168,7 +188,8 @@ class AppUpdateManager @Inject constructor(
                                 _updateState.value = UpdateState.Downloading(
                                     progress = progress.coerceIn(0f, 1f),
                                     bytesDownloaded = downloaded,
-                                    totalBytes = totalBytes
+                                    totalBytes = totalBytes,
+                                    isForceUpdate = isForceUpdate
                                 )
                             }
                         }
@@ -179,12 +200,13 @@ class AppUpdateManager @Inject constructor(
             activeApkFile = destinationFile
             _updateState.value = UpdateState.Downloaded(
                 apkFile = destinationFile,
-                latestVersion = versionTag
+                latestVersion = versionTag,
+                isForceUpdate = isForceUpdate
             )
             Result.success(destinationFile)
         } catch (e: Exception) {
             destinationFile.delete()
-            val state = UpdateState.Error("Gagal mendownload APK: ${e.localizedMessage}")
+            val state = UpdateState.Error("Gagal mendownload APK: ${e.localizedMessage}", isForceUpdate = isForceUpdate)
             _updateState.value = state
             Result.failure(e)
         }
@@ -247,6 +269,23 @@ class AppUpdateManager @Inject constructor(
             if (l < c) return false
         }
         return false
+    }
+
+    fun extractMinVersionCode(text: String): Int? {
+        val regex = Regex("""(?i)min(?:[-_\s]?version)?[-_\s]?code(?:\s*[:=]\s*|\s+)(\d+)""")
+        return regex.find(text)?.groupValues?.get(1)?.toIntOrNull()
+    }
+
+    fun extractMinVersionName(text: String): String? {
+        val regex = Regex("""(?i)min[-_\s]?version(?![-_\s]?code)(?:\s*[:=]\s*|\s+)([vV]?\d+(\.\d+)*)""")
+        return regex.find(text)?.groupValues?.get(1)
+    }
+
+    fun cleanReleaseNotes(text: String): String {
+        return text
+            .replace(Regex("""(?i)min(?:[-_\s]?version)?[-_\s]?code(?:\s*[:=]\s*|\s+)\d+\s*"""), "")
+            .replace(Regex("""(?i)min[-_\s]?version(?![-_\s]?code)(?:\s*[:=]\s*|\s+)[vV]?\d+(\.\d+)*\s*"""), "")
+            .trim()
     }
 
     companion object {

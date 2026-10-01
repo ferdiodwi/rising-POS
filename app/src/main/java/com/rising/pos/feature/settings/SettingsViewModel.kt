@@ -360,9 +360,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
-    fun downloadUpdate(downloadUrl: String, versionTag: String) {
+    fun downloadUpdate(downloadUrl: String, versionTag: String, isForceUpdate: Boolean = false) {
         viewModelScope.launch {
-            appUpdateManager.downloadApk(downloadUrl, versionTag)
+            appUpdateManager.downloadApk(downloadUrl, versionTag, isForceUpdate)
         }
     }
 
