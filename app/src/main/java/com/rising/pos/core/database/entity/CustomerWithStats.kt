@@ -9,7 +9,7 @@ data class CustomerWithStats(
     @ColumnInfo(name = "total_transactions")
     val totalTransactions: Int = 0,
     @ColumnInfo(name = "total_spent")
-    val totalSpent: Double = 0.0,
+    val totalSpent: Long = 0L,
     @ColumnInfo(name = "last_transaction_date")
     val lastTransactionDate: Long? = null
 )

@@ -29,16 +29,16 @@ enum class DashboardPeriod(val label: String) {
 }
 
 data class DashboardMetrics(
-    val grossSales: Double = 0.0,
-    val expenses: Double = 0.0,
-    val netProfit: Double = 0.0,
+    val grossSales: Long = 0L,
+    val expenses: Long = 0L,
+    val netProfit: Long = 0L,
     val transactionCount: Int = 0,
-    val averageTicketSize: Double = 0.0,
+    val averageTicketSize: Long = 0L,
     val totalProductCount: Int = 0,
     val lowStockProducts: List<ProductEntity> = emptyList(),
     val topSellingProducts: List<TopSellingProduct> = emptyList(),
-    val todayGrossSales: Double = grossSales,
-    val todayExpenses: Double = expenses,
+    val todayGrossSales: Long = grossSales,
+    val todayExpenses: Long = expenses,
     val todayTransactionCount: Int = transactionCount
 )
 
@@ -118,10 +118,10 @@ class DashboardViewModel @Inject constructor(
             productRepository.getProductCount(),
             productRepository.getLowStockProducts()
         ) { (sales, expenses, count), topSelling, productCount, lowStock ->
-            val gross = sales ?: 0.0
-            val exp = expenses ?: 0.0
+            val gross = sales ?: 0L
+            val exp = expenses ?: 0L
             val net = gross - exp
-            val avgTicket = if (count > 0) gross / count else 0.0
+            val avgTicket = if (count > 0) gross / count else 0L
             DashboardMetrics(
                 grossSales = gross,
                 expenses = exp,

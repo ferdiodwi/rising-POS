@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,10 +45,18 @@ import com.rising.pos.ui.theme.DangerRed
 import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate900
+import kotlinx.coroutines.launch
 
+/**
+ * Dialog verifikasi PIN Owner.
+ *
+ * Verifikasi diserahkan ke [verifyPin] (callback suspend) supaya PIN tidak perlu
+ * pernah berada dalam bentuk plaintext di memori UI untuk dibandingkan dengan `==`.
+ * Implementasi memakai PBKDF2 lewat `AppPreferences.verifyPin`.
+ */
 @Composable
 fun SecurityPinDialog(
-    correctPin: String,
+    verifyPin: suspend (String) -> Boolean,
     title: String = "Verifikasi PIN",
     description: String = "Masukkan PIN Owner untuk melanjutkan aksi ini.",
     onDismiss: () -> Unit,
@@ -55,8 +64,10 @@ fun SecurityPinDialog(
 ) {
     var enteredPin by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isChecking by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = { if (!isChecking) onDismiss() }) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -148,21 +159,32 @@ fun SecurityPinDialog(
 
                     Button(
                         onClick = {
-                            if (enteredPin == correctPin) {
-                                onSuccess()
-                            } else {
-                                errorMessage = "PIN salah. Silakan coba lagi."
-                                enteredPin = ""
+                            if (isChecking) return@Button
+                            isChecking = true
+                            errorMessage = null
+                            scope.launch {
+                                val ok = try {
+                                    verifyPin(enteredPin)
+                                } catch (_: Exception) {
+                                    false
+                                }
+                                isChecking = false
+                                if (ok) {
+                                    onSuccess()
+                                } else {
+                                    errorMessage = "PIN salah. Silakan coba lagi."
+                                    enteredPin = ""
+                                }
                             }
                         },
-                        enabled = enteredPin.length >= 4,
+                        enabled = enteredPin.length >= 4 && !isChecking,
                         modifier = Modifier
                             .weight(1f)
                             .height(46.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
                     ) {
-                        Text("Verifikasi")
+                        Text(if (isChecking) "Memeriksa..." else "Verifikasi")
                     }
                 }
             }

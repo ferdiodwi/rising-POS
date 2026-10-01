@@ -10,6 +10,12 @@ import com.rising.pos.core.model.PaymentMethod
 import com.rising.pos.core.model.SyncStatus
 import com.rising.pos.core.model.TransactionStatus
 
+/**
+ * CATATAN TIPE UANG: seluruh nominal uang disimpan sebagai `Long` (rupiah bulat),
+ * BUKAN `Double`, untuk menghindari galat pembulatan floating-point pada
+ * penjumlahan/pajak/diskon. Kuantitas & stok tetap `Double` karena bisa pecahan
+ * (mis. 0.5 kg).
+ */
 @Entity(
     tableName = "transactions",
     indices = [
@@ -33,19 +39,19 @@ data class TransactionEntity(
     val customerId: String? = null,
     @ColumnInfo(name = "order_type")
     val orderType: OrderType = OrderType.RETAIL,
-    val subtotal: Double,
-    val discount: Double = 0.0,
+    val subtotal: Long,
+    val discount: Long = 0L,
     @ColumnInfo(name = "discount_reason")
     val discountReason: String? = null,
-    val tax: Double = 0.0,
+    val tax: Long = 0L,
     @ColumnInfo(name = "service_charge")
-    val serviceCharge: Double = 0.0,
+    val serviceCharge: Long = 0L,
     @ColumnInfo(name = "grand_total")
-    val grandTotal: Double,
+    val grandTotal: Long,
     @ColumnInfo(name = "payment_amount")
-    val paymentAmount: Double,
+    val paymentAmount: Long,
     @ColumnInfo(name = "change_amount")
-    val changeAmount: Double = 0.0,
+    val changeAmount: Long = 0L,
     @ColumnInfo(name = "payment_method")
     val paymentMethod: PaymentMethod = PaymentMethod.CASH,
     val status: TransactionStatus = TransactionStatus.COMPLETED,
@@ -84,9 +90,9 @@ data class TransactionItemEntity(
     val variantName: String? = null,
     val qty: Double,
     @ColumnInfo(name = "unit_price")
-    val unitPrice: Double,
-    val subtotal: Double,
-    val discount: Double = 0.0,
+    val unitPrice: Long,
+    val subtotal: Long,
+    val discount: Long = 0L,
     val note: String? = null
 )
 
@@ -113,5 +119,5 @@ data class TransactionItemModifierEntity(
     val modifierId: String,
     @ColumnInfo(name = "modifier_name")
     val modifierName: String,
-    val price: Double
+    val price: Long
 )

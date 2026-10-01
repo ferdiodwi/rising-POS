@@ -38,7 +38,7 @@ fun DashboardScreen(
     val metrics by viewModel.metrics.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
-    fun money(value: Double) = CurrencyFormatter.format(value, settings.currencySymbol)
+    fun money(value: Long) = CurrencyFormatter.format(value, settings.currencySymbol)
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),

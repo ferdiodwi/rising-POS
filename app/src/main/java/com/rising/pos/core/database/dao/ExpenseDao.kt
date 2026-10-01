@@ -17,7 +17,7 @@ interface ExpenseDao {
     fun getExpensesBetween(startDate: Long, endDate: Long): Flow<List<ExpenseEntity>>
 
     @Query("SELECT SUM(amount) FROM expenses WHERE date >= :startDate AND date <= :endDate")
-    fun getTotalExpenseBetween(startDate: Long, endDate: Long): Flow<Double?>
+    fun getTotalExpenseBetween(startDate: Long, endDate: Long): Flow<Long?>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertExpense(expense: ExpenseEntity)

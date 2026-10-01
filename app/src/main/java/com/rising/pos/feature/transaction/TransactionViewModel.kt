@@ -88,6 +88,9 @@ class TransactionViewModel @Inject constructor(
         _uiState.update { it.copy(selectedTransaction = transaction) }
     }
 
+    /** Verifikasi PIN Owner (hash PBKDF2) untuk gerbang Void transaksi. */
+    suspend fun verifyPin(pin: String): Boolean = appPreferences.verifyPin(pin)
+
     fun voidTransaction(transactionId: String, reason: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isProcessing = true, errorMessage = null) }

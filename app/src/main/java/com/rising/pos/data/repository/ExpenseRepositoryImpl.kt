@@ -17,7 +17,7 @@ class ExpenseRepositoryImpl @Inject constructor(
     override fun getExpensesBetween(startDate: Long, endDate: Long): Flow<List<ExpenseEntity>> =
         expenseDao.getExpensesBetween(startDate, endDate)
 
-    override fun getTotalExpenseBetween(startDate: Long, endDate: Long): Flow<Double?> =
+    override fun getTotalExpenseBetween(startDate: Long, endDate: Long): Flow<Long?> =
         expenseDao.getTotalExpenseBetween(startDate, endDate)
 
     override suspend fun saveExpense(expense: ExpenseEntity) {

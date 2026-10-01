@@ -19,7 +19,7 @@ interface CustomerDao {
         SELECT 
             c.*,
             COUNT(t.id) AS total_transactions,
-            COALESCE(SUM(CASE WHEN t.status = 'COMPLETED' THEN t.grand_total ELSE 0 END), 0.0) AS total_spent,
+            COALESCE(SUM(CASE WHEN t.status = 'COMPLETED' THEN t.grand_total ELSE 0 END), 0) AS total_spent,
             MAX(t.created_at) AS last_transaction_date
         FROM customers c
         LEFT JOIN transactions t ON c.id = t.customer_id
@@ -35,7 +35,7 @@ interface CustomerDao {
         SELECT 
             c.*,
             COUNT(t.id) AS total_transactions,
-            COALESCE(SUM(CASE WHEN t.status = 'COMPLETED' THEN t.grand_total ELSE 0 END), 0.0) AS total_spent,
+            COALESCE(SUM(CASE WHEN t.status = 'COMPLETED' THEN t.grand_total ELSE 0 END), 0) AS total_spent,
             MAX(t.created_at) AS last_transaction_date
         FROM customers c
         LEFT JOIN transactions t ON c.id = t.customer_id

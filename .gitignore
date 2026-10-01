@@ -12,4 +12,9 @@ captures/
 *.aab
 .kotlin/
 
+# Signing — JANGAN pernah commit kredensial rilis
+keystore.properties
+*.jks
+*.keystore
+
 PRD_Flexible_Offline_First_POS_Android.md

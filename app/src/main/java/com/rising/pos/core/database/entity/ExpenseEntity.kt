@@ -17,7 +17,7 @@ data class ExpenseEntity(
     @PrimaryKey
     val id: String,
     val category: String,
-    val amount: Double,
+    val amount: Long,
     val date: Long = System.currentTimeMillis(),
     val notes: String? = null,
     @ColumnInfo(name = "receipt_image_url")

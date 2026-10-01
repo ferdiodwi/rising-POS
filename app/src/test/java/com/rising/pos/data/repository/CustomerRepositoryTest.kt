@@ -32,7 +32,7 @@ class CustomerRepositoryTest {
     private val sampleCustomerWithStats = CustomerWithStats(
         customer = sampleCustomer,
         totalTransactions = 3,
-        totalSpent = 150000.0,
+        totalSpent = 150000L,
         lastTransactionDate = 1759230000000L
     )
 
@@ -52,7 +52,7 @@ class CustomerRepositoryTest {
         assertThat(result).hasSize(1)
         assertThat(result[0].customer.name).isEqualTo("Budi Santoso")
         assertThat(result[0].totalTransactions).isEqualTo(3)
-        assertThat(result[0].totalSpent).isEqualTo(150000.0)
+        assertThat(result[0].totalSpent).isEqualTo(150000L)
     }
 
     @Test

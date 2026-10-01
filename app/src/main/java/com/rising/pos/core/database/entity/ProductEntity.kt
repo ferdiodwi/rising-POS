@@ -35,9 +35,9 @@ data class ProductEntity(
     val categoryId: String? = null,
     val description: String? = null,
     @ColumnInfo(name = "selling_price")
-    val sellingPrice: Double,
+    val sellingPrice: Long,
     @ColumnInfo(name = "cost_price")
-    val costPrice: Double = 0.0,
+    val costPrice: Long = 0L,
     val stock: Double = 0.0,
     val unit: String = "pcs",
     @ColumnInfo(name = "image_url")

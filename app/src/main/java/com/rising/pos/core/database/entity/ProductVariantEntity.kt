@@ -27,7 +27,7 @@ data class ProductVariantEntity(
     val productId: String,
     val name: String,
     @ColumnInfo(name = "price_adjustment")
-    val priceAdjustment: Double = 0.0,
+    val priceAdjustment: Long = 0L,
     val sku: String? = null,
     val barcode: String? = null,
     val stock: Double? = null

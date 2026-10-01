@@ -84,6 +84,8 @@ fun SettingsScreen(
 
     var isRestoreConfirmationOpen by remember { mutableStateOf(false) }
     var isPinAuthForRestoreOpen by remember { mutableStateOf(false) }
+    // Gerbang verifikasi PIN lama sebelum mengubah/menonaktifkan PIN.
+    var isPinAuthForSetupOpen by remember { mutableStateOf(false) }
 
     val restoreFilePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -605,7 +607,7 @@ fun SettingsScreen(
 
                             OutlinedButton(
                                 onClick = {
-                                    if (settings.isPinSecurityEnabled && settings.securityPin.isNotBlank()) {
+                                    if (settings.isPinSecurityEnabled && settings.hasPin) {
                                         isPinAuthForRestoreOpen = true
                                     } else {
                                         isRestoreConfirmationOpen = true
@@ -719,7 +721,15 @@ fun SettingsScreen(
                             }
 
                             OutlinedButton(
-                                onClick = viewModel::openPinSetupDialog,
+                                onClick = {
+                                    // Bila PIN sudah aktif, wajib verifikasi PIN lama dulu
+                                    // sebelum boleh mengubah atau menonaktifkannya.
+                                    if (settings.isPinSecurityEnabled && settings.hasPin) {
+                                        isPinAuthForSetupOpen = true
+                                    } else {
+                                        viewModel.openPinSetupDialog()
+                                    }
+                                },
                                 shape = RoundedCornerShape(10.dp)
                             ) {
                                 Text(if (settings.isPinSecurityEnabled) "Ubah PIN" else "Atur PIN", fontSize = 12.sp)
@@ -768,9 +778,22 @@ fun SettingsScreen(
         onDismiss = viewModel::dismissUpdate
     )
 
+    if (isPinAuthForSetupOpen) {
+        SecurityPinDialog(
+            verifyPin = viewModel::verifyPin,
+            title = "Otorisasi Ubah PIN",
+            description = "Masukkan PIN Owner saat ini untuk mengubah atau menonaktifkan PIN.",
+            onDismiss = { isPinAuthForSetupOpen = false },
+            onSuccess = {
+                isPinAuthForSetupOpen = false
+                viewModel.openPinSetupDialog()
+            }
+        )
+    }
+
     if (isPinAuthForRestoreOpen) {
         SecurityPinDialog(
-            correctPin = settings.securityPin,
+            verifyPin = viewModel::verifyPin,
             title = "Otorisasi Pulihkan Database",
             description = "Masukkan PIN Owner untuk melanjutkan proses pemulihan database.",
             onDismiss = { isPinAuthForRestoreOpen = false },

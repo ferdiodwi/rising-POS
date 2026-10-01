@@ -35,7 +35,7 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE status = 'HELD' ORDER BY created_at DESC")
     fun getHeldTransactions(): Flow<List<TransactionWithDetails>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertTransaction(transaction: TransactionEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -48,7 +48,7 @@ interface TransactionDao {
     suspend fun updateTransactionStatus(transactionId: String, status: TransactionStatus)
 
     @Query("SELECT SUM(grand_total) FROM transactions WHERE status = 'COMPLETED' AND created_at >= :startDate AND created_at <= :endDate")
-    fun getGrossSalesBetween(startDate: Long, endDate: Long): Flow<Double?>
+    fun getGrossSalesBetween(startDate: Long, endDate: Long): Flow<Long?>
 
     @Query("SELECT COUNT(*) FROM transactions WHERE status = 'COMPLETED' AND created_at >= :startDate AND created_at <= :endDate")
     fun getTransactionCountBetween(startDate: Long, endDate: Long): Flow<Int>
@@ -68,8 +68,17 @@ interface TransactionDao {
     @Query("SELECT * FROM transactions WHERE customer_id = :customerId ORDER BY created_at DESC")
     fun getTransactionsByCustomerId(customerId: String): Flow<List<TransactionWithDetails>>
 
-    @Query("SELECT COUNT(*) FROM transactions WHERE receipt_number LIKE :prefix || '%'")
-    suspend fun countTransactionsWithPrefix(prefix: String): Int
+    /**
+     * Mengembalikan nomor urut terbesar yang sudah terpakai untuk [prefix]
+     * (mis. "TRX-A01-20260930-"), atau 0 bila belum ada.
+     *
+     * Memakai MAX(...) bukan COUNT(*) supaya nomor tidak pernah menabrak nomor
+     * yang sudah terpakai ketika ada transaksi yang dihapus. Pemanggil WAJIB
+     * berada di dalam `database.withTransaction { }` agar operasi baca-lalu-tulis
+     * (baca MAX di sini, lalu INSERT nomor +1) tetap atomik.
+     */
+    @Query("SELECT COALESCE(MAX(CAST(SUBSTR(receipt_number, LENGTH(:prefix) + 1) AS INTEGER)), 0) FROM transactions WHERE receipt_number LIKE :prefix || '%'")
+    suspend fun nextReceiptSequence(prefix: String): Int
 
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun deleteTransaction(id: String)

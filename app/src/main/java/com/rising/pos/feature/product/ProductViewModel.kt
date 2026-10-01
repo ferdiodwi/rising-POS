@@ -192,8 +192,8 @@ class ProductViewModel @Inject constructor(
         val form = _uiState.value.formState
         if (form.name.isBlank()) return
 
-        val sellingPrice = form.sellingPrice.toDoubleOrNull() ?: 0.0
-        val costPrice = form.costPrice.toDoubleOrNull() ?: 0.0
+        val sellingPrice = form.sellingPrice.toLongOrNull() ?: 0L
+        val costPrice = form.costPrice.toLongOrNull() ?: 0L
         val stock = form.stock.toDoubleOrNull() ?: 0.0
         val minStock = form.minStock.toDoubleOrNull() ?: 5.0
 
@@ -215,7 +215,7 @@ class ProductViewModel @Inject constructor(
 
         val variantEntities = if (form.hasVariants) {
             form.variants.filter { it.name.isNotBlank() }.map { v ->
-                val variantPrice = v.price.toDoubleOrNull() ?: sellingPrice
+                val variantPrice = v.price.toLongOrNull() ?: sellingPrice
                 ProductVariantEntity(
                     id = v.id,
                     productId = productEntity.id,

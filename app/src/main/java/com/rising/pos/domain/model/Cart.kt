@@ -6,28 +6,34 @@ import com.rising.pos.core.database.entity.ProductEntity
 import com.rising.pos.core.database.entity.ProductVariantEntity
 import com.rising.pos.core.model.OrderType
 import java.util.UUID
+import kotlin.math.roundToLong
 
+/**
+ * CATATAN TIPE UANG: nominal uang = `Long` (rupiah bulat); kuantitas = `Double`.
+ * Perkalian kuantitas (pecahan) × harga menghasilkan pecahan rupiah, jadi tiap
+ * hasil dibulatkan ke rupiah terdekat via [roundToLong] untuk menjaga akurasi.
+ */
 data class CartItem(
     val cartItemId: String = UUID.randomUUID().toString(),
     val product: ProductEntity,
     val variant: ProductVariantEntity? = null,
     val selectedModifiers: List<ModifierEntity> = emptyList(),
     val quantity: Double = 1.0,
-    val discount: Double = 0.0,
+    val discount: Long = 0L,
     val note: String? = null
 ) {
-    val unitPrice: Double
+    val unitPrice: Long
         get() = product.sellingPrice +
-                (variant?.priceAdjustment ?: 0.0) +
+                (variant?.priceAdjustment ?: 0L) +
                 selectedModifiers.sumOf { it.price }
 
-    val totalPrice: Double
-        get() = maxOf(0.0, (unitPrice * quantity) - discount)
+    val totalPrice: Long
+        get() = ((unitPrice * quantity).roundToLong() - discount).coerceAtLeast(0L)
 }
 
 data class CartState(
     val items: List<CartItem> = emptyList(),
-    val discount: Double = 0.0,
+    val discount: Long = 0L,
     val discountReason: String? = null,
     val orderType: OrderType = OrderType.RETAIL,
     val customer: CustomerEntity? = null,
@@ -37,7 +43,7 @@ data class CartState(
     val totalItemCount: Double
         get() = items.sumOf { it.quantity }
 
-    val subtotal: Double
+    val subtotal: Long
         get() = items.sumOf { it.totalPrice }
 
     fun calculateTotals(
@@ -48,23 +54,23 @@ data class CartState(
         serviceChargePercentage: Double = 0.0
     ): CartCalculation {
 
-        val netSubtotal = maxOf(0.0, subtotal - discount)
+        val netSubtotal = (subtotal - discount).coerceAtLeast(0L)
 
         val serviceCharge = if (isServiceChargeEnabled && serviceChargePercentage > 0) {
-            netSubtotal * (serviceChargePercentage / 100.0)
-        } else 0.0
+            (netSubtotal * (serviceChargePercentage / 100.0)).roundToLong()
+        } else 0L
 
         val taxableAmount = netSubtotal + serviceCharge
 
         val tax = if (isTaxEnabled && taxPercentage > 0) {
             if (isTaxInclusive) {
-                // Inclusive: tax is already included in the prices
-                taxableAmount - (taxableAmount / (1 + (taxPercentage / 100.0)))
+                // Inclusive: pajak sudah termasuk dalam harga.
+                (taxableAmount - (taxableAmount / (1 + (taxPercentage / 100.0)))).roundToLong()
             } else {
-                // Exclusive: tax is added on top
-                taxableAmount * (taxPercentage / 100.0)
+                // Exclusive: pajak ditambahkan di atas harga.
+                (taxableAmount * (taxPercentage / 100.0)).roundToLong()
             }
-        } else 0.0
+        } else 0L
 
         val grandTotal = if (isTaxEnabled && !isTaxInclusive) {
             netSubtotal + serviceCharge + tax
@@ -83,9 +89,9 @@ data class CartState(
 }
 
 data class CartCalculation(
-    val subtotal: Double,
-    val discount: Double,
-    val tax: Double,
-    val serviceCharge: Double,
-    val grandTotal: Double
+    val subtotal: Long,
+    val discount: Long,
+    val tax: Long,
+    val serviceCharge: Long,
+    val grandTotal: Long
 )

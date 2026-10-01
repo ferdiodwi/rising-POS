@@ -39,7 +39,7 @@ class TransactionRepositoryImpl @Inject constructor(
     override suspend fun processCheckout(
         cartState: CartState,
         paymentMethod: PaymentMethod,
-        paymentAmount: Double,
+        paymentAmount: Long,
         deviceId: String,
         cashierId: String?,
         isTaxEnabled: Boolean,
@@ -56,9 +56,11 @@ class TransactionRepositoryImpl @Inject constructor(
             val now = System.currentTimeMillis()
             val transactionId = UUID.randomUUID().toString()
             val dateStr = dateOnlyFormat.format(Date(now))
-            val prefix = "TRX-$deviceId-$dateStr"
-            val countToday = transactionDao.countTransactionsWithPrefix(prefix)
-            val receiptNumber = ReceiptNumberGenerator.generate(deviceId, countToday + 1, now)
+            // Nomor urut diambil dari MAX nomor yang sudah ada + 1, di dalam transaksi DB.
+            // COUNT(*) berbahaya: bila ada transaksi yang dihapus, nomor hasilnya bisa
+            // menabrak nomor yang sudah terpakai, dan operasinya tidak atomik.
+            val nextSeq = transactionDao.nextReceiptSequence("TRX-$deviceId-$dateStr-") + 1
+            val receiptNumber = ReceiptNumberGenerator.generate(deviceId, nextSeq, now)
 
             val calc = cartState.calculateTotals(
                 isTaxEnabled = isTaxEnabled,
@@ -73,9 +75,9 @@ class TransactionRepositoryImpl @Inject constructor(
             }
 
             val changeAmount = if (paymentMethod == PaymentMethod.CASH) {
-                maxOf(0.0, paymentAmount - calc.grandTotal)
+                (paymentAmount - calc.grandTotal).coerceAtLeast(0L)
             } else {
-                0.0
+                0L
             }
 
             // 1. Insert Transaction record
@@ -141,6 +143,17 @@ class TransactionRepositoryImpl @Inject constructor(
                 if (cartItem.product.trackStock) {
                     val currentProduct = productDao.getProductById(cartItem.product.id)
                     val beforeStock = currentProduct?.stock ?: 0.0
+
+                    // Validasi stok: jangan biarkan penjualan melebihi stok yang tersedia,
+                    // karena stok negatif merusak laporan inventori & valuasi. Dilempar di
+                    // dalam withTransaction agar seluruh checkout di-rollback bila gagal.
+                    if (beforeStock < cartItem.quantity) {
+                        throw IllegalStateException(
+                            "Stok ${cartItem.product.name} tidak cukup " +
+                                "(tersedia ${beforeStock.toInt()}, diminta ${cartItem.quantity.toInt()})."
+                        )
+                    }
+
                     val afterStock = beforeStock - cartItem.quantity
 
                     productDao.updateStock(cartItem.product.id, afterStock, now)
@@ -290,9 +303,10 @@ class TransactionRepositoryImpl @Inject constructor(
             val now = System.currentTimeMillis()
             val transactionId = UUID.randomUUID().toString()
             val dateStr = dateOnlyFormat.format(Date(now))
-            val prefix = "HOLD-$deviceId-$dateStr"
-            val countToday = transactionDao.countTransactionsWithPrefix(prefix)
-            val receiptNumber = "HOLD-$deviceId-$dateStr-${String.format(Locale.US, "%04d", countToday + 1)}"
+            // Sama seperti checkout: nomor urut dari MAX + 1 di dalam transaksi DB,
+            // supaya nomor HOLD tidak pernah menabrak pesanan tertunda yang sudah ada.
+            val nextSeq = transactionDao.nextReceiptSequence("HOLD-$deviceId-$dateStr-") + 1
+            val receiptNumber = "HOLD-$deviceId-$dateStr-${String.format(Locale.US, "%04d", nextSeq)}"
 
             val calc = cartState.calculateTotals()
 
@@ -309,8 +323,8 @@ class TransactionRepositoryImpl @Inject constructor(
                 tax = calc.tax,
                 serviceCharge = calc.serviceCharge,
                 grandTotal = calc.grandTotal,
-                paymentAmount = 0.0,
-                changeAmount = 0.0,
+                paymentAmount = 0L,
+                changeAmount = 0L,
                 paymentMethod = PaymentMethod.CASH,
                 status = TransactionStatus.HELD,
                 note = note.ifBlank { cartState.note },
@@ -370,7 +384,7 @@ class TransactionRepositoryImpl @Inject constructor(
         }
     }
 
-    override fun getGrossSalesBetween(startDate: Long, endDate: Long): Flow<Double?> =
+    override fun getGrossSalesBetween(startDate: Long, endDate: Long): Flow<Long?> =
         transactionDao.getGrossSalesBetween(startDate, endDate)
 
     override fun getTransactionCountBetween(startDate: Long, endDate: Long): Flow<Int> =

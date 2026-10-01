@@ -24,16 +24,16 @@ object CurrencyFormatter {
     }
     private val decimalFormat = DecimalFormat("#,###", symbols)
 
-    fun format(amount: Double, symbol: String = "Rp"): String {
+    fun format(amount: Long, symbol: String = "Rp"): String {
         return "$symbol ${decimalFormat.format(amount)}"
     }
 
-    fun formatCompact(amount: Double): String {
+    fun formatCompact(amount: Long): String {
         return when {
-            amount >= 1_000_000_000 -> String.format(Locale.US, "%.1fM", amount / 1_000_000_000)
-            amount >= 1_000_000 -> String.format(Locale.US, "%.1f jt", amount / 1_000_000)
-            amount >= 1_000 -> String.format(Locale.US, "%.0fk", amount / 1_000)
-            else -> amount.toInt().toString()
+            amount >= 1_000_000_000 -> String.format(Locale.US, "%.1fM", amount / 1_000_000_000.0)
+            amount >= 1_000_000 -> String.format(Locale.US, "%.1f jt", amount / 1_000_000.0)
+            amount >= 1_000 -> String.format(Locale.US, "%.0fk", amount / 1_000.0)
+            else -> amount.toString()
         }
     }
 }

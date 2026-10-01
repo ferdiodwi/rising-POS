@@ -10,8 +10,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.rising.pos.core.model.AppTheme
 import com.rising.pos.core.model.BusinessType
+import com.rising.pos.core.security.PinHasher
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -46,10 +48,16 @@ data class BusinessSettings(
     val autoPrintReceipt: Boolean = false,
     // Security
     val isPinSecurityEnabled: Boolean = false,
-    val securityPin: String = "",
+    /** PBKDF2-HMAC-SHA256 hash (Base64) dari PIN Owner. Bukan PIN itu sendiri. */
+    val securityPinHash: String = "",
+    /** Salt acak (Base64) untuk [securityPinHash]. */
+    val securityPinSalt: String = "",
     // Appearance / Theme
     val appTheme: AppTheme = AppTheme.SYSTEM
-)
+) {
+    /** True bila PIN Owner sudah diatur (hash tersimpan). */
+    val hasPin: Boolean get() = securityPinHash.isNotBlank() && securityPinSalt.isNotBlank()
+}
 
 @Singleton
 class AppPreferences @Inject constructor(
@@ -83,7 +91,8 @@ class AppPreferences @Inject constructor(
         val AUTO_PRINT_RECEIPT = booleanPreferencesKey("auto_print_receipt")
 
         val IS_PIN_SECURITY_ENABLED = booleanPreferencesKey("is_pin_security_enabled")
-        val SECURITY_PIN = stringPreferencesKey("security_pin")
+        val SECURITY_PIN_HASH = stringPreferencesKey("security_pin_hash")
+        val SECURITY_PIN_SALT = stringPreferencesKey("security_pin_salt")
         val APP_THEME = stringPreferencesKey("app_theme")
     }
 
@@ -119,7 +128,8 @@ class AppPreferences @Inject constructor(
             printerPaperWidthMm = prefs[Keys.PRINTER_PAPER_WIDTH] ?: 58,
             autoPrintReceipt = prefs[Keys.AUTO_PRINT_RECEIPT] ?: false,
             isPinSecurityEnabled = prefs[Keys.IS_PIN_SECURITY_ENABLED] ?: false,
-            securityPin = prefs[Keys.SECURITY_PIN] ?: "",
+            securityPinHash = prefs[Keys.SECURITY_PIN_HASH] ?: "",
+            securityPinSalt = prefs[Keys.SECURITY_PIN_SALT] ?: "",
             appTheme = try {
                 AppTheme.valueOf(prefs[Keys.APP_THEME] ?: AppTheme.SYSTEM.name)
             } catch (_: Exception) {
@@ -229,11 +239,30 @@ class AppPreferences @Inject constructor(
         }
     }
 
+    /**
+     * Menyimpan setelan PIN. [pin] di-hash dengan PBKDF2-HMAC-SHA256 + salt acak baru;
+     * PIN mentah tidak pernah ditulis ke disk. Bila [enabled] = false, hash & salt dihapus.
+     */
     suspend fun updatePinSecurity(enabled: Boolean, pin: String) {
         context.dataStore.edit { prefs ->
             prefs[Keys.IS_PIN_SECURITY_ENABLED] = enabled
-            prefs[Keys.SECURITY_PIN] = pin
+            if (enabled && pin.isNotBlank()) {
+                val salt = PinHasher.newSalt()
+                prefs[Keys.SECURITY_PIN_HASH] = PinHasher.hash(pin, salt)
+                prefs[Keys.SECURITY_PIN_SALT] = salt
+            } else if (!enabled) {
+                prefs.remove(Keys.SECURITY_PIN_HASH)
+                prefs.remove(Keys.SECURITY_PIN_SALT)
+            }
         }
+    }
+
+    /** Memverifikasi [pin] terhadap hash tersimpan. False bila PIN belum diatur. */
+    suspend fun verifyPin(pin: String): Boolean {
+        val prefs = context.dataStore.data.first()
+        val hash = prefs[Keys.SECURITY_PIN_HASH] ?: return false
+        val salt = prefs[Keys.SECURITY_PIN_SALT] ?: return false
+        return PinHasher.verify(pin, hash, salt)
     }
 
     suspend fun updateAppTheme(theme: AppTheme) {

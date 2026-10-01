@@ -11,7 +11,7 @@ interface TransactionRepository {
     suspend fun processCheckout(
         cartState: CartState,
         paymentMethod: PaymentMethod,
-        paymentAmount: Double,
+        paymentAmount: Long,
         deviceId: String,
         cashierId: String? = null,
         isTaxEnabled: Boolean = false,
@@ -36,7 +36,7 @@ interface TransactionRepository {
         cashierId: String? = null
     ): Result<TransactionWithDetails>
     suspend fun deleteHeldTransaction(transactionId: String): Result<Unit>
-    fun getGrossSalesBetween(startDate: Long, endDate: Long): Flow<Double?>
+    fun getGrossSalesBetween(startDate: Long, endDate: Long): Flow<Long?>
     fun getTransactionCountBetween(startDate: Long, endDate: Long): Flow<Int>
     fun getTopSellingProductsBetween(startDate: Long, endDate: Long, limit: Int = 5): Flow<List<TopSellingProduct>>
 }

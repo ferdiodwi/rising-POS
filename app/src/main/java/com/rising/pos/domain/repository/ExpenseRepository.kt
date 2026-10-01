@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 interface ExpenseRepository {
     fun getAllExpenses(): Flow<List<ExpenseEntity>>
     fun getExpensesBetween(startDate: Long, endDate: Long): Flow<List<ExpenseEntity>>
-    fun getTotalExpenseBetween(startDate: Long, endDate: Long): Flow<Double?>
+    fun getTotalExpenseBetween(startDate: Long, endDate: Long): Flow<Long?>
     suspend fun saveExpense(expense: ExpenseEntity)
     suspend fun deleteExpense(expense: ExpenseEntity)
 }

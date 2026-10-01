@@ -72,7 +72,7 @@ fun CheckoutDialog(
     isProcessing: Boolean,
     errorMessage: String?,
     onDismiss: () -> Unit,
-    onConfirmPayment: (PaymentMethod, Double, OrderType, String?) -> Unit
+    onConfirmPayment: (PaymentMethod, Long, OrderType, String?) -> Unit
 ) {
     val calc = cart.calculateTotals(
         isTaxEnabled = settings.isTaxEnabled,
@@ -93,19 +93,19 @@ fun CheckoutDialog(
     var orderNote by remember { mutableStateOf(cart.note ?: "") }
 
     var selectedMethod by remember { mutableStateOf(PaymentMethod.CASH) }
-    var cashInput by remember { mutableStateOf(calc.grandTotal.toInt().toString()) }
+    var cashInput by remember { mutableStateOf(calc.grandTotal.toString()) }
 
     var isSplitPayment by remember { mutableStateOf(false) }
     var splitMethod1 by remember { mutableStateOf(PaymentMethod.CASH) }
-    var splitAmount1Input by remember { mutableStateOf((calc.grandTotal / 2).toInt().toString()) }
+    var splitAmount1Input by remember { mutableStateOf((calc.grandTotal / 2).toString()) }
     var splitMethod2 by remember { mutableStateOf(PaymentMethod.QRIS) }
 
-    val splitAmount1 = splitAmount1Input.toDoubleOrNull() ?: 0.0
-    val splitAmount2 = maxOf(0.0, calc.grandTotal - splitAmount1)
-    val isSplitValid = splitAmount1 > 0 && splitAmount2 > 0 && (splitAmount1 + splitAmount2 == calc.grandTotal)
+    val splitAmount1 = splitAmount1Input.toLongOrNull() ?: 0L
+    val splitAmount2 = (calc.grandTotal - splitAmount1).coerceAtLeast(0L)
+    val isSplitValid = splitAmount1 > 0L && splitAmount2 > 0L && (splitAmount1 + splitAmount2 == calc.grandTotal)
 
-    val cashAmount = cashInput.toDoubleOrNull() ?: 0.0
-    val changeAmount = maxOf(0.0, cashAmount - calc.grandTotal)
+    val cashAmount = cashInput.toLongOrNull() ?: 0L
+    val changeAmount = (cashAmount - calc.grandTotal).coerceAtLeast(0L)
     val isCashSufficient = cashAmount >= calc.grandTotal
 
     Dialog(onDismissRequest = { if (!isProcessing) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -349,7 +349,7 @@ fun CheckoutDialog(
                                     Spacer(modifier = Modifier.width(8.dp))
                                     OutlinedButton(
                                         onClick = {
-                                            splitAmount1Input = (calc.grandTotal / 2).toInt().toString()
+                                            splitAmount1Input = (calc.grandTotal / 2).toString()
                                         },
                                         shape = RoundedCornerShape(8.dp)
                                     ) {
@@ -449,7 +449,7 @@ fun CheckoutDialog(
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 OutlinedButton(
-                                    onClick = { cashInput = calc.grandTotal.toInt().toString() },
+                                    onClick = { cashInput = calc.grandTotal.toString() },
                                     shape = RoundedCornerShape(8.dp),
                                     contentPadding = ButtonDefaults.ContentPadding
                                 ) {

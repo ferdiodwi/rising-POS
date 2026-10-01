@@ -11,7 +11,7 @@ data class ModifierEntity(
     @PrimaryKey
     val id: String,
     val name: String,
-    val price: Double = 0.0,
+    val price: Long = 0L,
     @ColumnInfo(name = "is_required")
     val isRequired: Boolean = false,
     @ColumnInfo(name = "is_multiple_select")

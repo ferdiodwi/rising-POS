@@ -43,7 +43,18 @@ class ProductRepositoryImpl @Inject constructor(
         productDao.getVariantsByProductIdSync(productId)
 
     override suspend fun saveProduct(product: ProductEntity, variants: List<ProductVariantEntity>) {
-        productDao.insertProduct(product)
+        val existing = productDao.getProductById(product.id)
+        if (existing != null) {
+            // PENTING: gunakan UPDATE, bukan INSERT OR REPLACE.
+            // INSERT OR REPLACE di SQLite = DELETE baris lama + INSERT baru. Karena
+            // tabel stock_movements punya ForeignKey(onDelete = CASCADE) ke products,
+            // setiap kali produk di-edit lewat jalur REPLACE, SELURUH riwayat mutasi
+            // stok produk tersebut ikut terhapus. UPDATE tidak menghapus baris, jadi
+            // riwayat mutasi tetap utuh. createdAt lama dipertahankan.
+            productDao.updateProduct(product.copy(createdAt = existing.createdAt))
+        } else {
+            productDao.insertProduct(product)
+        }
         if (variants.isNotEmpty()) {
             productDao.deleteVariantsByProductId(product.id)
             productDao.insertVariants(variants)

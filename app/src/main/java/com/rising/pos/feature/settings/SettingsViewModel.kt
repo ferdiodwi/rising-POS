@@ -346,6 +346,9 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** Verifikasi PIN Owner (hash PBKDF2). Dipakai oleh gerbang Ubah PIN & Pulihkan DB. */
+    suspend fun verifyPin(pin: String): Boolean = appPreferences.verifyPin(pin)
+
     fun openPinSetupDialog() {
         _uiState.update { it.copy(isPinSetupDialogOpen = true) }
     }

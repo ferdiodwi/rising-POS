@@ -2,6 +2,7 @@ package com.rising.pos.core.database.di
 
 import android.content.Context
 import androidx.room.Room
+import com.rising.pos.core.database.Migrations
 import com.rising.pos.core.database.PosDatabase
 import com.rising.pos.core.database.dao.CategoryDao
 import com.rising.pos.core.database.dao.CustomerDao
@@ -32,7 +33,11 @@ object DatabaseModule {
             PosDatabase::class.java,
             "rising_pos.db"
         )
-        .fallbackToDestructiveMigration(dropAllTables = true)
+        // Migrasi eksplisit — TIDAK memakai fallbackToDestructiveMigration, supaya
+        // kenaikan versi skema tidak pernah menghapus data penjualan pengguna.
+        // Bila ada versi skema tanpa migrasi, aplikasi akan gagal saat dibuka
+        // (terdeteksi dini) alih-alih menghapus data diam-diam.
+        .addMigrations(*Migrations.ALL)
         .build()
     }
 

@@ -232,7 +232,7 @@ fun TransactionScreen(
             onPrintReceipt = { viewModel.printReceipt(trx) },
             onDismiss = { viewModel.selectTransaction(null) },
             onVoidTransaction = { trxId, reason ->
-                if (settings.isPinSecurityEnabled && settings.securityPin.isNotBlank()) {
+                if (settings.isPinSecurityEnabled && settings.hasPin) {
                     pendingVoidAction = Pair(trxId, reason)
                     showPinDialog = true
                 } else {
@@ -244,7 +244,7 @@ fun TransactionScreen(
 
     if (showPinDialog && pendingVoidAction != null) {
         SecurityPinDialog(
-            correctPin = settings.securityPin,
+            verifyPin = viewModel::verifyPin,
             title = "Otorisasi Void",
             description = "Masukkan PIN Owner untuk menyetujui pembatalan transaksi ini.",
             onDismiss = {

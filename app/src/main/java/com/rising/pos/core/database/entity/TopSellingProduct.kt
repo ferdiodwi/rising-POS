@@ -10,5 +10,5 @@ data class TopSellingProduct(
     @ColumnInfo(name = "total_qty")
     val totalQty: Double,
     @ColumnInfo(name = "total_revenue")
-    val totalRevenue: Double
+    val totalRevenue: Long
 )

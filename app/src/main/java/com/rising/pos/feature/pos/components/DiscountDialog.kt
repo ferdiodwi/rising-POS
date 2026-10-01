@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import kotlin.math.roundToLong
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -65,26 +66,26 @@ enum class DiscountType {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun DiscountDialog(
-    subtotal: Double,
+    subtotal: Long,
     currencySymbol: String,
-    currentDiscount: Double,
+    currentDiscount: Long,
     currentReason: String?,
     onDismiss: () -> Unit,
-    onApplyDiscount: (amount: Double, reason: String?) -> Unit
+    onApplyDiscount: (amount: Long, reason: String?) -> Unit
 ) {
     var discountType by remember { mutableStateOf(DiscountType.NOMINAL) }
     var inputValue by remember {
-        mutableStateOf(if (currentDiscount > 0) currentDiscount.toInt().toString() else "")
+        mutableStateOf(if (currentDiscount > 0) currentDiscount.toString() else "")
     }
     var reason by remember { mutableStateOf(currentReason ?: "") }
 
     val rawInput = inputValue.toDoubleOrNull() ?: 0.0
 
-    val calculatedDiscountAmount = when (discountType) {
-        DiscountType.NOMINAL -> minOf(rawInput, subtotal)
+    val calculatedDiscountAmount: Long = when (discountType) {
+        DiscountType.NOMINAL -> minOf(rawInput.toLong(), subtotal)
         DiscountType.PERCENTAGE -> {
             val clampedPercentage = minOf(100.0, maxOf(0.0, rawInput))
-            (subtotal * clampedPercentage) / 100.0
+            (subtotal * clampedPercentage / 100.0).roundToLong()
         }
     }
 
@@ -264,7 +265,7 @@ fun DiscountDialog(
                         ) {
                             Text("Subtotal Bersih:", style = MaterialTheme.typography.bodyMedium.copy(color = Slate900, fontWeight = FontWeight.Bold))
                             Text(
-                                CurrencyFormatter.format(maxOf(0.0, subtotal - calculatedDiscountAmount), currencySymbol),
+                                CurrencyFormatter.format((subtotal - calculatedDiscountAmount).coerceAtLeast(0L), currencySymbol),
                                 style = MaterialTheme.typography.bodyMedium.copy(color = SuccessGreen, fontWeight = FontWeight.Bold)
                             )
                         }
@@ -281,7 +282,7 @@ fun DiscountDialog(
                     if (currentDiscount > 0) {
                         OutlinedButton(
                             onClick = {
-                                onApplyDiscount(0.0, null)
+                                onApplyDiscount(0L, null)
                                 onDismiss()
                             },
                             modifier = Modifier

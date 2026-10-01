@@ -77,7 +77,7 @@ class ExpenseViewModel @Inject constructor(
 
     fun saveExpense() {
         val form = _uiState.value.formState
-        val amount = form.amount.toDoubleOrNull() ?: 0.0
+        val amount = form.amount.toLongOrNull() ?: 0L
         if (amount <= 0) return
 
         viewModelScope.launch {

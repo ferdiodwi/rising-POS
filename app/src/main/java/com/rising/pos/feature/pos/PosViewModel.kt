@@ -262,7 +262,7 @@ class PosViewModel @Inject constructor(
         }
     }
 
-    fun applyDiscount(amount: Double, reason: String?) {
+    fun applyDiscount(amount: Long, reason: String?) {
         _uiState.update { it.copy(cart = it.cart.copy(discount = amount, discountReason = reason)) }
     }
 
@@ -286,7 +286,7 @@ class PosViewModel @Inject constructor(
 
     fun processPayment(
         paymentMethod: PaymentMethod,
-        cashPaidAmount: Double,
+        cashPaidAmount: Long,
         orderType: OrderType = _uiState.value.cart.orderType,
         note: String? = _uiState.value.cart.note
     ) {
@@ -449,7 +449,7 @@ class PosViewModel @Inject constructor(
                     id = item.productId,
                     name = item.productName,
                     sellingPrice = item.unitPrice,
-                    costPrice = 0.0,
+                    costPrice = 0L,
                     stock = 0.0
                 )
                 val modifiers = itemDetail.modifiers.map { mod ->
