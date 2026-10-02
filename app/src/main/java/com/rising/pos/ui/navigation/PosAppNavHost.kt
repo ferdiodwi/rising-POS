@@ -184,7 +184,21 @@ private fun MainAppNavHostContent(
                 onNavigateToCustomers = { navController.navigate(Screen.Customers.route) }
             )
         }
-        composable(Screen.Settings.route) { SettingsScreen() }
+        composable(Screen.Settings.route) {
+            SettingsScreen(
+                onBackClick = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(Screen.Pos.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                }
+            )
+        }
     }
 }
 
