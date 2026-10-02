@@ -19,6 +19,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -47,22 +50,42 @@ import com.rising.pos.ui.theme.Slate900
 
 @Composable
 fun PosAppNavHost(
-    appPreferences: AppPreferences
+    appPreferences: AppPreferences,
+    settings: BusinessSettings? = null
 ) {
-    val settings by appPreferences.settingsFlow.collectAsState(initial = BusinessSettings())
-    val navController = rememberNavController()
+    val currentSettings = settings ?: run {
+        val collected by appPreferences.settingsFlow.collectAsState(initial = null)
+        collected
+    }
 
-    if (!settings.isOnboardingCompleted) {
+    // Selama DataStore membaca preferensi dari disk saat startup,
+    // tampilkan background kosong agar tidak flicker memunculkan layar Onboarding.
+    if (currentSettings == null) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {}
+        return
+    }
+
+    var localOnboardingDone by remember { mutableStateOf(false) }
+
+    // Onboarding hanya muncul jika belum pernah diselesaikan, profil usaha belum ada,
+    // dan belum diselesaikan pada sesi ini.
+    val isOnboardingNeeded = !currentSettings.isOnboardingCompleted &&
+            !localOnboardingDone &&
+            !currentSettings.isActuallyOnboarded
+
+    if (isOnboardingNeeded) {
         OnboardingScreen(
             onFinish = {
-                navController.navigate(Screen.Pos.route) {
-                    popUpTo(Screen.Onboarding.route) { inclusive = true }
-                }
+                localOnboardingDone = true
             }
         )
         return
     }
 
+    val navController = rememberNavController()
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 600
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -121,10 +144,10 @@ fun PosAppNavHost(
             }
         }
     } else {
-        // Phone: Scaffold with PlayStoreBottomNavBar (Google Play Store style + 3D flip icon)
+        // Phone: Scaffold with PlayStoreBottomNavBar
         val isDarkTheme = MaterialTheme.colorScheme.background == Color(0xFF000000) ||
-                (settings.appTheme == com.rising.pos.core.model.AppTheme.DARK) ||
-                (settings.appTheme == com.rising.pos.core.model.AppTheme.SYSTEM && isSystemInDarkTheme())
+                (currentSettings.appTheme == com.rising.pos.core.model.AppTheme.DARK) ||
+                (currentSettings.appTheme == com.rising.pos.core.model.AppTheme.SYSTEM && isSystemInDarkTheme())
 
         Scaffold(
             bottomBar = {

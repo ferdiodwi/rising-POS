@@ -37,20 +37,31 @@ class OnboardingViewModel @Inject constructor(
 
     fun updateName(name: String) = _uiState.update { it.copy(businessName = name) }
     fun updateType(type: BusinessType) = _uiState.update { it.copy(businessType = type) }
-    fun updatePhone(phone: String) = _uiState.update { it.copy(phone = phone) }
+    fun updatePhone(phone: String) {
+        val digits = phone.filter { it.isDigit() }
+        val clean = if (digits.startsWith("62")) {
+            digits.removePrefix("62")
+        } else if (digits.startsWith("0")) {
+            digits.removePrefix("0")
+        } else {
+            digits
+        }
+        _uiState.update { it.copy(phone = clean) }
+    }
     fun updateAddress(address: String) = _uiState.update { it.copy(address = address) }
     fun updateDeviceId(id: String) = _uiState.update { it.copy(deviceId = id) }
 
     fun submitOnboarding(onSuccess: () -> Unit) {
         val state = _uiState.value
         val name = state.businessName.trim().ifEmpty { "Toko Saya" }
+        val phoneToSave = if (state.phone.isNotBlank()) "+62${state.phone.trim()}" else ""
         _uiState.update { it.copy(isLoading = true) }
 
         viewModelScope.launch {
             appPreferences.updateBusinessProfile(
                 name = name,
                 type = state.businessType,
-                phone = state.phone.trim(),
+                phone = phoneToSave,
                 address = state.address.trim(),
                 currencySymbol = state.currencySymbol,
                 footerNote = state.footerNote,
@@ -65,15 +76,19 @@ class OnboardingViewModel @Inject constructor(
                 else -> listOf("Umum")
             }
 
-            defaultCategories.forEachIndexed { index, catName ->
-                productRepository.saveCategory(
-                    CategoryEntity(
-                        id = UUID.randomUUID().toString(),
-                        name = catName,
-                        sortOrder = index,
-                        isActive = true
+            try {
+                defaultCategories.forEachIndexed { index, catName ->
+                    productRepository.saveCategory(
+                        CategoryEntity(
+                            id = UUID.randomUUID().toString(),
+                            name = catName,
+                            sortOrder = index,
+                            isActive = true
+                        )
                     )
-                )
+                }
+            } catch (_: Exception) {
+                // Ignore if category already exists or fails to seed
             }
 
             _uiState.update { it.copy(isLoading = false, isCompleted = true) }

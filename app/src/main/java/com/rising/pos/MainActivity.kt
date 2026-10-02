@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val settings by appPreferences.settingsFlow.collectAsState(initial = BusinessSettings())
+            val settings by appPreferences.settingsFlow.collectAsState(initial = null)
             val updateState by appUpdateManager.updateState.collectAsState()
             val coroutineScope = rememberCoroutineScope()
 
@@ -44,14 +44,17 @@ class MainActivity : ComponentActivity() {
             }
 
             val systemDark = isSystemInDarkTheme()
-            val isDarkTheme = when (settings.appTheme) {
-                AppTheme.SYSTEM -> systemDark
+            val isDarkTheme = when (settings?.appTheme) {
                 AppTheme.LIGHT -> false
                 AppTheme.DARK -> true
+                else -> systemDark
             }
 
             RisingPosTheme(darkTheme = isDarkTheme) {
-                PosAppNavHost(appPreferences = appPreferences)
+                PosAppNavHost(
+                    appPreferences = appPreferences,
+                    settings = settings
+                )
 
                 // ── Global Force Update Modal ────────────────────────────────
                 val isForceUpdateActive = when (val state = updateState) {

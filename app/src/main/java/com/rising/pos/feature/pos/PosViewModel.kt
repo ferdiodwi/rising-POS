@@ -206,6 +206,26 @@ class PosViewModel @Inject constructor(
         }
     }
 
+    fun decreaseProductQuantity(product: ProductEntity) {
+        _uiState.update { state ->
+            val existingIndex = state.cart.items.indexOfLast {
+                it.product.id == product.id && it.selectedModifiers.isEmpty()
+            }
+            if (existingIndex == -1) return@update state
+
+            val existingItem = state.cart.items[existingIndex]
+            val newQty = existingItem.quantity - 1.0
+            val updatedItems = if (newQty > 0) {
+                state.cart.items.mapIndexed { idx, item ->
+                    if (idx == existingIndex) item.copy(quantity = newQty) else item
+                }
+            } else {
+                state.cart.items.filterIndexed { idx, _ -> idx != existingIndex }
+            }
+            state.copy(cart = state.cart.copy(items = updatedItems))
+        }
+    }
+
     fun updateQuantity(cartItemId: String, delta: Double) {
         _uiState.update { state ->
             val updatedItems = state.cart.items.mapNotNull { item ->

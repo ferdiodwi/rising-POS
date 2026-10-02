@@ -57,6 +57,16 @@ data class BusinessSettings(
 ) {
     /** True bila PIN Owner sudah diatur (hash tersimpan). */
     val hasPin: Boolean get() = securityPinHash.isNotBlank() && securityPinSalt.isNotBlank()
+
+    /**
+     * True jika onboarding sudah selesai atau data profil usaha sudah terisi (misal nama toko sudah diganti,
+     * nomor telepon atau alamat sudah terisi). Mencegah onboarding muncul berulang bagi pengguna yang sudah setup.
+     */
+    val isActuallyOnboarded: Boolean
+        get() = isOnboardingCompleted ||
+                (name.isNotBlank() && name != "Toko Saya") ||
+                phone.isNotBlank() ||
+                address.isNotBlank()
 }
 
 @Singleton
@@ -104,16 +114,24 @@ class AppPreferences @Inject constructor(
             BusinessType.WARUNG
         }
 
+        val businessName = prefs[Keys.BUSINESS_NAME] ?: "Toko Saya"
+        val phone = prefs[Keys.BUSINESS_PHONE] ?: ""
+        val address = prefs[Keys.BUSINESS_ADDRESS] ?: ""
+        val hasConfiguredProfile = (prefs.contains(Keys.BUSINESS_NAME) && businessName != "Toko Saya") ||
+                phone.isNotBlank() ||
+                address.isNotBlank()
+        val isOnboardingCompleted = prefs[Keys.IS_ONBOARDING_COMPLETED] ?: hasConfiguredProfile
+
         BusinessSettings(
-            name = prefs[Keys.BUSINESS_NAME] ?: "Toko Saya",
+            name = businessName,
             type = businessType,
-            phone = prefs[Keys.BUSINESS_PHONE] ?: "",
-            address = prefs[Keys.BUSINESS_ADDRESS] ?: "",
+            phone = phone,
+            address = address,
             currencySymbol = prefs[Keys.CURRENCY_SYMBOL] ?: "Rp",
             footerNote = prefs[Keys.FOOTER_NOTE] ?: "Terima kasih atas kunjungan Anda!",
             deviceId = prefs[Keys.DEVICE_ID] ?: "A01",
             cashierName = prefs[Keys.CASHIER_NAME] ?: "Kasir",
-            isOnboardingCompleted = prefs[Keys.IS_ONBOARDING_COMPLETED] ?: false,
+            isOnboardingCompleted = isOnboardingCompleted,
             isTableEnabled = prefs[Keys.IS_TABLE_ENABLED] ?: false,
             isModifierEnabled = prefs[Keys.IS_MODIFIER_ENABLED] ?: false,
             isBarcodeEnabled = prefs[Keys.IS_BARCODE_ENABLED] ?: true,
