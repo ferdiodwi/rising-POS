@@ -1,512 +1,225 @@
 package com.rising.pos.feature.pos.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import com.rising.pos.ui.components.PosDialog
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.Money
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.QrCode
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.outlined.Backspace
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.unit.sp
 import com.rising.pos.core.datastore.BusinessSettings
 import com.rising.pos.core.model.BusinessType
 import com.rising.pos.core.model.OrderType
 import com.rising.pos.core.model.PaymentMethod
 import com.rising.pos.core.util.CurrencyFormatter
 import com.rising.pos.domain.model.CartState
-import com.rising.pos.ui.theme.DangerRed
-import com.rising.pos.ui.theme.PosTextStyles
-import com.rising.pos.ui.theme.Slate200
-import com.rising.pos.ui.theme.Slate500
-import com.rising.pos.ui.theme.Slate700
-import com.rising.pos.ui.theme.Slate900
-import com.rising.pos.ui.theme.SuccessGreen
-import com.rising.pos.ui.theme.SuccessGreenContainer
-import com.rising.pos.ui.theme.WarningAmber
-import com.rising.pos.ui.theme.WarningAmberContainer
+import com.rising.pos.ui.components.*
+import com.rising.pos.ui.theme.*
 
-/**
- * Dialog pembayaran.
- *
- * Alur uang dijaga sederhana dan aman: total besar di atas, pilih metode, lalu
- * untuk tunai tampil input + kembalian yang langsung berubah. Kekurangan uang
- * ditandai dengan IKON + TEKS, bukan hanya warna.
- */
+/** Reference payment layout with shared order totals and checkout callback. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CheckoutDialog(
-    cart: CartState,
-    settings: BusinessSettings,
-    isProcessing: Boolean,
-    errorMessage: String?,
-    onDismiss: () -> Unit,
-    onConfirmPayment: (PaymentMethod, Long, OrderType, String?) -> Unit
-) {
-    val calc = cart.calculateTotals(
-        isTaxEnabled = settings.isTaxEnabled,
-        taxPercentage = settings.taxPercentage,
-        isTaxInclusive = settings.isTaxInclusive,
-        isServiceChargeEnabled = settings.isServiceChargeEnabled,
-        serviceChargePercentage = settings.serviceChargePercentage
-    )
-
-    var selectedOrderType by rememberSaveable {
-        mutableStateOf(
-            if (cart.orderType != OrderType.RETAIL) cart.orderType
-            else if (settings.type == BusinessType.CAFE) OrderType.DINE_IN
-            else cart.orderType
-        )
-    }
-    var tableNumber by rememberSaveable { mutableStateOf(cart.tableNumber ?: "") }
-    var orderNote by rememberSaveable { mutableStateOf(cart.note ?: "") }
-
+fun CheckoutDialog(cart: CartState, settings: BusinessSettings, isProcessing: Boolean, errorMessage: String?,
+    onDismiss: () -> Unit, onConfirmPayment: (PaymentMethod, Long, OrderType, String?) -> Unit
+) = CashierTheme {
+    val calc = cart.calculateTotals(settings.isTaxEnabled, settings.taxPercentage, settings.isTaxInclusive,
+        settings.isServiceChargeEnabled, settings.serviceChargePercentage)
+    var selectedOrderType by rememberSaveable { mutableStateOf(if (cart.orderType != OrderType.RETAIL) cart.orderType else if (settings.type == BusinessType.CAFE) OrderType.DINE_IN else cart.orderType) }
+    var tableNumber by rememberSaveable { mutableStateOf(cart.tableNumber.orEmpty()) }
+    var orderNote by rememberSaveable { mutableStateOf(cart.note.orEmpty()) }
     var selectedMethod by rememberSaveable { mutableStateOf(PaymentMethod.CASH) }
     var cashInput by rememberSaveable { mutableStateOf(calc.grandTotal.toString()) }
-
+    var replaceCash by rememberSaveable { mutableStateOf(true) }
+    var showDetails by rememberSaveable { mutableStateOf(false) }
     var isSplitPayment by rememberSaveable { mutableStateOf(false) }
     var splitMethod1 by rememberSaveable { mutableStateOf(PaymentMethod.CASH) }
-    var splitAmount1Input by rememberSaveable { mutableStateOf((calc.grandTotal / 2).toString()) }
     var splitMethod2 by rememberSaveable { mutableStateOf(PaymentMethod.QRIS) }
-
+    var splitAmount1Input by rememberSaveable { mutableStateOf((calc.grandTotal / 2).toString()) }
     val splitAmount1 = splitAmount1Input.toLongOrNull() ?: 0L
     val splitAmount2 = (calc.grandTotal - splitAmount1).coerceAtLeast(0L)
-    val isSplitValid = splitAmount1 > 0L && splitAmount2 > 0L && (splitAmount1 + splitAmount2 == calc.grandTotal)
-
+    val splitValid = splitAmount1 > 0 && splitAmount1 < calc.grandTotal
     val cashAmount = cashInput.toLongOrNull() ?: 0L
-    val changeAmount = (cashAmount - calc.grandTotal).coerceAtLeast(0L)
-    val shortfall = (calc.grandTotal - cashAmount).coerceAtLeast(0L)
-    val isCashSufficient = cashAmount >= calc.grandTotal
-
-    val canSubmit = !isProcessing && if (isSplitPayment) {
-        isSplitValid
-    } else {
-        selectedMethod != PaymentMethod.CASH || isCashSufficient
-    }
+    val canSubmit = cart.items.isNotEmpty() && !isProcessing && if (isSplitPayment) splitValid else selectedMethod != PaymentMethod.CASH || cashAmount >= calc.grandTotal
+    val colors = MaterialTheme.colorScheme
+    fun money(amount: Long) = posMoney(amount, settings.currencySymbol)
 
     PosDialog(onDismiss = { if (!isProcessing) onDismiss() }) {
-        Column(modifier = Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-            // Judul
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("Pembayaran", style = MaterialTheme.typography.titleLarge, color = Slate900)
-                Text(
-                    "${cart.items.size} jenis barang",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Slate500
-                )
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onDismiss, enabled = !isProcessing, modifier = Modifier.size(40.dp)) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Kembali ke kasir", Modifier.size(26.dp))
             }
-
-            Spacer(Modifier.height(14.dp))
-
-            // Total: satu angka paling menonjol di layar.
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surfaceContainerLow
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        "Total pembayaran",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        CurrencyFormatter.format(calc.grandTotal, settings.currencySymbol),
-                        style = PosTextStyles.displayMoney,
-                        color = Slate900
-                    )
+            Spacer(Modifier.width(4.dp))
+            Column {
+                Text("Pembayaran", fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                Text(settings.name, fontSize = 13.sp, color = colors.onSurfaceVariant)
+            }
+        }
+        Spacer(Modifier.height(14.dp))
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            Text("Total tagihan", color = colors.onSurfaceVariant, fontSize = 15.sp, lineHeight = 19.sp)
+            Text(money(calc.grandTotal), fontSize = 36.sp, lineHeight = 44.sp, fontWeight = FontWeight.Bold)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("${quantityLabel(cart.totalItemCount)} barang · ${cart.items.size} jenis produk", fontSize = 13.sp, color = colors.onSurfaceVariant, modifier = Modifier.weight(1f))
+                TextButton(onClick = { showDetails = !showDetails }, enabled = !isProcessing, modifier = Modifier.height(40.dp), contentPadding = PaddingValues(start = 4.dp)) {
+                    Text(if (showDetails) "Tutup rincian" else "Lihat rincian", fontSize = 13.sp)
+                    Icon(if (showDetails) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null, Modifier.size(20.dp))
                 }
             }
-
-            Spacer(Modifier.height(16.dp))
-
-            // Tipe pesanan (kafe / meja)
-            if (settings.type == BusinessType.CAFE || settings.isTableEnabled) {
-                Text("Tipe pesanan", style = MaterialTheme.typography.labelLarge, color = Slate900)
-                Spacer(Modifier.height(6.dp))
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    listOf(
-                        OrderType.DINE_IN to "Makan di tempat",
-                        OrderType.TAKEAWAY to "Bungkus",
-                        OrderType.DELIVERY to "Diantar"
-                    ).forEach { (type, label) ->
-                        OptionChip(
-                            label = label,
-                            selected = selectedOrderType == type,
-                            onClick = { selectedOrderType = type }
-                        )
-                    }
-                }
-
-                if (settings.isTableEnabled && selectedOrderType == OrderType.DINE_IN) {
-                    Spacer(Modifier.height(10.dp))
-                    OutlinedTextField(
-                        value = tableNumber,
-                        onValueChange = { tableNumber = it },
-                        label = { Text("Nomor meja") },
-                        placeholder = { Text("Contoh: Meja 03") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-            }
-
-            // Pelanggan
-            if (cart.customer != null) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Default.Person,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(10.dp))
-                        Column {
-                            Text(
-                                cart.customer.name,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            if (!cart.customer.phone.isNullOrBlank()) {
-                                Text(
-                                    cart.customer.phone,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Slate500
-                                )
+            if (showDetails) {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = 12.dp)) {
+                    cart.items.forEach { item -> Row {
+                        Text("${quantityLabel(item.quantity)} × ${item.product.name}", Modifier.weight(1f), fontSize = 13.sp)
+                        Text(money(item.totalPrice), fontSize = 13.sp)
+                    } }
+                    if (calc.discount > 0) Text("Diskon −${money(calc.discount)}", fontSize = 13.sp)
+                    if (calc.tax > 0) Text("Pajak ${money(calc.tax)}${if (settings.isTaxInclusive) " (termasuk)" else ""}", fontSize = 13.sp)
+                    if (calc.serviceCharge > 0) Text("Biaya layanan ${money(calc.serviceCharge)}", fontSize = 13.sp)
+                    cart.customer?.let { Text("Pelanggan: ${it.name}", fontSize = 13.sp) }
+                    if (settings.type == BusinessType.CAFE || settings.isTableEnabled) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(OrderType.DINE_IN to "Makan di tempat", OrderType.TAKEAWAY to "Bungkus", OrderType.DELIVERY to "Diantar").forEach { (type, label) ->
+                                OptionChip(label, selectedOrderType == type, enabled = !isProcessing) { selectedOrderType = type }
                             }
                         }
+                        if (settings.isTableEnabled && selectedOrderType == OrderType.DINE_IN) OutlinedTextField(tableNumber, { tableNumber = it }, label = { Text("Nomor meja") }, enabled = !isProcessing, modifier = Modifier.fillMaxWidth())
+                    }
+                    OutlinedTextField(orderNote, { orderNote = it }, label = { Text("Catatan pesanan (opsional)") }, enabled = !isProcessing, modifier = Modifier.fillMaxWidth())
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(selectedMethod == PaymentMethod.DEBIT_CARD && !isSplitPayment,
+                            { selectedMethod = PaymentMethod.DEBIT_CARD; isSplitPayment = false }, enabled = !isProcessing, label = { Text("Kartu debit") })
+                        FilterChip(isSplitPayment, { isSplitPayment = !isSplitPayment }, enabled = !isProcessing, label = { Text("Bagi pembayaran") })
                     }
                 }
-                Spacer(Modifier.height(12.dp))
             }
-
-            OutlinedTextField(
-                value = orderNote,
-                onValueChange = { orderNote = it },
-                label = { Text("Catatan pesanan (opsional)") },
-                placeholder = { Text("Contoh: Less ice, jangan pedas") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp)
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            // Mode pembayaran
-            Text("Metode pembayaran", style = MaterialTheme.typography.labelLarge, color = Slate900)
-            Spacer(Modifier.height(8.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OptionChip(
-                    label = "Penuh",
-                    selected = !isSplitPayment,
-                    onClick = { isSplitPayment = false }
-                )
-                OptionChip(
-                    label = "Bagi pembayaran",
-                    selected = isSplitPayment,
-                    onClick = { isSplitPayment = true }
-                )
-            }
-
+            HorizontalDivider(); Spacer(Modifier.height(12.dp))
+            Text("Metode pembayaran", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(12.dp))
-
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(Triple(PaymentMethod.CASH, "Tunai", CashierIcons.Money),
+                    Triple(PaymentMethod.QRIS, "QRIS", Icons.Outlined.QrCode2),
+                    Triple(PaymentMethod.BANK_TRANSFER, "Transfer", CashierIcons.Bank)).forEach { (method, label, icon) ->
+                    PaymentTile(label, icon, selectedMethod == method && !isSplitPayment, !isProcessing,
+                        { selectedMethod = method; isSplitPayment = false }, Modifier.weight(1f))
+                }
+            }
+            Spacer(Modifier.height(14.dp))
             if (isSplitPayment) {
-                SplitPaymentSection(
-                    settings = settings,
-                    grandTotal = calc.grandTotal,
-                    splitMethod1 = splitMethod1,
-                    onSplitMethod1 = { splitMethod1 = it },
-                    splitAmount1Input = splitAmount1Input,
-                    onSplitAmount1Input = { splitAmount1Input = it },
-                    splitMethod2 = splitMethod2,
-                    onSplitMethod2 = { splitMethod2 = it },
-                    splitAmount2 = splitAmount2
-                )
+                SplitPaymentSection(settings, calc.grandTotal, splitMethod1, { if (!isProcessing) splitMethod1 = it },
+                    splitAmount1Input, { if (!isProcessing) splitAmount1Input = it }, splitMethod2, { if (!isProcessing) splitMethod2 = it }, splitAmount2)
+            } else if (selectedMethod == PaymentMethod.CASH) {
+                Text("Uang diterima", fontSize = 14.sp, lineHeight = 18.sp, color = colors.onSurfaceVariant)
+                Spacer(Modifier.height(6.dp))
+                Surface(Modifier.fillMaxWidth().testTag("cashAmount"), shape = RoundedCornerShape(6.dp), border = BorderStroke(1.2.dp, colors.primary)) {
+                    Row(Modifier.padding(4.dp).heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Surface(shape = RoundedCornerShape(5.dp), color = colors.primaryContainer) {
+                            Text(settings.currencySymbol, Modifier.padding(horizontal = 12.dp, vertical = 8.dp), fontSize = 22.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurfaceVariant)
+                        }
+                        Text(groupedAmount(cashAmount), Modifier.padding(start = 12.dp), fontSize = 32.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf(calc.grandTotal to "Uang pas", 50_000L to money(50_000), 100_000L to money(100_000)).forEach { (value, label) ->
+                        val selected = cashAmount == value
+                        OutlinedButton({ cashInput = value.toString(); replaceCash = true }, enabled = !isProcessing,
+                            modifier = Modifier.weight(1f).heightIn(min = 42.dp), shape = RoundedCornerShape(6.dp),
+                            border = BorderStroke(1.dp, if (selected) colors.primary else colors.outlineVariant),
+                            colors = ButtonDefaults.outlinedButtonColors(containerColor = if (selected) colors.primaryContainer else colors.surface,
+                                contentColor = if (selected) colors.primary else colors.onSurface), contentPadding = PaddingValues(horizontal = 2.dp)) {
+                            Text(label, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
+                        }
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                val enough = cashAmount >= calc.grandTotal
+                Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(6.dp), color = if (enough) colors.primaryContainer else colors.errorContainer) {
+                    Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (enough) "Kembalian" else "Uang kurang", Modifier.weight(1f), fontSize = 15.sp, color = colors.onSurfaceVariant)
+                        Text(money(if (enough) cashAmount - calc.grandTotal else calc.grandTotal - cashAmount), fontSize = 25.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold, color = if (enough) colors.primary else colors.error)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                CashKeypad(enabled = !isProcessing, onKey = { key -> cashInput = cashKeyInput(cashInput, key, replaceCash); replaceCash = false })
             } else {
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    listOf(
-                        PaymentMethod.CASH to "Tunai",
-                        PaymentMethod.QRIS to "QRIS",
-                        PaymentMethod.BANK_TRANSFER to "Transfer bank",
-                        PaymentMethod.DEBIT_CARD to "Kartu debit"
-                    ).forEach { (method, label) ->
-                        MethodChip(
-                            label = label,
-                            selected = selectedMethod == method,
-                            icon = when (method) {
-                                PaymentMethod.CASH -> Icons.Default.Money
-                                PaymentMethod.QRIS -> Icons.Default.QrCode
-                                PaymentMethod.BANK_TRANSFER -> Icons.Default.AccountBalance
-                                else -> Icons.Default.CreditCard
-                            },
-                            onClick = { selectedMethod = method }
-                        )
-                    }
-                }
-
-                if (selectedMethod == PaymentMethod.CASH) {
-                    Spacer(Modifier.height(16.dp))
-                    CashSection(
-                        currencySymbol = settings.currencySymbol,
-                        grandTotal = calc.grandTotal,
-                        cashInput = cashInput,
-                        onCashInput = { cashInput = it },
-                        isCashSufficient = isCashSufficient,
-                        changeAmount = changeAmount,
-                        shortfall = shortfall
-                    )
-                }
+                Text(if (selectedMethod == PaymentMethod.QRIS) "Pastikan pembayaran QRIS sudah berhasil diterima." else if (selectedMethod == PaymentMethod.DEBIT_CARD) "Kartu debit dipilih. Pastikan transaksi EDC berhasil." else "Pastikan transfer sudah masuk ke rekening toko.", color = colors.onSurfaceVariant, fontSize = 14.sp)
+                if (selectedMethod == PaymentMethod.DEBIT_CARD) TextButton({ showDetails = true }) { Text("Ubah metode lainnya") }
             }
-
-            if (errorMessage != null) {
-                Spacer(Modifier.height(12.dp))
-                Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            Icons.Outlined.WarningAmber,
-                            contentDescription = null,
-                            tint = DangerRed,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            errorMessage,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = DangerRed
-                        )
-                    }
-                }
-            }
-
+            errorMessage?.let { Text(it, color = colors.error, modifier = Modifier.padding(vertical = 12.dp), fontSize = 14.sp) }
             Spacer(Modifier.height(12.dp))
         }
-
-        HorizontalDivider(color = Slate200)
-        Spacer(Modifier.height(12.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            OutlinedButton(
-                onClick = onDismiss,
-                enabled = !isProcessing,
-                modifier = Modifier.weight(1f).height(56.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(1.dp, Slate200)
-            ) {
-                Text("Kembali", style = MaterialTheme.typography.labelLarge, color = Slate700)
-            }
-
-            Button(
-                onClick = {
-                    val paid = if (isSplitPayment) {
-                        calc.grandTotal
-                    } else if (selectedMethod == PaymentMethod.CASH) {
-                        cashAmount
-                    } else {
-                        calc.grandTotal
-                    }
-
-                    val combinedNote = buildString {
-                        if (tableNumber.isNotBlank() && selectedOrderType == OrderType.DINE_IN) {
-                            append("Meja: ${tableNumber.trim()}")
-                        }
-                        if (isSplitPayment) {
-                            if (isNotEmpty()) append(" • ")
-                            append(
-                                "Split: ${splitMethod1.label()} " +
-                                    "${CurrencyFormatter.format(splitAmount1, settings.currencySymbol)} + " +
-                                    "${splitMethod2.label()} " +
-                                    "${CurrencyFormatter.format(splitAmount2, settings.currencySymbol)}"
-                            )
-                        }
-                        if (orderNote.isNotBlank()) {
-                            if (isNotEmpty()) append(" • ")
-                            append(orderNote.trim())
-                        }
-                    }.ifBlank { null }
-
-                    val finalMethod = if (isSplitPayment) splitMethod1 else selectedMethod
-                    onConfirmPayment(finalMethod, paid, selectedOrderType, combinedNote)
-                },
-                enabled = canSubmit,
-                modifier = Modifier.weight(1.5f).heightIn(min = 56.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                if (isProcessing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp
-                    )
-                } else {
-                    Text(
-                        "Selesaikan pembayaran",
-                        style = MaterialTheme.typography.labelLarge
-                    )
+        Spacer(Modifier.height(8.dp))
+        Text(if (!isSplitPayment && selectedMethod == PaymentMethod.CASH) "Pastikan uang tunai sudah diterima." else "Pastikan seluruh pembayaran sudah diterima.", fontSize = 11.sp, color = colors.onSurfaceVariant)
+        Spacer(Modifier.height(6.dp))
+        Button(onClick = {
+            val paid = if (!isSplitPayment && selectedMethod == PaymentMethod.CASH) cashAmount else calc.grandTotal
+            val note = buildString {
+                if (tableNumber.isNotBlank() && selectedOrderType == OrderType.DINE_IN) append("Meja: ${tableNumber.trim()}")
+                if (isSplitPayment) {
+                    if (isNotEmpty()) append(" • ")
+                    append("Split: ${splitMethod1.label()} ${money(splitAmount1)} + ${splitMethod2.label()} ${money(splitAmount2)}")
                 }
-            }
+                if (orderNote.isNotBlank()) { if (isNotEmpty()) append(" • "); append(orderNote.trim()) }
+            }.ifBlank { null }
+            onConfirmPayment(if (isSplitPayment) splitMethod1 else selectedMethod, paid, selectedOrderType, note)
+        }, enabled = canSubmit, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(6.dp)) {
+            if (isProcessing) CircularProgressIndicator(Modifier.size(20.dp), color = colors.onPrimary, strokeWidth = 2.dp)
+            else { Text("Selesaikan pembayaran", fontSize = 15.sp, fontWeight = FontWeight.SemiBold); Spacer(Modifier.width(10.dp)); Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(22.dp)) }
         }
     }
 }
 
+/** Presets replace the next entry. Ignore oversized input rather than overflowing money. */
+internal fun cashKeyInput(current: String, key: String, replace: Boolean): String {
+    if (key == "delete") return current.dropLast(1).ifBlank { "0" }
+    if (key !in listOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "000")) return current
+    val next = ((if (replace) "" else current) + key).trimStart('0').ifBlank { "0" }
+    return if (next.length <= 12 && next.toLongOrNull() != null) next else current
+}
 @Composable
-private fun CashSection(
-    currencySymbol: String,
-    grandTotal: Long,
-    cashInput: String,
-    onCashInput: (String) -> Unit,
-    isCashSufficient: Boolean,
-    changeAmount: Long,
-    shortfall: Long
-) {
-    Text("Uang diterima", style = MaterialTheme.typography.labelLarge, color = Slate900)
-    Spacer(Modifier.height(8.dp))
-
-    FlowRow(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        QuickCashButton(label = "Uang pas", onClick = { onCashInput(grandTotal.toString()) })
-        listOf(10_000L, 20_000L, 50_000L, 100_000L).forEach { add ->
-            QuickCashButton(
-                label = CurrencyFormatter.format(add, currencySymbol),
-                onClick = { onCashInput(add.toString()) }
-            )
+private fun PaymentTile(label: String, icon: ImageVector, selected: Boolean, enabled: Boolean, onClick: () -> Unit, modifier: Modifier) {
+    val colors = MaterialTheme.colorScheme
+    Surface(onClick = onClick, enabled = enabled, modifier = modifier, shape = RoundedCornerShape(6.dp),
+        color = if (selected) colors.primaryContainer else colors.surface,
+        border = BorderStroke(if (selected) 1.2.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant)) {
+        Box(Modifier.heightIn(min = 76.dp)) {
+            Column(Modifier.align(Alignment.Center).padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(icon, null, Modifier.size(31.dp), tint = if (selected) colors.primary else colors.onSurface)
+                Spacer(Modifier.height(6.dp)); Text(label, fontSize = 15.sp, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium, color = if (selected) colors.primary else colors.onSurface)
+            }
+            if (selected) Icon(Icons.Default.CheckCircle, "Terpilih", Modifier.align(Alignment.TopEnd).padding(6.dp).size(18.dp), tint = colors.primary)
         }
     }
-
-    Spacer(Modifier.height(10.dp))
-
-    OutlinedTextField(
-        value = cashInput,
-        onValueChange = { onCashInput(it.filter { ch -> ch.isDigit() }) },
-        prefix = { Text("$currencySymbol ") },
-        label = { Text("Nominal uang tunai") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true,
-        isError = cashInput.isNotBlank() && !isCashSufficient,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
-    )
-
-    Spacer(Modifier.height(10.dp))
-
-    // Kembalian / kekurangan: ikon + teks, bukan warna saja.
-    val isEnough = isCashSufficient
-    Surface(
-        color = if (isEnough) SuccessGreenContainer else WarningAmberContainer,
-        shape = RoundedCornerShape(12.dp),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = if (isEnough) Icons.Outlined.CheckCircle else Icons.Outlined.WarningAmber,
-                    contentDescription = null,
-                    tint = if (isEnough) SuccessGreen else WarningAmber,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = if (isEnough) "Kembalian" else "Uang kurang",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = Slate700
-                )
+}
+@Composable
+private fun CashKeypad(enabled: Boolean, onKey: (String) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        listOf(listOf("1", "2", "3"), listOf("4", "5", "6"), listOf("7", "8", "9"), listOf("000", "0", "delete")).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                row.forEach { key ->
+                    OutlinedButton(onClick = { onKey(key) }, enabled = enabled, modifier = Modifier.weight(1f).heightIn(min = 44.dp).testTag("key_$key"),
+                        shape = RoundedCornerShape(6.dp), border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onSurface), contentPadding = PaddingValues(4.dp)) {
+                        if (key == "delete") Icon(Icons.AutoMirrored.Outlined.Backspace, "Hapus digit", Modifier.size(27.dp))
+                        else Text(key, fontSize = 23.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
-            Text(
-                text = CurrencyFormatter.format(
-                    if (isEnough) changeAmount else shortfall,
-                    currencySymbol
-                ),
-                style = PosTextStyles.money,
-                color = if (isEnough) SuccessGreen else WarningAmber
-            )
         }
     }
 }
@@ -610,9 +323,10 @@ private fun SplitPaymentSection(
 }
 
 @Composable
-private fun OptionChip(label: String, selected: Boolean, onClick: () -> Unit) {
+private fun OptionChip(label: String, selected: Boolean, enabled: Boolean = true, onClick: () -> Unit) {
     FilterChip(
         selected = selected,
+        enabled = enabled,
         onClick = onClick,
         label = { Text(label) },
         shape = RoundedCornerShape(999.dp),
@@ -627,48 +341,6 @@ private fun OptionChip(label: String, selected: Boolean, onClick: () -> Unit) {
             selectedLabelColor = MaterialTheme.colorScheme.primary
         )
     )
-}
-
-@Composable
-private fun MethodChip(
-    label: String,
-    selected: Boolean,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit
-) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label) },
-        leadingIcon = {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(16.dp))
-        },
-        shape = RoundedCornerShape(999.dp),
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else Slate200
-        ),
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            labelColor = Slate500,
-            iconColor = Slate500,
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.primary,
-            selectedLeadingIconColor = MaterialTheme.colorScheme.primary
-        )
-    )
-}
-
-@Composable
-private fun QuickCashButton(label: String, onClick: () -> Unit) {
-    OutlinedButton(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(1.dp, Slate200),
-        contentPadding = ButtonDefaults.ContentPadding
-    ) {
-        Text(label, style = MaterialTheme.typography.labelLarge, color = Slate700)
-    }
 }
 
 private fun PaymentMethod.label(): String = when (this) {

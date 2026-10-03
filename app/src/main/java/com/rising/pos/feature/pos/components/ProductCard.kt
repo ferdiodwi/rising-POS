@@ -1,180 +1,62 @@
 package com.rising.pos.feature.pos.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.material3.OutlinedButton
-import com.rising.pos.ui.components.QuantityStepper
-import com.rising.pos.ui.theme.PosTextStyles
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Coffee
-import androidx.compose.material.icons.outlined.Fastfood
-import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.LocalDrink
-import androidx.compose.material.icons.outlined.ShoppingBag
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.rising.pos.core.database.entity.ProductWithCategory
-import com.rising.pos.core.util.CurrencyFormatter
-import com.rising.pos.ui.theme.Slate200
-import com.rising.pos.ui.theme.Slate400
-import com.rising.pos.ui.theme.Slate500
-import com.rising.pos.ui.theme.Slate900
+import com.rising.pos.ui.components.*
+import com.rising.pos.ui.theme.posMoney
 
-/**
- * Kartu produk kasir dengan gaya visual modern clean:
- * - Menampilkan gambar/ilustrasi kategori produk di bagian atas
- * - Nama produk & harga
- * - Ketika item sudah di keranjang (quantity > 0): border biru aktif 1.5dp dan stepper - qty +
- * - Ketika item belum di keranjang (quantity == 0): border 1dp Slate200 dan tombol + bulat biru di kanan
- */
 @Composable
-fun ProductCard(
-    item: ProductWithCategory,
-    currencySymbol: String,
-    cartQuantity: Double = 0.0,
-    onIncrease: () -> Unit,
-    onDecrease: () -> Unit = {},
-    onClick: () -> Unit = onIncrease,
-    modifier: Modifier = Modifier
+fun ProductPhoto(imageUrl: String?, name: String, modifier: Modifier = Modifier) {
+    var failed by remember(imageUrl) { mutableStateOf(false) }
+    var loaded by remember(imageUrl) { mutableStateOf(false) }
+    Box(modifier.then(if (loaded) Modifier.testTag("loaded_$name") else Modifier), contentAlignment = Alignment.Center) {
+        if (imageUrl.isNullOrBlank() || failed) Icon(CashierIcons.Box, "Foto $name belum tersedia", Modifier.size(40.dp), tint = MaterialTheme.colorScheme.outline)
+        else AsyncImage(model = imageUrl, contentDescription = name, contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize(), onSuccess = { loaded = true }, onError = { failed = true })
+    }
+}
+@Composable
+fun ProductCard(item: ProductWithCategory, currencySymbol: String, cartQuantity: Double = 0.0,
+    onIncrease: () -> Unit, onDecrease: () -> Unit = {}, onClick: () -> Unit = onIncrease, modifier: Modifier = Modifier
 ) {
     val product = item.product
     val unavailable = product.trackStock && product.stock <= 0
-
-    val isSelectedInCart = cartQuantity > 0
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val borderColor = if (isSelectedInCart) primaryColor else Slate200
-    val borderWidth = if (isSelectedInCart) 1.5.dp else 1.dp
-
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        border = BorderStroke(borderWidth, borderColor),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp)
-        ) {
-            // Bagian atas (gambar, nama, harga) dapat diklik untuk memilih / melihat varian
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .clickable(enabled = !unavailable) { onClick() }
-            ) {
-                // Area Gambar / Ilustrasi Produk
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(105.dp)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(
-                            if (isSelectedInCart) primaryColor.copy(alpha = 0.04f)
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    val categoryName = item.category?.name?.lowercase().orEmpty()
-                    val icon = when {
-                        categoryName.contains("minum") -> Icons.Outlined.LocalDrink
-                        categoryName.contains("kopi") || categoryName.contains("kafe") -> Icons.Outlined.Coffee
-                        categoryName.contains("makan") || categoryName.contains("snack") || categoryName.contains("camil") -> Icons.Outlined.Fastfood
-                        categoryName.contains("sembako") || categoryName.contains("retail") -> Icons.Outlined.ShoppingBag
-                        else -> Icons.Outlined.Inventory2
-                    }
-
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = if (isSelectedInCart) primaryColor else Slate400,
-                        modifier = Modifier.size(46.dp)
-                    )
-
-                    if (unavailable) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(Color.Black.copy(alpha = 0.6f))
-                                .padding(vertical = 4.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Stok Habis",
-                                color = Color.White,
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(Modifier.height(10.dp))
-
-                // Nama Produk
-                Text(
-                    text = product.name,
-                    style = MaterialTheme.typography.titleSmall.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    ),
-                    color = if (unavailable) Slate500 else Slate900,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                // Harga
-                Text(
-                    text = CurrencyFormatter.format(product.sellingPrice, currencySymbol),
-                    style = PosTextStyles.priceCard,
-                    color = if (unavailable) Slate500 else Slate900
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            if (isSelectedInCart) {
-                QuantityStepper(
-                    quantity = cartQuantity,
-                    productName = product.name,
-                    onDecrease = onDecrease,
-                    onIncrease = onIncrease,
-                    canIncrease = !unavailable,
-                    modifier = Modifier.fillMaxWidth()
-                )
+    val selected = cartQuantity > 0
+    val colors = MaterialTheme.colorScheme
+    Surface(modifier.fillMaxWidth(), shape = RoundedCornerShape(7.dp),
+        border = BorderStroke(if (selected) 1.25.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant), color = colors.surface) {
+        Column(Modifier.padding(6.dp)) {
+            ProductPhoto(product.imageUrl, product.name, Modifier.fillMaxWidth().height(76.dp).padding(2.dp).clickable(enabled = !unavailable, onClick = onClick))
+            if (selected) {
+                Text(product.name, fontSize = 14.sp, lineHeight = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(horizontal = 6.dp).padding(top = 4.dp).clickable(onClick = onClick))
+                Text(posMoney(product.sellingPrice, currencySymbol), fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 6.dp))
+                Spacer(Modifier.height(6.dp))
+                QuantityStepper(cartQuantity, product.name, onDecrease, onIncrease, Modifier.fillMaxWidth(), canIncrease = !unavailable, catalog = true)
             } else {
-                OutlinedButton(
-                    onClick = onIncrease,
-                    enabled = !unavailable,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(if (unavailable) "Habis" else "Tambah")
+                Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.Bottom) {
+                    Column(Modifier.weight(1f).padding(start = 6.dp).clickable(enabled = !unavailable, onClick = onClick)) {
+                        Text(product.name, fontSize = 14.sp, lineHeight = 18.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(posMoney(product.sellingPrice, currencySymbol), fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                        if (unavailable) Text("Stok habis", fontSize = 11.sp, lineHeight = 14.sp, color = colors.error)
+                    }
+                    RoundQuantityAction(Icons.Default.Add, "Tambah ${product.name}", onIncrease, !unavailable)
                 }
             }
         }

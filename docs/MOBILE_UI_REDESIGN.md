@@ -1,34 +1,30 @@
-# Mobile UI redesign
+# Cashier UI reference implementation
 
-This implementation follows the available mockup descriptions and the blue/neutral palette in `DESIGN.md`. The original mockup images were not available in this checkout, so exact visual matching remains a review step.
+This revision focuses on the three images supplied by the owner: the phone catalog, cart bottom sheet, and payment page. It supersedes the approximate cashier layout from PR #1.
 
-## Interaction changes
+## Changes
 
-- The mobile catalog opens **Lihat keranjang**, then payment. Category chips and 48dp quantity controls share the same visual language.
-- The cart wraps short orders, scrolls its contents when needed, and keeps totals and **Tahan / Bayar** visible. Removing a line has its own button; clearing the whole order requires confirmation. **Tambah barang** returns to the catalog.
-- Checkout and the success receipt are full pages on phones and constrained panels on tablets. Receipt sharing and printing are secondary actions; **Transaksi baru** is primary.
-- Quick cash amounts replace the amount received, with **Uang pas** for exact payment. Insufficient cash disables completion.
-- Product creation has a persistent save button, stable add/edit titles, required name and selling price, and expandable SKU/barcode/variant settings. Product search now includes SKU as its placeholder promises.
-- History has today/7-day/all-date filters backed by a date-range query, without the former 100-row cap. Revenue in the filtered summary includes completed transactions only. Held orders are now reachable through the status filter.
-- Reports add a real-data sales chart, payment totals, and CSV export through the Android document picker. The chart shows dates with completed sales; all-time reports group by month. Existing split-payment records are attributed to their recorded primary method, as indicated in the UI.
-- Bottom navigation uses native selection semantics and the app palette. Settings use consistent Indonesian labels and theme colors.
+- White canvas, bright blue accent, thin outline icons, underlined category tabs, and compact two-column product cards.
+- Product photographs read the existing `ProductEntity.imageUrl`. The product form now supports choosing/removing a photograph through Android's document picker, and editing a product preserves its image URI. Missing/unavailable photographs show an outlined product placeholder.
+- Selected cards have a pale blue quantity bar; unselected cards have a circular add button. The sticky cart header opens the cart, and **Bayar [total]** opens checkout directly.
+- Four phone navigation destinations: **Kasir, Produk, Riwayat, Lainnya**. Lainnya exposes reports, inventory, expenses, customers, and settings.
+- Cart sheet includes customer selection, product thumbnails, quantities, line totals, deletion, add products, discounts, subtotal, and a fixed **Tahan / Bayar [total]** footer. Clear-cart confirmation remains in place.
+- Payment uses three method tiles, a large cash amount, exact/50,000/100,000 presets, a live change/shortfall strip, and a dedicated numeric keypad. Insufficient cash disables payment; processing disables the main payment controls.
+- **Lihat rincian** expands line items and additional options, including order notes, cafe/table controls, debit and split payments. Existing payment recording and tax/service calculations are retained.
 
-## Review on a device
+## Validation
 
-Check a small portrait phone, large text, dark mode, landscape and tablet. Walk through product selection, variants, cart quantities, discounts, hold/resume, cash/non-cash checkout, printer errors, sharing, form validation, history filters, and report export.
-
-Product images still use the existing category placeholders; a photo management feature is outside these layout changes. Business calculations, payment recording, printer integration, and database schema are retained.
-
-## Validation completed
-
-- Debug APK assembled successfully (`:app:assembleDebug`).
-- 33 existing/new non-UI tests passed, including the date-range query regression covering more than 100 transactions.
-- Both Compose UI tests passed on Robolectric API 34: cart clear confirmation / return to catalog, and insufficient cash / quick nominal selection.
-- Rendered cart and checkout screens were visually inspected. These are simulator renders, not photos of a physical device.
+- `:app:assembleDebug` succeeded.
+- All **41 unit and Compose UI tests** passed on Robolectric API 34, including cart actions, navigation access, cash keypad/presets, insufficient cash, non-cash payment totals, and processing controls.
+- Catalog, cart and payment were rendered at 393 × 852 dp and visually inspected. Tests check that the final catalog price and bottom keypad row remain visible at this size.
 - `git diff --check` passed.
 
-The environment required a temporary Java 17 JDK, Android SDK 36, and an offline Robolectric Android 14 runtime. Those machine-specific paths are not part of the project configuration.
+These are native Android simulator renders. Android system bars, font rendering, and product photographs differ from the iOS-style reference artwork. Product photographs in the screenshots are test fixtures; their provenance is recorded in `app/src/test/resources/products/README.md`. Production products use their own selected images, and example products/prices are not added to the database.
 
-| Cart content | Payment page |
-| --- | --- |
-| ![Cart content](ui-previews/cart.png) | ![Payment page](ui-previews/payment.png) |
+Physical-device, tablet, large-font and dark-mode visual checks remain outside this simulator verification. Shorter screens retain scrolling with a fixed payment action. Persisted photo URIs depend on the selected document remaining available on the device.
+
+| Catalog | Cart sheet | Payment |
+| --- | --- | --- |
+| ![Catalog](ui-previews/catalog.png) | ![Cart sheet](ui-previews/cart.png) | ![Payment](ui-previews/payment.png) |
+
+The earlier changes to reports, history, settings and other screens remain from PR #1; this revision does not claim to match additional mockups.
