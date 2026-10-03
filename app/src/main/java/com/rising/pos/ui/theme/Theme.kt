@@ -234,6 +234,17 @@ fun RisingPosTheme(
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     val posColors = if (darkTheme) DarkPosColors else LightPosColors
 
+    val view = androidx.compose.ui.platform.LocalView.current
+    if (!view.isInEditMode) {
+        androidx.compose.runtime.SideEffect {
+            val window = (view.context as? android.app.Activity)?.window ?: return@SideEffect
+            androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
+                isAppearanceLightStatusBars = !darkTheme
+                isAppearanceLightNavigationBars = !darkTheme
+            }
+        }
+    }
+
     CompositionLocalProvider(LocalPosColors provides posColors) {
         MaterialTheme(
             colorScheme = colorScheme,

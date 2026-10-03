@@ -52,6 +52,18 @@ data class PosUiState(
     val availableVariants: List<ProductVariantEntity> = emptyList()
 )
 
+sealed interface ScanFeedback {
+    data class Success(
+        val cartItemId: String,
+        val productName: String,
+        val price: Long,
+        val quantity: Double,
+        val imageUrl: String? = null
+    ) : ScanFeedback
+    data class NotFound(val barcode: String) : ScanFeedback
+    data class NeedsVariant(val product: ProductEntity, val variants: List<ProductVariantEntity>) : ScanFeedback
+}
+
 @HiltViewModel
 class PosViewModel @Inject constructor(
     private val productRepository: ProductRepository,
@@ -116,16 +128,67 @@ class PosViewModel @Inject constructor(
         _uiState.update { it.copy(searchQuery = query) }
     }
 
-    fun scanBarcode(barcode: String) {
+    suspend fun processBarcodeScan(barcode: String): ScanFeedback {
         val trimmed = barcode.trim()
-        if (trimmed.isBlank()) return
-        viewModelScope.launch {
-            val matched = productRepository.getProductByBarcode(trimmed)
-            if (matched != null) {
-                addToCart(matched.product)
+        if (trimmed.isBlank()) return ScanFeedback.NotFound(barcode)
+
+        // 1. Cek kecocokan barcode varian
+        val variant = productRepository.getVariantByBarcode(trimmed)
+        if (variant != null) {
+            val parent = productRepository.getProductById(variant.productId)
+            if (parent != null && parent.isActive) {
+                addProductVariantToCart(parent, variant)
+                val finalPrice = parent.sellingPrice + variant.priceAdjustment
+                val foundItem = _uiState.value.cart.items
+                    .find { it.product.id == parent.id && it.variant?.id == variant.id }
+                val qty = foundItem?.quantity ?: 1.0
                 _uiState.update { it.copy(searchQuery = "") }
+                return ScanFeedback.Success(
+                    cartItemId = foundItem?.cartItemId ?: "",
+                    productName = "${parent.name} - ${variant.name}",
+                    price = finalPrice,
+                    quantity = qty,
+                    imageUrl = parent.imageUrl
+                )
+            }
+        }
+
+        // 2. Cek kecocokan produk utama (berdasarkan barcode atau SKU)
+        val matched = productRepository.getProductByBarcode(trimmed)
+        if (matched != null) {
+            val variants = productRepository.getVariantsByProductId(matched.product.id)
+            if (variants.isNotEmpty()) {
+                _uiState.update {
+                    it.copy(
+                        selectedProductForVariants = matched.product,
+                        availableVariants = variants
+                    )
+                }
+                return ScanFeedback.NeedsVariant(matched.product, variants)
             } else {
-                updateSearchQuery(trimmed)
+                addToCart(matched.product)
+                val foundItem = _uiState.value.cart.items
+                    .find { it.product.id == matched.product.id && it.variant == null }
+                val qty = foundItem?.quantity ?: 1.0
+                _uiState.update { it.copy(searchQuery = "") }
+                return ScanFeedback.Success(
+                    cartItemId = foundItem?.cartItemId ?: "",
+                    productName = matched.product.name,
+                    price = matched.product.sellingPrice,
+                    quantity = qty,
+                    imageUrl = matched.product.imageUrl
+                )
+            }
+        }
+
+        return ScanFeedback.NotFound(trimmed)
+    }
+
+    fun scanBarcode(barcode: String) {
+        viewModelScope.launch {
+            val result = processBarcodeScan(barcode)
+            if (result is ScanFeedback.NotFound) {
+                updateSearchQuery(barcode.trim())
             }
         }
     }

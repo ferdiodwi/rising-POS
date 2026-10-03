@@ -53,4 +53,15 @@ object CashierIcons {
         moveTo(14f, 9f); lineTo(14f, 19f); moveTo(19f, 9f); lineTo(19f, 19f)
         moveTo(3f, 19f); lineTo(21f, 19f); moveTo(2f, 22f); lineTo(22f, 22f)
     }
+    val BarChart = outline("BarChart") {
+        moveTo(3f, 20f); lineTo(21f, 20f)
+        moveTo(7f, 20f); lineTo(7f, 13f)
+        moveTo(12f, 20f); lineTo(12f, 8f)
+        moveTo(17f, 20f); lineTo(17f, 4f)
+    }
+    val CashRegister = outline("CashRegister") {
+        moveTo(4f, 8f); lineTo(20f, 8f); lineTo(20f, 19f); lineTo(4f, 19f); close()
+        moveTo(7f, 4f); lineTo(17f, 4f); lineTo(17f, 8f); lineTo(7f, 8f); close()
+        moveTo(11f, 13.5f); curveTo(11f, 14.3f, 11.4f, 15f, 12f, 15f); curveTo(12.6f, 15f, 13f, 14.3f, 13f, 13.5f); curveTo(13f, 12.7f, 12.6f, 12f, 12f, 12f); curveTo(11.4f, 12f, 11f, 12.7f, 11f, 13.5f); close()
+    }
 }

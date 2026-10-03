@@ -51,18 +51,40 @@ class TransactionViewModel @Inject constructor(
     private val _period = MutableStateFlow(HistoryPeriod.TODAY)
     val period = _period.asStateFlow()
 
-    fun setPeriod(value: HistoryPeriod) { _period.value = value }
+    private val _customDate = MutableStateFlow<LocalDate?>(null)
+    val customDate = _customDate.asStateFlow()
+
+    fun setPeriod(value: HistoryPeriod) {
+        _customDate.value = null
+        _period.value = value
+    }
+
+    fun setCustomDate(date: LocalDate?) {
+        _customDate.value = date
+        if (date != null) {
+            _period.value = HistoryPeriod.ALL
+        }
+    }
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    val transactions: StateFlow<List<TransactionWithDetails>> = _period.flatMapLatest { selected ->
+    val transactions: StateFlow<List<TransactionWithDetails>> = combine(_period, _customDate) { p, cd ->
+        Pair(p, cd)
+    }.flatMapLatest { (selected, custom) ->
         val today = LocalDate.now()
         val zone = ZoneId.systemDefault()
-        val start = when (selected) {
-            HistoryPeriod.TODAY -> today.atStartOfDay(zone).toInstant().toEpochMilli()
-            HistoryPeriod.LAST_7_DAYS -> today.minusDays(6).atStartOfDay(zone).toInstant().toEpochMilli()
-            HistoryPeriod.ALL -> 0L
+        val (start, end) = if (custom != null) {
+            val s = custom.atStartOfDay(zone).toInstant().toEpochMilli()
+            val e = custom.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+            Pair(s, e)
+        } else {
+            val s = when (selected) {
+                HistoryPeriod.TODAY -> today.atStartOfDay(zone).toInstant().toEpochMilli()
+                HistoryPeriod.LAST_7_DAYS -> today.minusDays(6).atStartOfDay(zone).toInstant().toEpochMilli()
+                HistoryPeriod.ALL -> 0L
+            }
+            val e = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+            Pair(s, e)
         }
-        val end = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
         transactionRepository.getTransactionsBetween(start, end)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 

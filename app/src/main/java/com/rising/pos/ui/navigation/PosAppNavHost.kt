@@ -196,6 +196,17 @@ private fun MainAppNavHostContent(
         composable(Screen.Customers.route) { CustomerScreen() }
         composable(Screen.Dashboard.route) {
             DashboardScreen(
+                onBackClick = {
+                    if (!navController.popBackStack()) {
+                        navController.navigate(Screen.Pos.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                },
                 onNavigateToExpenses = { navController.navigate(Screen.Expenses.route) },
                 onNavigateToInventory = { navController.navigate(Screen.Inventory.route) },
                 onNavigateToCustomers = { navController.navigate(Screen.Customers.route) }

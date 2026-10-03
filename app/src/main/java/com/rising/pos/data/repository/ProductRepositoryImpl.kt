@@ -33,6 +33,9 @@ class ProductRepositoryImpl @Inject constructor(
     override suspend fun getProductByBarcode(barcode: String): ProductWithCategory? =
         productDao.getProductByBarcode(barcode)
 
+    override suspend fun getVariantByBarcode(barcode: String): ProductVariantEntity? =
+        productDao.getVariantByBarcode(barcode)
+
     override suspend fun getProductById(id: String): ProductEntity? =
         productDao.getProductById(id)
 

@@ -41,8 +41,11 @@ interface ProductDao {
     fun searchProducts(query: String): Flow<List<ProductWithCategory>>
 
     @Transaction
-    @Query("SELECT * FROM products WHERE barcode = :barcode AND is_active = 1 LIMIT 1")
+    @Query("SELECT * FROM products WHERE (barcode = :barcode OR sku = :barcode) AND is_active = 1 LIMIT 1")
     suspend fun getProductByBarcode(barcode: String): ProductWithCategory?
+
+    @Query("SELECT * FROM product_variants WHERE (barcode = :barcode OR sku = :barcode) LIMIT 1")
+    suspend fun getVariantByBarcode(barcode: String): ProductVariantEntity?
 
     @Query("SELECT * FROM products WHERE id = :id LIMIT 1")
     suspend fun getProductById(id: String): ProductEntity?

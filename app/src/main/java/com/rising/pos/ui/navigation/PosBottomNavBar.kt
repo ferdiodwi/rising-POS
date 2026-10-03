@@ -8,45 +8,61 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rising.pos.ui.theme.CashierTheme
 import com.rising.pos.ui.components.CashierIcons
 
-/** Four phone destinations; remaining screens are accessible through Lainnya. */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Five primary phone destinations: Kasir, Produk, Riwayat, Laporan, Pengaturan. */
 @Composable
-fun PosBottomNavBar(items: List<Screen>, currentRoute: String, onNavigate: (String) -> Unit, modifier: Modifier = Modifier) = CashierTheme {
-    var moreOpen by remember { mutableStateOf(false) }
-    val direct = items.take(3)
+fun PosBottomNavBar(
+    items: List<Screen>,
+    currentRoute: String,
+    onNavigate: (String) -> Unit,
+    modifier: Modifier = Modifier
+) = CashierTheme {
     val colors = MaterialTheme.colorScheme
     Surface(color = colors.surface) {
         Column(modifier.navigationBarsPadding()) {
-            HorizontalDivider()
+            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 0.8.dp)
             Row(Modifier.fillMaxWidth()) {
-                (direct.map { it.title } + "Lainnya").forEachIndexed { index, title ->
-                    val selected = if (index < 3) currentRoute == direct[index].route else direct.none { it.route == currentRoute }
-                    val color = if (selected) colors.primary else colors.onSurfaceVariant
-                    Column(Modifier.weight(1f).heightIn(min = 56.dp).selectable(selected, role = Role.Tab,
-                        onClick = { if (index == 3) moreOpen = true else onNavigate(direct[index].route) }).padding(vertical = 5.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                        Icon(when (index) { 0 -> CashierIcons.Store; 1 -> CashierIcons.Box; 2 -> Icons.Outlined.History; else -> Icons.Outlined.Menu }, null, Modifier.size(24.dp), tint = color)
-                        Text(title, fontSize = 10.sp, color = color)
+                items.forEachIndexed { index, screen ->
+                    val selected = currentRoute == screen.route
+                    val color = if (selected) Color(0xFF2563EB) else Color(0xFF334155)
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .heightIn(min = 56.dp)
+                            .selectable(
+                                selected,
+                                role = Role.Tab,
+                                onClick = { onNavigate(screen.route) }
+                            )
+                            .padding(vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        val icon = when (index) {
+                            0 -> CashierIcons.Store
+                            1 -> CashierIcons.Box
+                            2 -> Icons.Outlined.History
+                            3 -> CashierIcons.BarChart
+                            else -> Icons.Outlined.Settings
+                        }
+                        Icon(icon, contentDescription = screen.title, Modifier.size(22.dp), tint = color)
+                        Spacer(Modifier.height(3.dp))
+                        Text(
+                            screen.title,
+                            fontSize = 10.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = color
+                        )
                     }
                 }
             }
         }
-    }
-    if (moreOpen) ModalBottomSheet(onDismissRequest = { moreOpen = false }, containerColor = colors.surface) {
-        Text("Lainnya", Modifier.padding(horizontal = 20.dp, vertical = 8.dp), style = MaterialTheme.typography.titleLarge)
-        listOf(Screen.Dashboard, Screen.Inventory, Screen.Expenses, Screen.Customers, Screen.Settings).forEach { screen ->
-            Surface(onClick = { moreOpen = false; onNavigate(screen.route) }, color = colors.surface) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp).heightIn(min = 56.dp), verticalAlignment = Alignment.CenterVertically) {
-                    screen.unselectedIcon?.let { Icon(it, null) }; Spacer(Modifier.width(16.dp)); Text(screen.title)
-                }
-            }
-        }
-        Spacer(Modifier.height(16.dp))
     }
 }

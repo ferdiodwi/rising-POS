@@ -1,7 +1,8 @@
 package com.rising.pos.feature.transaction
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,27 +12,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.Cancel
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.PauseCircle
-import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -43,6 +42,8 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -52,10 +53,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.model.PaymentMethod
@@ -64,45 +70,69 @@ import com.rising.pos.core.util.CurrencyFormatter
 import com.rising.pos.feature.transaction.components.TransactionDetailDialog
 import com.rising.pos.ui.components.SecurityPinDialog
 import com.rising.pos.ui.components.WorkspaceEmptyState
-import com.rising.pos.ui.theme.DangerRed
-import com.rising.pos.ui.theme.DangerRedContainer
-import com.rising.pos.ui.theme.PosTextStyles
-import com.rising.pos.ui.theme.Slate200
-import com.rising.pos.ui.theme.Slate500
-import com.rising.pos.ui.theme.Slate700
-import com.rising.pos.ui.theme.Slate900
-import com.rising.pos.ui.theme.SuccessGreen
-import com.rising.pos.ui.theme.SuccessGreenContainer
-import com.rising.pos.ui.theme.WarningAmber
-import com.rising.pos.ui.theme.WarningAmberContainer
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
+private val BrandBlue = Color(0xFF2563EB)
+private val BrandBlueBg = Color(0xFFEFF6FF)
+private val BrandBlueBorder = Color(0xFFBFDBFE)
+private val Slate900 = Color(0xFF0F172A)
+private val Slate700 = Color(0xFF334155)
+private val Slate600 = Color(0xFF475569)
+private val Slate500 = Color(0xFF64748B)
+private val Slate400 = Color(0xFF94A3B8)
+private val Slate200 = Color(0xFFE2E8F0)
+private val Slate100 = Color(0xFFF1F5F9)
+private val Slate50 = Color(0xFFF8FAFC)
+private val DangerRed = Color(0xFFEF4444)
+
 /**
- * Riwayat transaksi.
- *
- * Daftar menonjolkan nomor struk (monospace, karena itu identitas transaksi) dan
- * total (tabular). Status ditandai chip berikon supaya tidak bergantung pada warna.
+ * Layar Riwayat Transaksi sesuai style mockup:
+ * - Header: "Riwayat" (28sp Bold) + Subtitle Nama Toko
+ * - Search bar: "Cari nomor struk" rounded 12dp
+ * - Date chips: [ Hari ini ], [ 7 hari ], [ 📅 Pilih tanggal ]
+ * - Stats Summary Card: "Penjualan hari ini" | "Transaksi selesai" (tanpa menghitung batal)
+ * - Section Date Header: "Hari ini" & Tanggal hari ini
+ * - List transaksi: Ikon struk, No. Struk tebal, Jam • Metode, Jumlah barang / "Dibatalkan", Total Rp, dan Chevron
+ * - Footer: "Semua transaksi hari ini sudah ditampilkan."
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionScreen(
     viewModel: TransactionViewModel = hiltViewModel()
 ) {
     val transactions by viewModel.filteredTransactions.collectAsState()
-    val period by viewModel.period.collectAsState()
-    val completed = transactions.filter { it.transaction.status == TransactionStatus.COMPLETED }
     val allTransactions by viewModel.transactions.collectAsState()
+    val period by viewModel.period.collectAsState()
+    val customDate by viewModel.customDate.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
-    val statusFilter by viewModel.statusFilter.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var showPinDialog by remember { mutableStateOf(false) }
     var pendingVoidAction by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var showDatePicker by remember { mutableStateOf(false) }
 
-    val dateFormatter = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())
+    // Hitung penjualan transaksi yang sukses (COMPLETED)
+    val completedTransactions = remember(allTransactions) {
+        allTransactions.filter { it.transaction.status == TransactionStatus.COMPLETED }
+    }
+    val totalCompletedSales = remember(completedTransactions) {
+        completedTransactions.sumOf { it.transaction.grandTotal }
+    }
+    val completedCount = remember(completedTransactions) {
+        completedTransactions.size
+    }
+
+    val timeFormatter = remember { SimpleDateFormat("HH.mm", Locale.getDefault()) }
+    val todayDateFormatted = remember {
+        SimpleDateFormat("d MMMM yyyy", Locale.forLanguageTag("id-ID")).format(Date())
+    }
 
     LaunchedEffect(uiState.successMessage) {
         uiState.successMessage?.let {
@@ -121,90 +151,251 @@ fun TransactionScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = Color.White
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
         ) {
-            Spacer(Modifier.height(16.dp))
-
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Riwayat", style = MaterialTheme.typography.headlineSmall, color = Slate900)
+            // ── Top Header Row ────────────────────────────────────────────────
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
+            ) {
                 Text(
-                    text = if (searchQuery.isNotBlank() || statusFilter != null) {
-                        "${transactions.size} dari ${allTransactions.size} transaksi"
-                    } else {
-                        "${allTransactions.size} transaksi tersimpan"
+                    text = "Riwayat",
+                    style = TextStyle(
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    )
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = settings.name.ifBlank { "Warung Bu Siti" },
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Normal,
+                        color = Slate500
+                    )
+                )
+            }
+
+            // ── Search Bar: "Cari nomor struk" ────────────────────────────────
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = viewModel::onSearchQueryChange,
+                    placeholder = {
+                        Text(
+                            text = "Cari nomor struk",
+                            style = TextStyle(fontSize = 14.sp, color = Slate400)
+                        )
                     },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Slate500
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = Slate500,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    trailingIcon = if (searchQuery.isNotBlank()) {
+                        {
+                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "Hapus pencarian",
+                                    tint = Slate500,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    } else null,
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Slate50,
+                        focusedBorderColor = BrandBlue,
+                        unfocusedBorderColor = Slate200
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp)
                 )
             }
 
             Spacer(Modifier.height(12.dp))
 
+            // ── Date Filter Buttons: [ Hari ini ] [ 7 hari ] [ 📅 Pilih tanggal ] ──
             Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                HistoryPeriod.entries.forEach { option ->
-                    StatusFilterChip(option.label, period == option) { viewModel.setPeriod(option) }
+                // Button 1: Hari ini
+                DateFilterButton(
+                    text = "Hari ini",
+                    selected = period == HistoryPeriod.TODAY && customDate == null,
+                    onClick = {
+                        viewModel.setCustomDate(null)
+                        viewModel.setPeriod(HistoryPeriod.TODAY)
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Button 2: 7 hari
+                DateFilterButton(
+                    text = "7 hari",
+                    selected = period == HistoryPeriod.LAST_7_DAYS && customDate == null,
+                    onClick = {
+                        viewModel.setCustomDate(null)
+                        viewModel.setPeriod(HistoryPeriod.LAST_7_DAYS)
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+
+                // Button 3: Pilih tanggal
+                val customDateText = remember(customDate, period) {
+                    if (customDate != null) {
+                        DateTimeFormatter.ofPattern("d MMM", Locale.forLanguageTag("id-ID")).format(customDate)
+                    } else if (period == HistoryPeriod.ALL) {
+                        "Semua"
+                    } else {
+                        "Pilih tanggal"
+                    }
+                }
+                DateFilterButton(
+                    text = customDateText,
+                    selected = customDate != null || period == HistoryPeriod.ALL,
+                    icon = Icons.Outlined.CalendarMonth,
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.weight(1.2f)
+                )
+            }
+
+            Spacer(Modifier.height(14.dp))
+
+            // ── Summary Stats Card: "Penjualan hari ini" | "Transaksi selesai" ─
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Slate50),
+                border = BorderStroke(1.dp, Slate200),
+                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Kolom Kiri
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = when {
+                                customDate != null -> "Penjualan tanggal ini"
+                                period == HistoryPeriod.TODAY -> "Penjualan hari ini"
+                                period == HistoryPeriod.LAST_7_DAYS -> "Penjualan 7 hari"
+                                else -> "Total penjualan"
+                            },
+                            style = TextStyle(fontSize = 13.sp, color = Slate500)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = CurrencyFormatter.format(totalCompletedSales, settings.currencySymbol),
+                            style = TextStyle(
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate900
+                            )
+                        )
+                    }
+
+                    // Garis Pembatas Vertikal
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .height(42.dp)
+                            .background(Slate200)
+                    )
+
+                    Spacer(Modifier.width(16.dp))
+
+                    // Kolom Kanan
+                    Column(modifier = Modifier.weight(0.8f)) {
+                        Text(
+                            text = "Transaksi selesai",
+                            style = TextStyle(fontSize = 13.sp, color = Slate500)
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "$completedCount",
+                            style = TextStyle(
+                                fontSize = 21.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate900
+                            )
+                        )
+                    }
                 }
             }
-            Spacer(Modifier.height(12.dp))
 
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = viewModel::onSearchQueryChange,
-                modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Cari no struk, produk, atau catatan") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Slate500) },
-                trailingIcon = if (searchQuery.isNotBlank()) {
-                    {
-                        IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Hapus pencarian", tint = Slate500)
-                        }
-                    }
-                } else null,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = Slate200,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                ),
-                singleLine = true
+            Spacer(Modifier.height(6.dp))
+
+            Text(
+                text = "Transaksi batal tidak dihitung.",
+                style = TextStyle(fontSize = 12.sp, color = Slate400),
+                modifier = Modifier.padding(horizontal = 18.dp)
             )
 
-            Spacer(Modifier.height(12.dp))
-
+            // ── Section Header Row: "Hari ini" & Tanggal ───────────────────────
             Row(
-                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 18.dp, end = 18.dp, top = 16.dp, bottom = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                StatusFilterChip("Semua", statusFilter == null) { viewModel.onStatusFilterChange(null) }
-                StatusFilterChip("Selesai", statusFilter == TransactionStatus.COMPLETED) {
-                    viewModel.onStatusFilterChange(TransactionStatus.COMPLETED)
-                }
-                StatusFilterChip("Void / Batal", statusFilter == TransactionStatus.CANCELLED) {
-                    viewModel.onStatusFilterChange(TransactionStatus.CANCELLED)
-                }
-                StatusFilterChip("Refund", statusFilter == TransactionStatus.REFUNDED) {
-                    viewModel.onStatusFilterChange(TransactionStatus.REFUNDED)
-                }
-                StatusFilterChip("Ditahan", statusFilter == TransactionStatus.HELD) {
-                    viewModel.onStatusFilterChange(TransactionStatus.HELD)
-                }
+                Text(
+                    text = when {
+                        customDate != null -> DateTimeFormatter.ofPattern("d MMMM yyyy", Locale.forLanguageTag("id-ID")).format(customDate)
+                        period == HistoryPeriod.TODAY -> "Hari ini"
+                        period == HistoryPeriod.LAST_7_DAYS -> "7 hari terakhir"
+                        else -> "Semua transaksi"
+                    },
+                    style = TextStyle(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Slate900
+                    )
+                )
+
+                Text(
+                    text = todayDateFormatted,
+                    style = TextStyle(
+                        fontSize = 13.sp,
+                        color = Slate500
+                    )
+                )
             }
 
-            Spacer(Modifier.height(12.dp))
-
+            // ── Daftar Transaksi Sesuai Mockup ────────────────────────────────
             if (transactions.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
                     WorkspaceEmptyState(
@@ -213,39 +404,37 @@ fun TransactionScreen(
                         description = if (allTransactions.isEmpty()) {
                             "Selesaikan pembayaran di menu Kasir. Struk dan detailnya akan tersimpan di sini."
                         } else {
-                            "Coba kata kunci lain atau ubah filter status."
+                            "Coba kata kunci nomor struk lain atau ubah filter tanggal."
                         }
                     )
                 }
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
-                    item {
-                        Surface(
-                            shape = RoundedCornerShape(16.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = BorderStroke(1.dp, Slate200),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                Text("Penjualan dari hasil filter", style = MaterialTheme.typography.bodySmall, color = Slate500)
-                                Text(
-                                    CurrencyFormatter.format(completed.sumOf { it.transaction.grandTotal }, settings.currencySymbol),
-                                    style = PosTextStyles.displayMoney
-                                )
-                                Text("${completed.size} transaksi selesai", style = MaterialTheme.typography.bodySmall, color = Slate500)
-                            }
-                        }
-                    }
                     items(transactions, key = { it.transaction.id }) { item ->
-                        TransactionItemCard(
+                        TransactionRowItem(
                             trxDetails = item,
                             currencySymbol = settings.currencySymbol,
-                            dateStr = dateFormatter.format(Date(item.transaction.createdAt)),
+                            timeStr = timeFormatter.format(Date(item.transaction.createdAt)),
                             onClick = { viewModel.selectTransaction(item) }
+                        )
+                        HorizontalDivider(color = Slate100, thickness = 1.dp)
+                    }
+
+                    item {
+                        Text(
+                            text = if (period == HistoryPeriod.TODAY && customDate == null) {
+                                "Semua transaksi hari ini sudah ditampilkan."
+                            } else {
+                                "Semua transaksi sudah ditampilkan."
+                            },
+                            style = TextStyle(fontSize = 12.sp, color = Slate400),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
@@ -253,6 +442,7 @@ fun TransactionScreen(
         }
     }
 
+    // ── Dialog Detail Struk / Void / Cetak ────────────────────────────────────
     uiState.selectedTransaction?.let { trx ->
         TransactionDetailDialog(
             transactionWithDetails = trx,
@@ -272,6 +462,7 @@ fun TransactionScreen(
         )
     }
 
+    // ── Dialog Otorisasi PIN untuk Void Transaksi ─────────────────────────────
     if (showPinDialog && pendingVoidAction != null) {
         SecurityPinDialog(
             verifyPin = viewModel::verifyPin,
@@ -291,135 +482,210 @@ fun TransactionScreen(
             }
         )
     }
+
+    // ── Date Picker Dialog Material 3 untuk "Pilih tanggal" ───────────────────
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDatePicker = false
+                        datePickerState.selectedDateMillis?.let { millis ->
+                            val localDate = Instant.ofEpochMilli(millis)
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                            viewModel.setCustomDate(localDate)
+                        }
+                    }
+                ) {
+                    Text("Pilih", color = BrandBlue, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showDatePicker = false
+                        viewModel.setCustomDate(null)
+                        viewModel.setPeriod(HistoryPeriod.ALL)
+                    }
+                ) {
+                    Text("Semua Tanggal", color = Slate700)
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 }
 
+/**
+ * Tombol filter tanggal sesuai mockup:
+ * - Aktif: Latar #EFF6FF, border #BFDBFE, teks & ikon #2563EB
+ * - Tidak aktif: Latar putih, border #E2E8F0, teks & ikon #475569
+ */
 @Composable
-private fun StatusFilterChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
+private fun DateFilterButton(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null
+) {
+    val bgColor = if (selected) BrandBlueBg else Color.White
+    val borderColor = if (selected) BrandBlueBorder else Slate200
+    val contentColor = if (selected) BrandBlue else Slate600
+
+    Surface(
         onClick = onClick,
-        label = { Text(label) },
-        modifier = Modifier.heightIn(min = 48.dp),
-        shape = RoundedCornerShape(999.dp),
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (selected) MaterialTheme.colorScheme.primary else Slate200
-        ),
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            labelColor = Slate500,
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.primary
-        )
-    )
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = bgColor,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = contentColor,
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(
+                text = text,
+                style = TextStyle(
+                    fontSize = 13.5.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                    color = contentColor
+                ),
+                maxLines = 1
+            )
+        }
+    }
 }
 
+/**
+ * Baris item riwayat transaksi sesuai mockup:
+ * - Sisi kiri: Ikon struk receipt outline
+ * - Tengah:
+ *     - No Struk tebal (mis. A01-0006)
+ *     - Jam • Metode pembayaran (mis. 14.15 • Tunai)
+ *     - Jumlah barang (mis. 3 barang) atau "Dibatalkan" warna merah jika void
+ * - Sisi kanan: Total Rp27.000 tebal dan panah chevron kanan
+ */
 @Composable
-private fun TransactionItemCard(
+private fun TransactionRowItem(
     trxDetails: TransactionWithDetails,
     currencySymbol: String,
-    dateStr: String,
+    timeStr: String,
     onClick: () -> Unit
 ) {
     val trx = trxDetails.transaction
-    val itemsSummary = trxDetails.items.joinToString(", ") { "${it.item.productName} (${it.item.qty.toInt()})" }
     val isVoided = trx.status == TransactionStatus.CANCELLED
+    val totalQty = trxDetails.items.sumOf { it.item.qty.toInt() }
 
-    Card(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, Slate200),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 13.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = trx.receiptNumber,
-                    style = PosTextStyles.receiptNo,
-                    color = Slate700,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                StatusBadge(status = trx.status)
-            }
+        // Ikon Struk
+        Box(
+            modifier = Modifier.size(36.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.ReceiptLong,
+                contentDescription = null,
+                tint = Slate600,
+                modifier = Modifier.size(26.dp)
+            )
+        }
 
+        Spacer(Modifier.width(14.dp))
+
+        // Informasi Struk
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = itemsSummary,
-                style = MaterialTheme.typography.bodyMedium,
-                color = Slate500,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                text = trx.receiptNumber,
+                style = TextStyle(
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate900
+                )
             )
 
-            HorizontalDivider(color = Slate200)
+            Spacer(Modifier.height(2.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(
-                        text = CurrencyFormatter.format(trx.grandTotal, currencySymbol),
-                        style = PosTextStyles.priceCard,
-                        color = Slate900,
-                        textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None
+            Text(
+                text = "$timeStr • ${paymentLabel(trx.paymentMethod)}",
+                style = TextStyle(
+                    fontSize = 13.sp,
+                    color = Slate500
+                )
+            )
+
+            Spacer(Modifier.height(2.dp))
+
+            if (isVoided) {
+                Text(
+                    text = "Dibatalkan",
+                    style = TextStyle(
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = DangerRed
                     )
-                    Text(
-                        text = "${paymentLabel(trx.paymentMethod)} · $dateStr",
-                        style = MaterialTheme.typography.bodySmall,
+                )
+            } else {
+                Text(
+                    text = "$totalQty barang",
+                    style = TextStyle(
+                        fontSize = 13.sp,
                         color = Slate500
                     )
-                }
+                )
             }
         }
-    }
-}
 
-/** Chip status: warna + ikon + teks, bukan warna saja. */
-@Composable
-private fun StatusBadge(status: TransactionStatus) {
-    val (container, content, icon, label) = when (status) {
-        TransactionStatus.COMPLETED ->
-            StatusBadgeStyle(SuccessGreenContainer, SuccessGreen, Icons.Outlined.CheckCircle, "Selesai")
-        TransactionStatus.CANCELLED ->
-            StatusBadgeStyle(DangerRedContainer, DangerRed, Icons.Outlined.Cancel, "Void")
-        TransactionStatus.REFUNDED ->
-            StatusBadgeStyle(WarningAmberContainer, WarningAmber, Icons.Outlined.Refresh, "Refund")
-        TransactionStatus.HELD ->
-            StatusBadgeStyle(WarningAmberContainer, WarningAmber, Icons.Outlined.PauseCircle, "Ditahan")
-    }
-
-    Surface(shape = RoundedCornerShape(999.dp), color = container) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(14.dp))
-            Spacer(Modifier.width(5.dp))
-            Text(label, style = MaterialTheme.typography.labelSmall, color = content)
+        // Total Tagihan & Chevron
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = CurrencyFormatter.format(trx.grandTotal, currencySymbol),
+                style = TextStyle(
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isVoided) Slate400 else Slate900,
+                    textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None
+                )
+            )
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                contentDescription = null,
+                tint = Slate400,
+                modifier = Modifier.size(20.dp)
+            )
         }
     }
 }
-
-private data class StatusBadgeStyle(
-    val container: androidx.compose.ui.graphics.Color,
-    val content: androidx.compose.ui.graphics.Color,
-    val icon: ImageVector,
-    val label: String
-)
 
 private fun paymentLabel(method: PaymentMethod): String = when (method) {
     PaymentMethod.CASH -> "Tunai"
     PaymentMethod.QRIS -> "QRIS"
-    PaymentMethod.BANK_TRANSFER -> "Transfer bank"
-    PaymentMethod.DEBIT_CARD -> "Kartu debit"
-    PaymentMethod.CREDIT_CARD -> "Kartu kredit"
-    PaymentMethod.E_WALLET -> "Dompet digital"
+    PaymentMethod.BANK_TRANSFER -> "Transfer"
+    PaymentMethod.DEBIT_CARD -> "Debit"
+    PaymentMethod.CREDIT_CARD -> "Kredit"
+    PaymentMethod.E_WALLET -> "E-Wallet"
     PaymentMethod.OTHER -> "Lainnya"
 }

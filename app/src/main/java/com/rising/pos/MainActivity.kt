@@ -50,6 +50,20 @@ class MainActivity : ComponentActivity() {
                 else -> systemDark
             }
 
+            androidx.compose.runtime.DisposableEffect(isDarkTheme) {
+                enableEdgeToEdge(
+                    statusBarStyle = androidx.activity.SystemBarStyle.auto(
+                        android.graphics.Color.TRANSPARENT,
+                        android.graphics.Color.TRANSPARENT
+                    ) { isDarkTheme },
+                    navigationBarStyle = androidx.activity.SystemBarStyle.auto(
+                        android.graphics.Color.TRANSPARENT,
+                        android.graphics.Color.TRANSPARENT
+                    ) { isDarkTheme }
+                )
+                onDispose {}
+            }
+
             RisingPosTheme(darkTheme = isDarkTheme) {
                 PosAppNavHost(
                     appPreferences = appPreferences,

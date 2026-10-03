@@ -136,11 +136,16 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.androidx.hilt.navigation.compose)
 
-    // ── Coroutines, Serialization & Networking ──────────────────────────────
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
     implementation("io.coil-kt:coil-compose:2.7.0")
+
+    // ── CameraX & Barcode Scanner ─────────────────────────────────────────────
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+    implementation(libs.google.mlkit.barcode.scanning)
 
     // ── Unit Tests ────────────────────────────────────────────────────────────
     testImplementation(platform(libs.androidx.compose.bom))

@@ -5,6 +5,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ScrollableTabRow
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import com.rising.pos.core.datastore.BusinessSettings
 import com.rising.pos.domain.model.CartState
@@ -12,6 +15,7 @@ import com.rising.pos.ui.components.quantityLabel
 import com.rising.pos.ui.components.CashierIcons
 import com.rising.pos.ui.theme.CashierTheme
 import com.rising.pos.ui.theme.posMoney
+import com.rising.pos.ui.theme.Slate100
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -93,12 +97,17 @@ import com.rising.pos.feature.pos.components.HeldOrdersDialog
 import com.rising.pos.feature.pos.components.HoldCartDialog
 import com.rising.pos.feature.pos.components.ProductCard
 import com.rising.pos.feature.pos.components.ReceiptSuccessDialog
+import com.rising.pos.feature.pos.components.CameraBarcodeScannerDialog
 import com.rising.pos.feature.pos.components.VariantPickerDialog
 import com.rising.pos.ui.components.WorkspaceEmptyState
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate400
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
+
+private val BrandBlue = Color(0xFF2563EB)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,6 +124,7 @@ private fun PosScreenContent(viewModel: PosViewModel) {
     val customers by viewModel.customers.collectAsState()
 
     var newCustomerFormState by remember { mutableStateOf(CustomerFormState()) }
+    var isCameraScannerOpen by remember { mutableStateOf(false) }
 
     val configuration = LocalConfiguration.current
     val isTablet = configuration.screenWidthDp >= 840
@@ -139,13 +149,15 @@ private fun PosScreenContent(viewModel: PosViewModel) {
                         heldOrdersCount = heldTransactions.size,
                         onSearchChange = viewModel::updateSearchQuery,
                         onScanBarcode = viewModel::scanBarcode,
+                        onOpenScanner = { isCameraScannerOpen = true },
                         onOpenHeldOrders = viewModel::openHeldOrdersList
                     )
                     Spacer(Modifier.height(12.dp))
                     CategoryFilters(
                         categories = categories,
                         selectedCategoryId = uiState.selectedCategoryId,
-                        onSelectCategory = viewModel::selectCategory
+                        onSelectCategory = viewModel::selectCategory,
+                        edgePadding = 0.dp
                     )
                     Spacer(Modifier.height(10.dp))
                     ProductGrid(
@@ -185,10 +197,22 @@ private fun PosScreenContent(viewModel: PosViewModel) {
             }
         } else {
             PosPhoneCatalog(
-                settings, products, categories, uiState.cart, uiState.searchQuery, uiState.selectedCategoryId,
-                heldTransactions.size, viewModel::updateSearchQuery, viewModel::scanBarcode,
-                viewModel::openHeldOrdersList, viewModel::selectCategory, viewModel::onProductClicked,
-                viewModel::decreaseProductQuantity, { viewModel.setCartSheetOpen(true) }, viewModel::openCheckoutDialog
+                settings = settings,
+                products = products,
+                categories = categories,
+                cart = uiState.cart,
+                searchQuery = uiState.searchQuery,
+                selectedCategoryId = uiState.selectedCategoryId,
+                heldOrdersCount = heldTransactions.size,
+                onSearch = viewModel::updateSearchQuery,
+                onScanBarcode = viewModel::scanBarcode,
+                onOpenScanner = { isCameraScannerOpen = true },
+                onHeldOrders = viewModel::openHeldOrdersList,
+                onCategory = viewModel::selectCategory,
+                onProduct = viewModel::onProductClicked,
+                onDecrease = viewModel::decreaseProductQuantity,
+                onCart = { viewModel.setCartSheetOpen(true) },
+                onCheckout = viewModel::openCheckoutDialog
             )
         }
 
@@ -330,6 +354,16 @@ private fun PosScreenContent(viewModel: PosViewModel) {
                 onDismiss = viewModel::dismissVariantPicker
             )
         }
+
+        if (isCameraScannerOpen) {
+            CameraBarcodeScannerDialog(
+                cart = uiState.cart,
+                currencySymbol = settings.currencySymbol,
+                onProcessScan = viewModel::processBarcodeScan,
+                onUpdateQuantity = viewModel::updateQuantity,
+                onDismiss = { isCameraScannerOpen = false }
+            )
+        }
     }
 }
 
@@ -340,11 +374,10 @@ internal fun PosHeader(
     searchQuery: String,
     heldOrdersCount: Int = 0,
     onSearchChange: (String) -> Unit,
+    onOpenScanner: () -> Unit = {},
     onScanBarcode: (String) -> Unit = {},
     onOpenHeldOrders: () -> Unit = {}
 ) {
-    var showBarcodeDialog by remember { mutableStateOf(false) }
-
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Baris Header: Ikon Toko + Nama Usaha & Kasir + Tombol Struk/Pesanan Tertunda
         Row(
@@ -470,12 +503,12 @@ internal fun PosHeader(
                         .background(Slate200)
                 )
                 IconButton(
-                    onClick = { showBarcodeDialog = true },
+                    onClick = onOpenScanner,
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = CashierIcons.Barcode,
-                        contentDescription = "Masukkan barcode",
+                        contentDescription = "Scan barcode",
                         tint = Slate700,
                         modifier = Modifier.size(22.dp)
                     )
@@ -483,77 +516,77 @@ internal fun PosHeader(
             }
         }
     }
+}
 
-    if (showBarcodeDialog) {
-        var barcodeInput by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showBarcodeDialog = false },
-            title = {
-                Text(
-                    text = "Masukkan barcode",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+@Composable
+private fun CategoryFilters(
+    categories: List<CategoryEntity>,
+    selectedCategoryId: String?,
+    onSelectCategory: (String?) -> Unit,
+    edgePadding: Dp = 16.dp
+) {
+    val selectedTabIndex = remember(selectedCategoryId, categories) {
+        if (selectedCategoryId == null) 0
+        else {
+            val idx = categories.indexOfFirst { it.id == selectedCategoryId }
+            if (idx >= 0) idx + 1 else 0
+        }
+    }
+
+    ScrollableTabRow(
+        selectedTabIndex = selectedTabIndex,
+        containerColor = Color.Transparent,
+        contentColor = BrandBlue,
+        edgePadding = edgePadding,
+        indicator = { tabPositions ->
+            if (selectedTabIndex < tabPositions.size) {
+                Box(
+                    Modifier
+                        .tabIndicatorOffset(tabPositions[selectedTabIndex])
+                        .height(2.5.dp)
+                        .background(BrandBlue)
                 )
-            },
+            }
+        },
+        divider = { HorizontalDivider(color = Slate100) },
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // Tab "Semua"
+        Tab(
+            selected = selectedTabIndex == 0,
+            onClick = { onSelectCategory(null) },
             text = {
-                Column {
-                    Text(
-                        text = "Masukkan kode barcode atau SKU produk untuk ditambahkan ke keranjang.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Slate500
+                Text(
+                    text = "Semua",
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal,
+                        color = if (selectedTabIndex == 0) BrandBlue else Slate500
                     )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = barcodeInput,
-                        onValueChange = { barcodeInput = it },
-                        label = { Text("Kode Barcode") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (barcodeInput.isNotBlank()) {
-                            onScanBarcode(barcodeInput.trim())
-                        }
-                        showBarcodeDialog = false
-                    }
-                ) {
-                    Text("Cari & Tambah", fontWeight = FontWeight.SemiBold)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBarcodeDialog = false }) {
-                    Text("Batal")
-                }
+                )
             }
         )
-    }
-}
 
-@Composable
-private fun CategoryFilters(categories: List<CategoryEntity>, selectedCategoryId: String?, onSelectCategory: (String?) -> Unit) {
-    Box {
-        HorizontalDivider(Modifier.align(Alignment.BottomCenter))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
-            item { CategoryTab("Semua", selectedCategoryId == null) { onSelectCategory(null) } }
-            items(categories, key = { it.id }) { category ->
-                CategoryTab(category.name, selectedCategoryId == category.id) { onSelectCategory(category.id) }
-            }
+        // Tabs Kategori
+        categories.forEachIndexed { index, cat ->
+            val isSelected = selectedTabIndex == index + 1
+            Tab(
+                selected = isSelected,
+                onClick = { onSelectCategory(cat.id) },
+                text = {
+                    Text(
+                        text = cat.name,
+                        maxLines = 1,
+                        softWrap = false,
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            color = if (isSelected) BrandBlue else Slate500
+                        )
+                    )
+                }
+            )
         }
-    }
-}
-@Composable
-private fun CategoryTab(label: String, selected: Boolean, onClick: () -> Unit) {
-    val colors = MaterialTheme.colorScheme
-    Column(Modifier.width(IntrinsicSize.Min).widthIn(min = 64.dp).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
-        Box(Modifier.height(42.dp).padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
-            Text(label, fontSize = 15.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
-                color = if (selected) colors.primary else colors.onSurfaceVariant)
-        }
-        Box(Modifier.fillMaxWidth().height(3.dp).background(if (selected) colors.primary else Color.Transparent))
     }
 }
 
@@ -614,19 +647,26 @@ private fun ProductGrid(
 internal fun PosPhoneCatalog(
     settings: BusinessSettings, products: List<ProductWithCategory>, categories: List<CategoryEntity>, cart: CartState,
     searchQuery: String, selectedCategoryId: String?, heldOrdersCount: Int,
-    onSearch: (String) -> Unit, onBarcode: (String) -> Unit, onHeldOrders: () -> Unit,
+    onSearch: (String) -> Unit, onScanBarcode: (String) -> Unit = {}, onOpenScanner: () -> Unit, onHeldOrders: () -> Unit,
     onCategory: (String?) -> Unit, onProduct: (com.rising.pos.core.database.entity.ProductEntity) -> Unit,
     onDecrease: (com.rising.pos.core.database.entity.ProductEntity) -> Unit, onCart: () -> Unit, onCheckout: () -> Unit
 ) = CashierTheme {
     val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxSize().background(colors.surface)) {
-        Column(Modifier.weight(1f).padding(horizontal = 18.dp).padding(top = 10.dp)) {
-            PosHeader(settings.name, settings.cashierName, searchQuery, heldOrdersCount, onSearch, onBarcode, onHeldOrders)
-            Spacer(Modifier.height(6.dp))
+        Column(Modifier.weight(1f).padding(top = 8.dp)) {
+            Box(Modifier.padding(horizontal = 16.dp)) {
+                PosHeader(
+                    settings.name, settings.cashierName, searchQuery, heldOrdersCount, onSearch,
+                    onOpenScanner = onOpenScanner, onScanBarcode = onScanBarcode, onOpenHeldOrders = onHeldOrders
+                )
+            }
+            Spacer(Modifier.height(8.dp))
             CategoryFilters(categories, selectedCategoryId, onCategory)
-            Spacer(Modifier.height(10.dp))
-            ProductGrid(products, settings.currencySymbol, cart.items, onProduct, onDecrease, 2,
-                searchQuery.isNotBlank() || selectedCategoryId != null, Modifier.weight(1f))
+            Spacer(Modifier.height(8.dp))
+            Box(Modifier.weight(1f).padding(horizontal = 16.dp)) {
+                ProductGrid(products, settings.currencySymbol, cart.items, onProduct, onDecrease, 2,
+                    searchQuery.isNotBlank() || selectedCategoryId != null, Modifier.fillMaxSize())
+            }
         }
         if (cart.items.isNotEmpty()) {
             val calc = cart.calculateTotals(settings.isTaxEnabled, settings.taxPercentage, settings.isTaxInclusive,

@@ -14,6 +14,7 @@ interface ProductRepository {
     fun getFavoriteProducts(): Flow<List<ProductWithCategory>>
     fun searchProducts(query: String): Flow<List<ProductWithCategory>>
     suspend fun getProductByBarcode(barcode: String): ProductWithCategory?
+    suspend fun getVariantByBarcode(barcode: String): ProductVariantEntity?
     suspend fun getProductById(id: String): ProductEntity?
     fun getProductDetails(id: String): Flow<ProductWithVariants?>
     suspend fun getVariantsByProductId(productId: String): List<ProductVariantEntity>
