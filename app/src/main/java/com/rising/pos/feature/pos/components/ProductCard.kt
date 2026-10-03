@@ -3,20 +3,19 @@ package com.rising.pos.feature.pos.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.OutlinedButton
+import com.rising.pos.ui.components.QuantityStepper
+import com.rising.pos.ui.theme.PosTextStyles
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.Coffee
 import androidx.compose.material.icons.outlined.Fastfood
 import androidx.compose.material.icons.outlined.Inventory2
@@ -54,7 +53,7 @@ import com.rising.pos.ui.theme.Slate900
 fun ProductCard(
     item: ProductWithCategory,
     currencySymbol: String,
-    cartQuantity: Int = 0,
+    cartQuantity: Double = 0.0,
     onIncrease: () -> Unit,
     onDecrease: () -> Unit = {},
     onClick: () -> Unit = onIncrease,
@@ -152,89 +151,30 @@ fun ProductCard(
                 // Harga
                 Text(
                     text = CurrencyFormatter.format(product.sellingPrice, currencySymbol),
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp
-                    ),
+                    style = PosTextStyles.priceCard,
                     color = if (unavailable) Slate500 else Slate900
                 )
             }
 
             Spacer(Modifier.height(8.dp))
 
-            // Stepper (- qty +) saat di keranjang, atau Tombol Tambah (+) saat belum
             if (isSelectedInCart) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(34.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(primaryColor)
-                            .clickable(enabled = !unavailable) { onDecrease() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Remove,
-                            contentDescription = "Kurang",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-
-                    Text(
-                        text = "$cartQuantity",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 15.sp
-                        ),
-                        color = Slate900
-                    )
-
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(primaryColor)
-                            .clickable(enabled = !unavailable) { onIncrease() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Tambah",
-                            tint = Color.White,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
+                QuantityStepper(
+                    quantity = cartQuantity,
+                    productName = product.name,
+                    onDecrease = onDecrease,
+                    onIncrease = onIncrease,
+                    canIncrease = !unavailable,
+                    modifier = Modifier.fillMaxWidth()
+                )
             } else {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(34.dp),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
+                OutlinedButton(
+                    onClick = onIncrease,
+                    enabled = !unavailable,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(34.dp)
-                            .clip(CircleShape)
-                            .background(primaryColor)
-                            .clickable(enabled = !unavailable) { onIncrease() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = "Tambah",
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    Text(if (unavailable) "Habis" else "Tambah")
                 }
             }
         }

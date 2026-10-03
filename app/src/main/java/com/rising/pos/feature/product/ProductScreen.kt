@@ -11,7 +11,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import com.rising.pos.ui.components.PosDialog
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -48,7 +53,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -57,7 +61,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -110,16 +113,18 @@ fun ProductScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
-        floatingActionButton = {
-            Button(
-                onClick = viewModel::openAddProductForm,
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                modifier = Modifier.height(56.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Text("Tambah produk", style = MaterialTheme.typography.titleMedium, color = Color.White)
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        bottomBar = {
+            Surface(color = MaterialTheme.colorScheme.surface) {
+                Button(
+                    onClick = viewModel::openAddProductForm,
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth().padding(16.dp).heightIn(min = 56.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Tambah produk", style = MaterialTheme.typography.titleSmall)
+                }
             }
         }
     ) { paddingValues ->
@@ -212,7 +217,7 @@ fun ProductScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 96.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(products, key = { it.product.id }) { item ->
@@ -229,7 +234,7 @@ fun ProductScreen(
     }
 
     if (uiState.isFormOpen) {
-        ProductFormBottomSheet(
+        ProductFormDialog(
             form = uiState.formState,
             categories = categories,
             currencySymbol = settings.currencySymbol,
@@ -318,7 +323,7 @@ private fun CategoryFilterChip(label: String, selected: Boolean, onClick: () -> 
         onClick = onClick,
         label = { Text(label) },
         shape = RoundedCornerShape(999.dp),
-        modifier = Modifier.height(40.dp),
+        modifier = Modifier.heightIn(min = 48.dp),
         border = BorderStroke(
             width = 1.dp,
             color = if (selected) MaterialTheme.colorScheme.primary else Slate200
@@ -391,7 +396,7 @@ private fun ProductItemRow(
             }
 
             Box {
-                IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(40.dp)) {
+                IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(48.dp)) {
                     Icon(
                         Icons.Outlined.MoreVert,
                         contentDescription = "Aksi untuk ${p.name}",
@@ -450,7 +455,7 @@ private fun StockLabel(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ProductFormBottomSheet(
+private fun ProductFormDialog(
     form: ProductFormState,
     categories: List<CategoryEntity>,
     currencySymbol: String,
@@ -463,31 +468,27 @@ private fun ProductFormBottomSheet(
 ) {
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MaterialTheme.colorScheme.surface
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp)
-                .verticalScroll(rememberScrollState())
-                .imePadding(),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
+    var showAdvanced by rememberSaveable(form.id) { mutableStateOf(form.hasVariants) }
+    PosDialog(onDismiss = onDismiss) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = if (form.name.isEmpty()) "Tambah produk" else "Edit produk",
+                text = if (form.id.isBlank()) "Tambah produk" else "Edit produk",
                 style = MaterialTheme.typography.titleLarge,
-                color = Slate900
+                modifier = Modifier.weight(1f)
             )
-
+            TextButton(onClick = onDismiss) { Text("Batal") }
+        }
+        Text("Isi nama dan harga jual untuk mulai.", style = MaterialTheme.typography.bodySmall, color = Slate500)
+        Spacer(Modifier.height(20.dp))
+        Column(
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
             FormSection("Info dasar")
             OutlinedTextField(
                 value = form.name,
                 onValueChange = { onFormChange(form.copy(name = it)) },
-                label = { Text("Nama produk") },
+                label = { Text("Nama produk *") },
                 placeholder = { Text("Contoh: Es Kopi Susu Gula Aren") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
@@ -535,36 +536,27 @@ private fun ProductFormBottomSheet(
                 }
             }
 
-            OutlinedTextField(
-                value = form.barcode,
-                onValueChange = { onFormChange(form.copy(barcode = it)) },
-                label = { Text("Barcode (opsional)") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            )
-
             FormSection("Harga")
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 OutlinedTextField(
                     value = form.sellingPrice,
                     onValueChange = { onFormChange(form.copy(sellingPrice = it.filter { ch -> ch.isDigit() })) },
-                    label = { Text("Harga jual") },
+                    label = { Text("Harga jual *") },
                     prefix = { Text("$currencySymbol ") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
 
                 OutlinedTextField(
                     value = form.costPrice,
                     onValueChange = { onFormChange(form.copy(costPrice = it.filter { ch -> ch.isDigit() })) },
-                    label = { Text("Harga modal") },
+                    label = { Text("Harga modal (opsional)") },
                     prefix = { Text("$currencySymbol ") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
             }
@@ -611,6 +603,31 @@ private fun ProductFormBottomSheet(
                 )
             }
 
+            TextButton(
+                onClick = { showAdvanced = !showAdvanced },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            ) {
+                Text("Pengaturan tambahan", modifier = Modifier.weight(1f))
+                Icon(if (showAdvanced) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, null)
+            }
+            if (showAdvanced) {
+            OutlinedTextField(
+                value = form.barcode,
+                onValueChange = { onFormChange(form.copy(barcode = it)) },
+                label = { Text("Barcode (opsional)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+
+            OutlinedTextField(
+                value = form.sku,
+                onValueChange = { onFormChange(form.copy(sku = it)) },
+                label = { Text("SKU (opsional)") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
             FormSection("Varian")
             ToggleRow(
                 title = "Produk memiliki varian",
@@ -690,7 +707,7 @@ private fun ProductFormBottomSheet(
                                                 variant.stock
                                             )
                                         },
-                                        label = { Text("Harga jual") },
+                                        label = { Text("Harga jual *") },
                                         prefix = { Text("$currencySymbol ") },
                                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                                         singleLine = true,
@@ -734,20 +751,24 @@ private fun ProductFormBottomSheet(
                 }
             }
 
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+        HorizontalDivider(color = Slate200)
+        Spacer(Modifier.height(12.dp))
             Spacer(Modifier.height(4.dp))
 
             Button(
                 onClick = onSave,
-                enabled = form.name.isNotBlank(),
+                enabled = form.name.isNotBlank() && form.sellingPrice.toLongOrNull()?.let { it >= 0 } == true,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
-                Text("Simpan produk", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                Text("Simpan produk", style = MaterialTheme.typography.titleSmall)
             }
 
             Spacer(Modifier.height(8.dp))
-        }
     }
 }
 

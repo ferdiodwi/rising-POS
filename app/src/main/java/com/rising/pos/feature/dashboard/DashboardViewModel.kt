@@ -20,6 +20,10 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import java.util.Calendar
 import javax.inject.Inject
+import com.rising.pos.core.model.PaymentMethod
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 enum class DashboardPeriod(val label: String) {
     TODAY("Hari Ini"),
@@ -27,6 +31,8 @@ enum class DashboardPeriod(val label: String) {
     THIS_MONTH("Bulan Ini"),
     ALL_TIME("Semua")
 }
+
+data class SalesPoint(val label: String, val amount: Long)
 
 data class DashboardMetrics(
     val grossSales: Long = 0L,
@@ -37,6 +43,8 @@ data class DashboardMetrics(
     val totalProductCount: Int = 0,
     val lowStockProducts: List<ProductEntity> = emptyList(),
     val topSellingProducts: List<TopSellingProduct> = emptyList(),
+    val dailySales: List<SalesPoint> = emptyList(),
+    val paymentSales: Map<PaymentMethod, Long> = emptyMap(),
     val todayGrossSales: Long = grossSales,
     val todayExpenses: Long = expenses,
     val todayTransactionCount: Int = transactionCount
@@ -116,8 +124,9 @@ class DashboardViewModel @Inject constructor(
             ) { sales, exp, count -> Triple(sales, exp, count) },
             transactionRepository.getTopSellingProductsBetween(startTime, endTime, 5),
             productRepository.getProductCount(),
-            productRepository.getLowStockProducts()
-        ) { (sales, expenses, count), topSelling, productCount, lowStock ->
+            productRepository.getLowStockProducts(),
+            transactionRepository.getCompletedTransactionsBetween(startTime, endTime)
+        ) { (sales, expenses, count), topSelling, productCount, lowStock, completed ->
             val gross = sales ?: 0L
             val exp = expenses ?: 0L
             val net = gross - exp
@@ -131,6 +140,17 @@ class DashboardViewModel @Inject constructor(
                 totalProductCount = productCount,
                 lowStockProducts = lowStock,
                 topSellingProducts = topSelling,
+                dailySales = completed.groupBy {
+                    val date = Instant.ofEpochMilli(it.transaction.createdAt).atZone(ZoneId.systemDefault()).toLocalDate()
+                    if (period == DashboardPeriod.ALL_TIME) date.withDayOfMonth(1) else date
+                }.toSortedMap().map { (date, entries) ->
+                    SalesPoint(
+                        date.format(DateTimeFormatter.ofPattern(if (period == DashboardPeriod.ALL_TIME) "MMM yy" else "dd MMM", java.util.Locale.forLanguageTag("id-ID"))),
+                        entries.sumOf { it.transaction.grandTotal }
+                    )
+                },
+                paymentSales = completed.groupBy { it.transaction.paymentMethod }
+                    .mapValues { (_, entries) -> entries.sumOf { it.transaction.grandTotal } },
                 todayGrossSales = gross,
                 todayExpenses = exp,
                 todayTransactionCount = count

@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -88,6 +90,8 @@ fun TransactionScreen(
     viewModel: TransactionViewModel = hiltViewModel()
 ) {
     val transactions by viewModel.filteredTransactions.collectAsState()
+    val period by viewModel.period.collectAsState()
+    val completed = transactions.filter { it.transaction.status == TransactionStatus.COMPLETED }
     val allTransactions by viewModel.transactions.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val statusFilter by viewModel.statusFilter.collectAsState()
@@ -115,6 +119,7 @@ fun TransactionScreen(
     }
 
     Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
@@ -127,7 +132,7 @@ fun TransactionScreen(
             Spacer(Modifier.height(16.dp))
 
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Riwayat transaksi", style = MaterialTheme.typography.headlineSmall, color = Slate900)
+                Text("Riwayat", style = MaterialTheme.typography.headlineSmall, color = Slate900)
                 Text(
                     text = if (searchQuery.isNotBlank() || statusFilter != null) {
                         "${transactions.size} dari ${allTransactions.size} transaksi"
@@ -139,6 +144,16 @@ fun TransactionScreen(
                 )
             }
 
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                HistoryPeriod.entries.forEach { option ->
+                    StatusFilterChip(option.label, period == option) { viewModel.setPeriod(option) }
+                }
+            }
             Spacer(Modifier.height(12.dp))
 
             OutlinedTextField(
@@ -208,6 +223,23 @@ fun TransactionScreen(
                     contentPadding = PaddingValues(bottom = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    item {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, Slate200),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Text("Penjualan dari hasil filter", style = MaterialTheme.typography.bodySmall, color = Slate500)
+                                Text(
+                                    CurrencyFormatter.format(completed.sumOf { it.transaction.grandTotal }, settings.currencySymbol),
+                                    style = PosTextStyles.displayMoney
+                                )
+                                Text("${completed.size} transaksi selesai", style = MaterialTheme.typography.bodySmall, color = Slate500)
+                            }
+                        }
+                    }
                     items(transactions, key = { it.transaction.id }) { item ->
                         TransactionItemCard(
                             trxDetails = item,
@@ -267,8 +299,8 @@ private fun StatusFilterChip(label: String, selected: Boolean, onClick: () -> Un
         selected = selected,
         onClick = onClick,
         label = { Text(label) },
+        modifier = Modifier.heightIn(min = 48.dp),
         shape = RoundedCornerShape(999.dp),
-        modifier = Modifier.height(40.dp),
         border = BorderStroke(
             width = 1.dp,
             color = if (selected) MaterialTheme.colorScheme.primary else Slate200

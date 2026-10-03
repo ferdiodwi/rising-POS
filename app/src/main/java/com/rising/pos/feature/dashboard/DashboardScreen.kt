@@ -1,5 +1,29 @@
 package com.rising.pos.feature.dashboard
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Scaffold
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import com.rising.pos.core.model.PaymentMethod
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,8 +51,6 @@ import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.TrendingDown
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -77,15 +99,36 @@ fun DashboardScreen(
     val selectedPeriod by viewModel.selectedPeriod.collectAsState()
     fun money(value: Long) = CurrencyFormatter.format(value, settings.currencySymbol)
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    // Snapshot the selected period when the document picker opens.
+    val exportContent = androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf("") }
+    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri: Uri? ->
+        if (uri != null) scope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                runCatching {
+                    val output = context.contentResolver.openOutputStream(uri) ?: error("Tidak dapat membuka file")
+                    output.bufferedWriter(Charsets.UTF_8).use { it.write(exportContent.value) }
+                }.isSuccess
+            }
+            snackbar.showSnackbar(if (saved) "Laporan berhasil disimpan" else "Laporan gagal disimpan. Coba lagi.")
+        }
+    }
+    Scaffold(
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(snackbar) }
+    ) { insets ->
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().padding(insets),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         // Judul
         item {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Laporan usaha", style = MaterialTheme.typography.headlineSmall, color = Slate900)
+                Text("Laporan", style = MaterialTheme.typography.headlineSmall, color = Slate900)
                 Text(
                     "Pantau penjualan dan kebutuhan toko.",
                     style = MaterialTheme.typography.bodyMedium,
@@ -127,7 +170,8 @@ fun DashboardScreen(
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.primaryContainer
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, Slate200)
             ) {
                 Column(
                     modifier = Modifier.padding(20.dp),
@@ -179,6 +223,60 @@ fun DashboardScreen(
                     color = Slate500
                 )
             }
+        }
+
+        item {
+            ReportSurface {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(if (selectedPeriod == DashboardPeriod.ALL_TIME) "Penjualan bulanan" else "Penjualan harian", style = MaterialTheme.typography.titleMedium)
+                    if (metrics.dailySales.isEmpty()) {
+                        Text("Grafik muncul setelah ada transaksi selesai.", color = Slate500, style = MaterialTheme.typography.bodyMedium)
+                    } else {
+                        SalesChart(metrics.dailySales, settings.currencySymbol)
+                        Text("Menampilkan tanggal dengan penjualan selesai.", style = MaterialTheme.typography.bodySmall, color = Slate500)
+                    }
+                }
+            }
+        }
+        if (metrics.paymentSales.isNotEmpty()) {
+            item {
+                ReportSurface {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Metode pembayaran", style = MaterialTheme.typography.titleMedium)
+                        Text("Pembayaran terbagi mengikuti metode utama yang tercatat.", style = MaterialTheme.typography.bodySmall, color = Slate500)
+                        metrics.paymentSales.forEach { (method, amount) ->
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text(paymentLabel(method), style = MaterialTheme.typography.bodyMedium)
+                                Text(money(amount), style = PosTextStyles.money)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        item {
+            OutlinedButton(
+                onClick = {
+                    exportContent.value = buildString {
+                        appendLine("Ringkasan,Nilai")
+                        appendLine("Periode,${selectedPeriod.label}")
+                        appendLine("Penjualan,${metrics.grossSales}")
+                        appendLine("Transaksi selesai,${metrics.transactionCount}")
+                        appendLine("Rata-rata transaksi,${metrics.averageTicketSize}")
+                        appendLine("Pengeluaran,${metrics.expenses}")
+                        appendLine("Selisih,${metrics.netProfit}")
+                        appendLine()
+                        appendLine("Tanggal,Penjualan")
+                        metrics.dailySales.forEach { appendLine("${it.label},${it.amount}") }
+                        appendLine()
+                        appendLine("Metode pembayaran,Penjualan")
+                        metrics.paymentSales.forEach { (method, amount) -> appendLine("${paymentLabel(method)},$amount") }
+                    }
+                    exportLauncher.launch("Laporan-Rising-${java.time.LocalDate.now()}.csv")
+                },
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) { Text("Unduh laporan") }
         }
 
         // Peringatan stok
@@ -366,6 +464,7 @@ fun DashboardScreen(
             }
         }
     }
+    }
 }
 
 @Composable
@@ -476,4 +575,42 @@ private fun OperationalRow(title: String, description: String, icon: ImageVector
             Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = Slate500, modifier = Modifier.size(20.dp))
         }
     }
+}
+
+@Composable
+private fun SalesChart(points: List<SalesPoint>, currencySymbol: String) {
+    val maximum = points.maxOf { it.amount }.coerceAtLeast(1L)
+    val primary = MaterialTheme.colorScheme.primary
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.Bottom
+    ) {
+        points.forEach { point ->
+            Column(
+                Modifier.widthIn(min = 64.dp).semantics {
+                    contentDescription = "${point.label}: ${CurrencyFormatter.format(point.amount, currencySymbol)}"
+                },
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(CurrencyFormatter.format(point.amount, currencySymbol), style = MaterialTheme.typography.labelSmall)
+                Spacer(Modifier.height(8.dp))
+                Box(Modifier.height(100.dp).width(32.dp), contentAlignment = Alignment.BottomCenter) {
+                    Box(Modifier.fillMaxWidth().fillMaxHeight((point.amount.toFloat() / maximum).coerceIn(0f, 1f)).background(primary, RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)))
+                }
+                Spacer(Modifier.height(8.dp))
+                Text(point.label, style = MaterialTheme.typography.labelSmall, color = Slate500)
+            }
+        }
+    }
+}
+
+private fun paymentLabel(method: PaymentMethod): String = when (method) {
+    PaymentMethod.CASH -> "Tunai"
+    PaymentMethod.QRIS -> "QRIS"
+    PaymentMethod.BANK_TRANSFER -> "Transfer bank"
+    PaymentMethod.DEBIT_CARD -> "Kartu debit"
+    PaymentMethod.CREDIT_CARD -> "Kartu kredit"
+    PaymentMethod.E_WALLET -> "Dompet digital"
+    PaymentMethod.OTHER -> "Lainnya"
 }

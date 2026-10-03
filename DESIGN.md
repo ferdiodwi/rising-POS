@@ -184,3 +184,12 @@ Catatan: `line` (`#E4E7EC`, rasio 1.24) dipakai **hanya untuk garis dekoratif** 
 - `PosColors` (CompositionLocal) menyimpan token teks netral (`ink`, `ink2`, `muted`, `line`, dst) supaya konsisten antar layar.
 - Dark mode tetap disiapkan (bukan default), mengikuti dial yang sama; kontras diverifikasi ulang untuk dark.
 - Target saat ini: **HP portrait**. Tablet menyusul dengan pola dua panel (katalog + keranjang), dial tidak berubah.
+
+## 11. Mobile checkout refinement
+
+- Catalog CTA: **Lihat keranjang**. Checkout starts from the cart, so the cashier can review products, customer and discount first.
+- Short mobile carts wrap their contents; long carts scroll above a persistent total and action area. The tablet cart continues to fill its panel.
+- Quantity controls use 48dp targets. Cart deletion has a separate control, and clearing all items asks for confirmation.
+- Payment and success receipt use full pages on phones, with secondary print/share actions and one primary completion action.
+- Product form actions stay outside the scrolling fields. SKU, barcode and variants are disclosed on demand.
+- Navigation takes its colors from `MaterialTheme`; there is no second navigation palette or decorative bounce animation.

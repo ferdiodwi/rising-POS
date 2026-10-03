@@ -22,6 +22,7 @@ interface TransactionRepository {
     ): Result<TransactionWithDetails>
 
     fun getRecentTransactions(limit: Int = 100): Flow<List<TransactionWithDetails>>
+    fun getTransactionsBetween(startDate: Long, endDate: Long): Flow<List<TransactionWithDetails>>
     suspend fun getTransactionById(id: String): TransactionWithDetails?
     suspend fun getTransactionByReceiptNumber(receiptNumber: String): TransactionWithDetails?
     fun getCompletedTransactionsBetween(startDate: Long, endDate: Long): Flow<List<TransactionWithDetails>>

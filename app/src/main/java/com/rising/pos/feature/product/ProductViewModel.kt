@@ -84,7 +84,8 @@ class ProductViewModel @Inject constructor(
             val matchCat = state.selectedCategoryId == null || item.product.categoryId == state.selectedCategoryId
             val matchSearch = state.searchQuery.isBlank() ||
                     item.product.name.contains(state.searchQuery, ignoreCase = true) ||
-                    (item.product.barcode != null && item.product.barcode.contains(state.searchQuery, ignoreCase = true))
+                    (item.product.barcode != null && item.product.barcode.contains(state.searchQuery, ignoreCase = true)) ||
+                    (item.product.sku?.contains(state.searchQuery, ignoreCase = true) == true)
             matchCat && matchSearch
         }
     }.stateIn(
@@ -192,7 +193,7 @@ class ProductViewModel @Inject constructor(
         val form = _uiState.value.formState
         if (form.name.isBlank()) return
 
-        val sellingPrice = form.sellingPrice.toLongOrNull() ?: 0L
+        val sellingPrice = form.sellingPrice.toLongOrNull()?.takeIf { it >= 0 } ?: return
         val costPrice = form.costPrice.toLongOrNull() ?: 0L
         val stock = form.stock.toDoubleOrNull() ?: 0.0
         val minStock = form.minStock.toDoubleOrNull() ?: 5.0
