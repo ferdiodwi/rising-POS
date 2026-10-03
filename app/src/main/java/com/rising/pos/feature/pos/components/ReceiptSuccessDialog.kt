@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import com.rising.pos.ui.components.PosDialog
+import com.rising.pos.ui.components.quantityLabel
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,8 +27,6 @@ import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -41,7 +42,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.datastore.BusinessSettings
 import com.rising.pos.core.util.CurrencyFormatter
@@ -80,239 +80,238 @@ fun ReceiptSuccessDialog(
     val dateFormatter = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault())
     val formattedDate = dateFormatter.format(Date(trx.createdAt))
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+    PosDialog(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier.fillMaxWidth().weight(1f).verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
+            Box(
+                modifier = Modifier.size(56.dp).background(SuccessGreenContainer, CircleShape),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier.size(56.dp).background(SuccessGreenContainer, CircleShape),
-                    contentAlignment = Alignment.Center
+                Icon(
+                    Icons.Outlined.CheckCircle,
+                    contentDescription = null,
+                    tint = SuccessGreen,
+                    modifier = Modifier.size(34.dp)
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Text(
+                "Pembayaran berhasil",
+                style = MaterialTheme.typography.titleMedium,
+                color = Slate900
+            )
+            Text(
+                CurrencyFormatter.format(trx.grandTotal, settings.currencySymbol),
+                style = PosTextStyles.displayMoney,
+                color = SuccessGreen
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // Pratinjau struk
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, Slate200)
+            ) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Icon(
-                        Icons.Outlined.CheckCircle,
-                        contentDescription = null,
-                        tint = SuccessGreen,
-                        modifier = Modifier.size(34.dp)
+                    Text(
+                        settings.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Slate900
                     )
-                }
+                    if (settings.phone.isNotBlank()) {
+                        Text(settings.phone, style = MaterialTheme.typography.bodySmall, color = Slate500)
+                    }
 
-                Spacer(Modifier.height(10.dp))
+                    ReceiptDivider()
 
-                Text(
-                    "Pembayaran berhasil",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Slate900
-                )
-                Text(
-                    CurrencyFormatter.format(trx.grandTotal, settings.currencySymbol),
-                    style = PosTextStyles.displayMoney,
-                    color = SuccessGreen
-                )
-
-                Spacer(Modifier.height(16.dp))
-
-                // Pratinjau struk
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                    border = BorderStroke(1.dp, Slate200)
-                ) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            settings.name,
-                            style = MaterialTheme.typography.titleMedium,
-                            color = Slate900
+                            trx.receiptNumber,
+                            modifier = Modifier.weight(1f).padding(end = 12.dp),
+                            style = PosTextStyles.receiptNo,
+                            color = Slate700
                         )
-                        if (settings.phone.isNotBlank()) {
-                            Text(settings.phone, style = MaterialTheme.typography.bodySmall, color = Slate500)
-                        }
+                        Text(
+                            trx.paymentMethod.label(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Slate700
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(formattedDate, style = MaterialTheme.typography.labelSmall, color = Slate500)
+                        Text(
+                            "Kasir: ${trx.cashierId ?: "Admin"}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Slate500
+                        )
+                    }
 
-                        ReceiptDivider()
+                    ReceiptDivider()
 
+                    items.forEach { itemDetail ->
+                        val item = itemDetail.item
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                trx.receiptNumber,
-                                style = PosTextStyles.receiptNo,
-                                color = Slate700
+                                "${item.productName} × ${quantityLabel(item.qty)}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Slate900,
+                                modifier = Modifier.weight(1f)
                             )
                             Text(
-                                trx.paymentMethod.label(),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Slate700
-                            )
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(formattedDate, style = MaterialTheme.typography.labelSmall, color = Slate500)
-                            Text(
-                                "Kasir: ${trx.cashierId ?: "Admin"}",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = Slate500
-                            )
-                        }
-
-                        ReceiptDivider()
-
-                        items.forEach { itemDetail ->
-                            val item = itemDetail.item
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    "${item.productName} x${item.qty.toInt()}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = Slate900,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                Text(
-                                    CurrencyFormatter.format(item.subtotal, settings.currencySymbol),
-                                    style = PosTextStyles.money,
-                                    color = Slate900
-                                )
-                            }
-                        }
-
-                        ReceiptDivider()
-
-                        ReceiptLine("Subtotal", CurrencyFormatter.format(trx.subtotal, settings.currencySymbol))
-
-                        if (trx.discount > 0) {
-                            ReceiptLine(
-                                "Diskon",
-                                "- ${CurrencyFormatter.format(trx.discount, settings.currencySymbol)}"
-                            )
-                        }
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Total", style = MaterialTheme.typography.bodyMedium, color = Slate900)
-                            Text(
-                                CurrencyFormatter.format(trx.grandTotal, settings.currencySymbol),
+                                CurrencyFormatter.format(item.subtotal, settings.currencySymbol),
                                 style = PosTextStyles.money,
                                 color = Slate900
                             )
                         }
+                    }
 
-                        ReceiptLine("Bayar", CurrencyFormatter.format(trx.paymentAmount, settings.currencySymbol))
+                    ReceiptDivider()
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                "Kembalian",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Slate500
-                            )
-                            Text(
-                                CurrencyFormatter.format(trx.changeAmount, settings.currencySymbol),
-                                style = PosTextStyles.money,
-                                color = SuccessGreen
-                            )
-                        }
+                    ReceiptLine("Subtotal", CurrencyFormatter.format(trx.subtotal, settings.currencySymbol))
 
-                        Spacer(Modifier.height(10.dp))
-
-                        Text(
-                            settings.footerNote,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Slate500,
-                            textAlign = TextAlign.Center
+                    if (trx.discount > 0) {
+                        ReceiptLine(
+                            "Diskon",
+                            "- ${CurrencyFormatter.format(trx.discount, settings.currencySymbol)}"
                         )
                     }
-                }
 
-                if (printMessage != null) {
-                    Spacer(Modifier.height(12.dp))
-                    FeedbackBanner(message = printMessage, isError = false)
-                }
-                if (printErrorMessage != null) {
-                    Spacer(Modifier.height(12.dp))
-                    FeedbackBanner(message = printErrorMessage, isError = true)
-                }
+                    if (trx.serviceCharge > 0) ReceiptLine("Biaya layanan", CurrencyFormatter.format(trx.serviceCharge, settings.currencySymbol))
+                    if (trx.tax > 0) ReceiptLine(
+                            if (trx.grandTotal == (trx.subtotal - trx.discount).coerceAtLeast(0L) + trx.serviceCharge) "Pajak (termasuk)" else "Pajak",
+                            CurrencyFormatter.format(trx.tax, settings.currencySymbol)
+                        )
 
-                Spacer(Modifier.height(16.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            val receiptText = ReceiptFormatter.formatReceiptText(transactionWithDetails, settings)
-                            val sendIntent = Intent().apply {
-                                action = Intent.ACTION_SEND
-                                putExtra(Intent.EXTRA_TEXT, receiptText)
-                                type = "text/plain"
-                            }
-                            context.startActivity(Intent.createChooser(sendIntent, "Bagikan struk transaksi"))
-                        },
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Slate200)
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Icon(Icons.Default.Share, contentDescription = null, tint = Slate700, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Bagikan", style = MaterialTheme.typography.labelLarge, color = Slate700)
+                        Text("Total", style = MaterialTheme.typography.bodyMedium, color = Slate900)
+                        Text(
+                            CurrencyFormatter.format(trx.grandTotal, settings.currencySymbol),
+                            style = PosTextStyles.money,
+                            color = Slate900
+                        )
                     }
 
-                    Button(
-                        onClick = onPrintReceipt,
-                        modifier = Modifier.weight(1f).height(52.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        enabled = !isPrinting
+                    ReceiptLine("Bayar", CurrencyFormatter.format(trx.paymentAmount, settings.currencySymbol))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        if (isPrinting) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            Text("Mencetak...", style = MaterialTheme.typography.labelLarge, color = Color.White)
-                        } else {
-                            Icon(Icons.Default.Print, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Cetak struk", style = MaterialTheme.typography.labelLarge, color = Color.White)
-                        }
+                        Text(
+                            "Kembalian",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Slate500
+                        )
+                        Text(
+                            CurrencyFormatter.format(trx.changeAmount, settings.currencySymbol),
+                            style = PosTextStyles.money,
+                            color = SuccessGreen
+                        )
                     }
-                }
 
-                Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(10.dp))
 
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth().height(52.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Text("Transaksi baru", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                    Text(
+                        settings.footerNote,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Slate500,
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
+
+            if (printMessage != null) {
+                Spacer(Modifier.height(12.dp))
+                FeedbackBanner(message = printMessage, isError = false)
+            }
+            if (printErrorMessage != null) {
+                Spacer(Modifier.height(12.dp))
+                FeedbackBanner(message = printErrorMessage, isError = true)
+            }
+
+            Spacer(Modifier.height(20.dp))
         }
+        HorizontalDivider(color = Slate200)
+        Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        val receiptText = ReceiptFormatter.formatReceiptText(transactionWithDetails, settings)
+                        val sendIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, receiptText)
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "Bagikan struk transaksi"))
+                    },
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, Slate200)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, tint = Slate700, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Bagikan", style = MaterialTheme.typography.labelLarge, color = Slate700)
+                }
+
+                OutlinedButton(
+                    onClick = onPrintReceipt,
+                    modifier = Modifier.weight(1f).heightIn(min = 56.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !isPrinting
+                ) {
+                    if (isPrinting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text("Mencetak...", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                    } else {
+                        Icon(Icons.Default.Print, contentDescription = null, tint = MaterialTheme.colorScheme.onSurface, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Cetak struk", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            Button(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Transaksi baru", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimary)
+            }
     }
 }
 

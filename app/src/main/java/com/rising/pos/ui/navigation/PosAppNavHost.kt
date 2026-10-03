@@ -1,6 +1,5 @@
 package com.rising.pos.ui.navigation
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -144,17 +143,12 @@ fun PosAppNavHost(
             }
         }
     } else {
-        // Phone: Scaffold with PlayStoreBottomNavBar
-        val isDarkTheme = MaterialTheme.colorScheme.background == Color(0xFF000000) ||
-                (currentSettings.appTheme == com.rising.pos.core.model.AppTheme.DARK) ||
-                (currentSettings.appTheme == com.rising.pos.core.model.AppTheme.SYSTEM && isSystemInDarkTheme())
-
+        // Phone: Scaffold with PosBottomNavBar
         Scaffold(
             bottomBar = {
-                PlayStoreBottomNavBar(
+                PosBottomNavBar(
                     items = phoneNavigationItems,
                     currentRoute = currentRoute,
-                    isDarkTheme = isDarkTheme,
                     onNavigate = { route ->
                         if (currentRoute != route) {
                             navController.navigate(route) {

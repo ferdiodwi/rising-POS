@@ -170,4 +170,21 @@ class DataIntegrityRegressionTest {
         // Tidak ada transaksi yang tercatat (rollback penuh).
         assertEquals(0, db.transactionDao().getRecentTransactions().first().size)
     }
+    @Test
+    fun `history period includes all statuses and does not truncate at 100 transactions`() = runBlocking {
+        repeat(105) { index ->
+            db.transactionDao().insertTransaction(TransactionEntity(
+                id = "history-$index", receiptNumber = "H-$index",
+                subtotal = 1000, grandTotal = 1000, paymentAmount = 1000,
+                status = if (index == 104) TransactionStatus.HELD else TransactionStatus.COMPLETED,
+                createdAt = 1000L + index
+            ))
+        }
+        val history = db.transactionDao().getTransactionsBetween(1000, 1104).first()
+        assertEquals(105, history.size)
+        assertEquals(TransactionStatus.HELD, history.first().transaction.status)
+        assertEquals(1, db.transactionDao().getTransactionsBetween(1104, 1104).first().size)
+        assertTrue(db.transactionDao().getTransactionsBetween(2000, 3000).first().isEmpty())
+    }
+
 }

@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -53,6 +52,7 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -86,7 +86,6 @@ import com.rising.pos.ui.components.SecurityPinDialog
 import com.rising.pos.ui.theme.DangerRed
 import com.rising.pos.ui.theme.DangerRedContainer
 import com.rising.pos.ui.theme.PrimaryBlue
-import com.rising.pos.ui.theme.Slate100
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate400
 import com.rising.pos.ui.theme.Slate500
@@ -97,10 +96,8 @@ import com.rising.pos.ui.theme.SuccessGreen
 import com.rising.pos.ui.theme.SuccessGreenContainer
 
 /**
- * Layar Pengaturan dengan estetika modern iOS / Fintech.
- * Mengelompokkan item pengaturan ke dalam kartu bersudut melengkung,
- * header kategori di luar kartu, ikon berlatar kontainer lembut,
- * dan sakelar hijau elegan.
+ * Pengaturan usaha dan perangkat, dikelompokkan berdasarkan tugas kasir.
+ * Warna dan kontrol mengikuti tema aplikasi.
  */
 @Composable
 fun SettingsScreen(
@@ -136,43 +133,19 @@ fun SettingsScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // ── Top Bar ──────────────────────────────────────────────────────────
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                onClick = { onBackClick?.invoke() },
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.surface,
-                border = BorderStroke(1.dp, Slate200.copy(alpha = 0.8f)),
-                shadowElevation = 0.5.dp,
-                modifier = Modifier.size(42.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Outlined.ChevronLeft,
-                        contentDescription = "Kembali",
-                        tint = Slate900,
-                        modifier = Modifier.size(24.dp)
-                    )
+            if (onBackClick != null) {
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.Outlined.ChevronLeft, contentDescription = "Kembali", tint = Slate900)
                 }
             }
-
-            Text(
-                text = "Settings",
-                style = MaterialTheme.typography.titleLarge.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 19.sp
-                ),
-                color = Slate900
-            )
-
-            // Placeholder seimbang agar judul tetap presisi di tengah
-            Spacer(modifier = Modifier.size(42.dp))
+            Column {
+                Text("Pengaturan", style = MaterialTheme.typography.headlineSmall, color = Slate900)
+                Text("Sesuaikan usaha dan perangkat kasir.", style = MaterialTheme.typography.bodySmall, color = Slate500)
+            }
         }
 
         // ── Konten Pengaturan ────────────────────────────────────────────────
@@ -183,7 +156,7 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp)
         ) {
             // ── Section: General ─────────────────────────────────────────────
-            SettingsSectionTitle("General")
+            SettingsSectionTitle("Usaha & tampilan")
             SettingsGroupCard {
                 SettingNavigationItem(
                     title = "Profil Toko",
@@ -193,7 +166,7 @@ fun SettingsScreen(
                 )
                 SettingsDivider()
                 SettingNavigationItem(
-                    title = "Appearance",
+                    title = "Tema aplikasi",
                     subtitle = when (settings.appTheme) {
                         AppTheme.LIGHT -> "Terang"
                         AppTheme.DARK -> "Gelap"
@@ -378,7 +351,7 @@ fun SettingsScreen(
             }
 
             // ── Section: Security ────────────────────────────────────────────
-            SettingsSectionTitle("Security")
+            SettingsSectionTitle("Keamanan")
             SettingsGroupCard {
                 SettingNavigationItem(
                     title = "PIN Owner",
@@ -704,7 +677,7 @@ private fun SettingsGroupCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, Slate200.copy(alpha = 0.5f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -793,9 +766,9 @@ private fun SettingSwitchItem(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = Color.White,
-                    checkedTrackColor = Color(0xFF34C759), // iOS Green
-                    uncheckedThumbColor = Color.White,
+                    checkedThumbColor = MaterialTheme.colorScheme.onPrimary,
+                    checkedTrackColor = MaterialTheme.colorScheme.primary,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.onPrimary,
                     uncheckedTrackColor = Slate200
                 )
             )

@@ -2,7 +2,6 @@ package com.rising.pos.feature.pos
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +12,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import com.rising.pos.ui.theme.PosTextStyles
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,7 +29,6 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.QrCodeScanner
@@ -36,21 +40,15 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -62,7 +60,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalConfiguration
@@ -90,9 +87,7 @@ import com.rising.pos.ui.components.WorkspaceEmptyState
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate400
 import com.rising.pos.ui.theme.Slate500
-import com.rising.pos.ui.theme.Slate600
 import com.rising.pos.ui.theme.Slate700
-import com.rising.pos.ui.theme.Slate900
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,7 +129,7 @@ fun PosScreen(
                         onOpenHeldOrders = viewModel::openHeldOrdersList
                     )
                     Spacer(Modifier.height(12.dp))
-                    CategoryUnderlineTabs(
+                    CategoryFilters(
                         categories = categories,
                         selectedCategoryId = uiState.selectedCategoryId,
                         onSelectCategory = viewModel::selectCategory
@@ -195,7 +190,7 @@ fun PosScreen(
                         onOpenHeldOrders = viewModel::openHeldOrdersList
                     )
                     Spacer(Modifier.height(12.dp))
-                    CategoryUnderlineTabs(
+                    CategoryFilters(
                         categories = categories,
                         selectedCategoryId = uiState.selectedCategoryId,
                         onSelectCategory = viewModel::selectCategory
@@ -222,121 +217,37 @@ fun PosScreen(
                         isServiceChargeEnabled = settings.isServiceChargeEnabled,
                         serviceChargePercentage = settings.serviceChargePercentage
                     )
-                    val totalItemCount = uiState.cart.totalItemCount.toInt()
-                    val itemSummary = uiState.cart.items.joinToString(", ") {
-                        "${it.quantity.toInt()} ${it.product.name}"
-                    }
-
                     Surface(
-                        modifier = Modifier.fillMaxWidth(),
                         color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, Slate200),
-                        shadowElevation = 8.dp
+                        shadowElevation = 4.dp
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                        ) {
-                            // Baris 1: Keranjang  3 barang               ^
+                        Column(Modifier.fillMaxWidth().padding(16.dp)) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { viewModel.setCartSheetOpen(true) },
-                                verticalAlignment = Alignment.CenterVertically
+                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(
-                                    text = "Keranjang",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = "$totalItemCount barang",
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
-                                    color = Slate500
-                                )
-                                Spacer(Modifier.weight(1f))
-                                Icon(
-                                    imageVector = Icons.Default.KeyboardArrowUp,
-                                    contentDescription = "Buka Keranjang",
-                                    tint = Slate600,
-                                    modifier = Modifier.size(22.dp)
-                                )
-                            }
-
-                            // Baris 2: Ringkasan item
-                            Text(
-                                text = itemSummary,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
-                                color = Slate500,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp)
-                            )
-
-                            // Baris 3: Total                             Rp27.000
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Total",
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 15.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                                Text(
-                                    text = CurrencyFormatter.format(calc.grandTotal, settings.currencySymbol),
-                                    style = MaterialTheme.typography.titleMedium.copy(
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp
-                                    ),
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-
-                            Spacer(Modifier.height(8.dp))
-
-                            // Baris 4: Tombol Bayar
-                            Button(
-                                onClick = viewModel::openCheckoutDialog,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = Color.White
-                                )
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.Center
-                                ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("Keranjang", style = MaterialTheme.typography.titleSmall)
                                     Text(
-                                        text = "Bayar ${CurrencyFormatter.format(calc.grandTotal, settings.currencySymbol)}",
-                                        style = MaterialTheme.typography.titleMedium.copy(
-                                            fontWeight = FontWeight.SemiBold,
-                                            fontSize = 15.sp
-                                        )
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Outlined.ArrowForward,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp)
+                                        "${uiState.cart.items.size} jenis barang",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Slate500
                                     )
                                 }
+                                Text(
+                                    CurrencyFormatter.format(calc.grandTotal, settings.currencySymbol),
+                                    style = PosTextStyles.priceCard
+                                )
+                            }
+                            Button(
+                                onClick = { viewModel.setCartSheetOpen(true) },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Lihat keranjang", style = MaterialTheme.typography.titleSmall)
+                                Spacer(Modifier.width(8.dp))
+                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = null)
                             }
                         }
                     }
@@ -367,7 +278,9 @@ fun PosScreen(
                     },
                     onOpenCustomerPicker = { viewModel.openCustomerPicker(true) },
                     onRemoveCustomer = { viewModel.setCustomer(null) },
-                    onOpenDiscountDialog = { viewModel.openDiscountDialog(true) }
+                    onOpenDiscountDialog = { viewModel.openDiscountDialog(true) },
+                    onAddProducts = { viewModel.setCartSheetOpen(false) },
+                    compact = true
                 )
             }
         }
@@ -505,12 +418,12 @@ private fun PosHeader(
                 imageVector = Icons.Outlined.Storefront,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(36.dp)
+                modifier = Modifier.size(48.dp)
             )
             Spacer(Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = storeName.ifBlank { "Warung Bu Siti" },
+                    text = storeName.ifBlank { "Nama usaha" },
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
@@ -530,7 +443,7 @@ private fun PosHeader(
 
             IconButton(
                 onClick = onOpenHeldOrders,
-                modifier = Modifier.size(40.dp)
+                modifier = Modifier.size(48.dp)
             ) {
                 BadgedBox(
                     badge = {
@@ -603,7 +516,7 @@ private fun PosHeader(
                 if (searchQuery.isNotEmpty()) {
                     IconButton(
                         onClick = { onSearchChange("") },
-                        modifier = Modifier.size(36.dp)
+                        modifier = Modifier.size(48.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.Clear,
@@ -621,11 +534,11 @@ private fun PosHeader(
                 )
                 IconButton(
                     onClick = { showBarcodeDialog = true },
-                    modifier = Modifier.size(44.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.QrCodeScanner,
-                        contentDescription = "Scan Barcode",
+                        contentDescription = "Masukkan barcode",
                         tint = Slate700,
                         modifier = Modifier.size(22.dp)
                     )
@@ -640,7 +553,7 @@ private fun PosHeader(
             onDismissRequest = { showBarcodeDialog = false },
             title = {
                 Text(
-                    text = "Scan / Masukkan Barcode",
+                    text = "Masukkan barcode",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                 )
             },
@@ -684,68 +597,38 @@ private fun PosHeader(
 }
 
 @Composable
-private fun CategoryUnderlineTabs(
+private fun CategoryFilters(
     categories: List<CategoryEntity>,
     selectedCategoryId: String?,
     onSelectCategory: (String?) -> Unit
 ) {
-    val selectedIndex = if (selectedCategoryId == null) 0 else {
-        val idx = categories.indexOfFirst { it.id == selectedCategoryId }
-        if (idx >= 0) idx + 1 else 0
-    }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        ScrollableTabRow(
-            selectedTabIndex = selectedIndex,
-            edgePadding = 0.dp,
-            containerColor = Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.primary,
-            divider = {
-                HorizontalDivider(color = Slate200, thickness = 1.dp)
-            },
-            indicator = { tabPositions ->
-                if (selectedIndex < tabPositions.size) {
-                    TabRowDefaults.SecondaryIndicator(
-                        modifier = Modifier.tabIndicatorOffset(tabPositions[selectedIndex]),
-                        height = 3.dp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        ) {
-            Tab(
-                selected = selectedCategoryId == null,
-                onClick = { onSelectCategory(null) },
-                text = {
-                    Text(
-                        text = "Semua",
-                        style = MaterialTheme.typography.titleSmall.copy(
-                            fontWeight = if (selectedCategoryId == null) FontWeight.Bold else FontWeight.Medium,
-                            fontSize = 14.sp
-                        ),
-                        color = if (selectedCategoryId == null) MaterialTheme.colorScheme.primary else Slate600
-                    )
-                }
-            )
-            categories.forEach { category ->
-                val isSelected = selectedCategoryId == category.id
-                Tab(
-                    selected = isSelected,
-                    onClick = { onSelectCategory(category.id) },
-                    text = {
-                        Text(
-                            text = category.name,
-                            style = MaterialTheme.typography.titleSmall.copy(
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                fontSize = 14.sp
-                            ),
-                            color = if (isSelected) MaterialTheme.colorScheme.primary else Slate600
-                        )
-                    }
-                )
+    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        item {
+            CategoryChip("Semua", selectedCategoryId == null) { onSelectCategory(null) }
+        }
+        items(categories, key = { it.id }) { category ->
+            CategoryChip(category.name, selectedCategoryId == category.id) {
+                onSelectCategory(category.id)
             }
         }
     }
+}
+
+@Composable
+private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) {
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label) },
+        modifier = Modifier.heightIn(min = 48.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = FilterChipDefaults.filterChipColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+            selectedLabelColor = MaterialTheme.colorScheme.primary
+        ),
+        border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else Slate200)
+    )
 }
 
 @Composable
@@ -786,7 +669,6 @@ private fun ProductGrid(
                 val cartQuantity = cartItems
                     .filter { it.product.id == item.product.id }
                     .sumOf { it.quantity }
-                    .toInt()
 
                 ProductCard(
                     item = item,

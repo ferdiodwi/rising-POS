@@ -18,6 +18,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import java.time.LocalDate
+import java.time.ZoneId
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+
+enum class HistoryPeriod(val label: String) {
+    TODAY("Hari ini"), LAST_7_DAYS("7 hari"), ALL("Semua tanggal")
+}
 
 data class TransactionUiState(
     val selectedTransaction: TransactionWithDetails? = null,
@@ -40,12 +48,23 @@ class TransactionViewModel @Inject constructor(
         initialValue = BusinessSettings()
     )
 
-    val transactions: StateFlow<List<TransactionWithDetails>> =
-        transactionRepository.getRecentTransactions(limit = 100).stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5000),
-            initialValue = emptyList()
-        )
+    private val _period = MutableStateFlow(HistoryPeriod.TODAY)
+    val period = _period.asStateFlow()
+
+    fun setPeriod(value: HistoryPeriod) { _period.value = value }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val transactions: StateFlow<List<TransactionWithDetails>> = _period.flatMapLatest { selected ->
+        val today = LocalDate.now()
+        val zone = ZoneId.systemDefault()
+        val start = when (selected) {
+            HistoryPeriod.TODAY -> today.atStartOfDay(zone).toInstant().toEpochMilli()
+            HistoryPeriod.LAST_7_DAYS -> today.minusDays(6).atStartOfDay(zone).toInstant().toEpochMilli()
+            HistoryPeriod.ALL -> 0L
+        }
+        val end = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() - 1
+        transactionRepository.getTransactionsBetween(start, end)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()

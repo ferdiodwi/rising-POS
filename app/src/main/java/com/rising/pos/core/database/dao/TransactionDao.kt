@@ -20,6 +20,10 @@ interface TransactionDao {
     fun getRecentTransactions(limit: Int = 100): Flow<List<TransactionWithDetails>>
 
     @Transaction
+    @Query("SELECT * FROM transactions WHERE created_at >= :startDate AND created_at <= :endDate ORDER BY created_at DESC")
+    fun getTransactionsBetween(startDate: Long, endDate: Long): Flow<List<TransactionWithDetails>>
+
+    @Transaction
     @Query("SELECT * FROM transactions WHERE id = :id LIMIT 1")
     suspend fun getTransactionById(id: String): TransactionWithDetails?
 

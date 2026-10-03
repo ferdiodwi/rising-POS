@@ -142,6 +142,9 @@ dependencies {
     implementation(libs.okhttp)
 
     // ── Unit Tests ────────────────────────────────────────────────────────────
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation("androidx.compose.ui:ui-test-junit4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest")
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.robolectric)

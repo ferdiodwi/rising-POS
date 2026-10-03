@@ -191,6 +191,9 @@ class TransactionRepositoryImpl @Inject constructor(
     override fun getRecentTransactions(limit: Int): Flow<List<TransactionWithDetails>> =
         transactionDao.getRecentTransactions(limit)
 
+    override fun getTransactionsBetween(startDate: Long, endDate: Long): Flow<List<TransactionWithDetails>> =
+        transactionDao.getTransactionsBetween(startDate, endDate)
+
     override suspend fun getTransactionById(id: String): TransactionWithDetails? =
         transactionDao.getTransactionById(id)
 
