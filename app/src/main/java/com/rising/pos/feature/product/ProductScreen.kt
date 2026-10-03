@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
@@ -466,6 +467,15 @@ private fun ProductFormDialog(
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
+    val photoContext = androidx.compose.ui.platform.LocalContext.current
+    val photoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            runCatching { photoContext.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION) }
+            onFormChange(form.copy(imageUrl = uri.toString()))
+        }
+    }
     var categoryDropdownExpanded by remember { mutableStateOf(false) }
 
     var showAdvanced by rememberSaveable(form.id) { mutableStateOf(form.hasVariants) }
@@ -485,6 +495,14 @@ private fun ProductFormDialog(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             FormSection("Info dasar")
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                com.rising.pos.feature.pos.components.ProductPhoto(form.imageUrl, form.name, Modifier.size(72.dp))
+                Spacer(Modifier.width(12.dp))
+                OutlinedButton(onClick = { photoPicker.launch(arrayOf("image/*")) }) { Text("Pilih foto produk") }
+                if (form.imageUrl.isNotBlank()) IconButton(onClick = { onFormChange(form.copy(imageUrl = "")) }) {
+                    Icon(Icons.Default.Close, "Hapus foto")
+                }
+            }
             OutlinedTextField(
                 value = form.name,
                 onValueChange = { onFormChange(form.copy(name = it)) },

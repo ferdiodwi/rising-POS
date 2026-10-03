@@ -1,6 +1,17 @@
 package com.rising.pos.feature.pos
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import com.rising.pos.core.datastore.BusinessSettings
+import com.rising.pos.domain.model.CartState
+import com.rising.pos.ui.components.quantityLabel
+import com.rising.pos.ui.components.CashierIcons
+import com.rising.pos.ui.theme.CashierTheme
+import com.rising.pos.ui.theme.posMoney
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -91,9 +102,11 @@ import com.rising.pos.ui.theme.Slate700
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PosScreen(
-    viewModel: PosViewModel = hiltViewModel()
-) {
+fun PosScreen(viewModel: PosViewModel = hiltViewModel()) = CashierTheme { PosScreenContent(viewModel) }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PosScreenContent(viewModel: PosViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val categories by viewModel.categories.collectAsState()
@@ -171,88 +184,12 @@ fun PosScreen(
                 }
             }
         } else {
-            // ── HP: Header, Search Bar, Underline Tabs, Product Grid, Bottom Cart Bar ──
-            Column(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
-                        .padding(top = 12.dp)
-                ) {
-                    PosHeader(
-                        storeName = settings.name,
-                        cashierName = settings.cashierName,
-                        searchQuery = uiState.searchQuery,
-                        heldOrdersCount = heldTransactions.size,
-                        onSearchChange = viewModel::updateSearchQuery,
-                        onScanBarcode = viewModel::scanBarcode,
-                        onOpenHeldOrders = viewModel::openHeldOrdersList
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    CategoryFilters(
-                        categories = categories,
-                        selectedCategoryId = uiState.selectedCategoryId,
-                        onSelectCategory = viewModel::selectCategory
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    ProductGrid(
-                        products = products,
-                        currencySymbol = settings.currencySymbol,
-                        cartItems = uiState.cart.items,
-                        isFiltered = uiState.searchQuery.isNotBlank() || uiState.selectedCategoryId != null,
-                        onProductClick = viewModel::onProductClicked,
-                        onDecreaseProduct = viewModel::decreaseProductQuantity,
-                        columns = 2,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                // ── Bar Keranjang Bawah Modern Sesuai Mockup ──────────────────
-                if (uiState.cart.items.isNotEmpty()) {
-                    val calc = uiState.cart.calculateTotals(
-                        isTaxEnabled = settings.isTaxEnabled,
-                        taxPercentage = settings.taxPercentage,
-                        isTaxInclusive = settings.isTaxInclusive,
-                        isServiceChargeEnabled = settings.isServiceChargeEnabled,
-                        serviceChargePercentage = settings.serviceChargePercentage
-                    )
-                    Surface(
-                        color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 4.dp
-                    ) {
-                        Column(Modifier.fillMaxWidth().padding(16.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("Keranjang", style = MaterialTheme.typography.titleSmall)
-                                    Text(
-                                        "${uiState.cart.items.size} jenis barang",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Slate500
-                                    )
-                                }
-                                Text(
-                                    CurrencyFormatter.format(calc.grandTotal, settings.currencySymbol),
-                                    style = PosTextStyles.priceCard
-                                )
-                            }
-                            Button(
-                                onClick = { viewModel.setCartSheetOpen(true) },
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
-                                Text("Lihat keranjang", style = MaterialTheme.typography.titleSmall)
-                                Spacer(Modifier.width(8.dp))
-                                Icon(Icons.Default.KeyboardArrowUp, contentDescription = null)
-                            }
-                        }
-                    }
-                }
-            }
+            PosPhoneCatalog(
+                settings, products, categories, uiState.cart, uiState.searchQuery, uiState.selectedCategoryId,
+                heldTransactions.size, viewModel::updateSearchQuery, viewModel::scanBarcode,
+                viewModel::openHeldOrdersList, viewModel::selectCategory, viewModel::onProductClicked,
+                viewModel::decreaseProductQuantity, { viewModel.setCartSheetOpen(true) }, viewModel::openCheckoutDialog
+            )
         }
 
         // ── Modal Bottom Sheet untuk Detail Keranjang ───────────────────────
@@ -397,7 +334,7 @@ fun PosScreen(
 }
 
 @Composable
-private fun PosHeader(
+internal fun PosHeader(
     storeName: String,
     cashierName: String,
     searchQuery: String,
@@ -415,12 +352,12 @@ private fun PosHeader(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Icon(
-                imageVector = Icons.Outlined.Storefront,
+                imageVector = CashierIcons.Store,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(34.dp)
             )
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(14.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = storeName.ifBlank { "Nama usaha" },
@@ -458,7 +395,7 @@ private fun PosHeader(
                     }
                 ) {
                     Icon(
-                        imageVector = Icons.Outlined.ReceiptLong,
+                        imageVector = CashierIcons.Receipt,
                         contentDescription = "Pesanan Tertunda",
                         tint = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.size(26.dp)
@@ -472,8 +409,8 @@ private fun PosHeader(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp),
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(6.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
             border = BorderStroke(1.dp, Slate200)
         ) {
             Row(
@@ -537,7 +474,7 @@ private fun PosHeader(
                     modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.QrCodeScanner,
+                        imageVector = CashierIcons.Barcode,
                         contentDescription = "Masukkan barcode",
                         tint = Slate700,
                         modifier = Modifier.size(22.dp)
@@ -597,38 +534,27 @@ private fun PosHeader(
 }
 
 @Composable
-private fun CategoryFilters(
-    categories: List<CategoryEntity>,
-    selectedCategoryId: String?,
-    onSelectCategory: (String?) -> Unit
-) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        item {
-            CategoryChip("Semua", selectedCategoryId == null) { onSelectCategory(null) }
-        }
-        items(categories, key = { it.id }) { category ->
-            CategoryChip(category.name, selectedCategoryId == category.id) {
-                onSelectCategory(category.id)
+private fun CategoryFilters(categories: List<CategoryEntity>, selectedCategoryId: String?, onSelectCategory: (String?) -> Unit) {
+    Box {
+        HorizontalDivider(Modifier.align(Alignment.BottomCenter))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(18.dp)) {
+            item { CategoryTab("Semua", selectedCategoryId == null) { onSelectCategory(null) } }
+            items(categories, key = { it.id }) { category ->
+                CategoryTab(category.name, selectedCategoryId == category.id) { onSelectCategory(category.id) }
             }
         }
     }
 }
-
 @Composable
-private fun CategoryChip(label: String, selected: Boolean, onClick: () -> Unit) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label) },
-        modifier = Modifier.heightIn(min = 48.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = FilterChipDefaults.filterChipColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-            selectedLabelColor = MaterialTheme.colorScheme.primary
-        ),
-        border = BorderStroke(1.dp, if (selected) MaterialTheme.colorScheme.primary else Slate200)
-    )
+private fun CategoryTab(label: String, selected: Boolean, onClick: () -> Unit) {
+    val colors = MaterialTheme.colorScheme
+    Column(Modifier.width(IntrinsicSize.Min).widthIn(min = 64.dp).clickable(onClick = onClick), horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.height(42.dp).padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+            Text(label, fontSize = 15.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                color = if (selected) colors.primary else colors.onSurfaceVariant)
+        }
+        Box(Modifier.fillMaxWidth().height(3.dp).background(if (selected) colors.primary else Color.Transparent))
+    }
 }
 
 @Composable
@@ -660,9 +586,9 @@ private fun ProductGrid(
     } else {
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(top = 2.dp, bottom = 12.dp),
             modifier = modifier
         ) {
             items(products, key = { it.product.id }) { item ->
@@ -678,6 +604,56 @@ private fun ProductGrid(
                     onDecrease = { onDecreaseProduct(item.product) },
                     onClick = { onProductClick(item.product) }
                 )
+            }
+        }
+    }
+}
+
+/** Stateless catalog shared with the visual and interaction tests. */
+@Composable
+internal fun PosPhoneCatalog(
+    settings: BusinessSettings, products: List<ProductWithCategory>, categories: List<CategoryEntity>, cart: CartState,
+    searchQuery: String, selectedCategoryId: String?, heldOrdersCount: Int,
+    onSearch: (String) -> Unit, onBarcode: (String) -> Unit, onHeldOrders: () -> Unit,
+    onCategory: (String?) -> Unit, onProduct: (com.rising.pos.core.database.entity.ProductEntity) -> Unit,
+    onDecrease: (com.rising.pos.core.database.entity.ProductEntity) -> Unit, onCart: () -> Unit, onCheckout: () -> Unit
+) = CashierTheme {
+    val colors = MaterialTheme.colorScheme
+    Column(Modifier.fillMaxSize().background(colors.surface)) {
+        Column(Modifier.weight(1f).padding(horizontal = 18.dp).padding(top = 10.dp)) {
+            PosHeader(settings.name, settings.cashierName, searchQuery, heldOrdersCount, onSearch, onBarcode, onHeldOrders)
+            Spacer(Modifier.height(6.dp))
+            CategoryFilters(categories, selectedCategoryId, onCategory)
+            Spacer(Modifier.height(10.dp))
+            ProductGrid(products, settings.currencySymbol, cart.items, onProduct, onDecrease, 2,
+                searchQuery.isNotBlank() || selectedCategoryId != null, Modifier.weight(1f))
+        }
+        if (cart.items.isNotEmpty()) {
+            val calc = cart.calculateTotals(settings.isTaxEnabled, settings.taxPercentage, settings.isTaxInclusive,
+                settings.isServiceChargeEnabled, settings.serviceChargePercentage)
+            val total = posMoney(calc.grandTotal, settings.currencySymbol)
+            HorizontalDivider()
+            Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 8.dp)) {
+                Row(Modifier.fillMaxWidth().clickable(onClick = onCart).heightIn(min = 50.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Keranjang", fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                            Spacer(Modifier.width(10.dp)); Text("${quantityLabel(cart.totalItemCount)} barang", fontSize = 12.sp, color = colors.onSurfaceVariant)
+                        }
+                        Text(cart.items.joinToString(", ") { "${quantityLabel(it.quantity)} ${it.product.name}" },
+                            fontSize = 11.sp, color = colors.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    Icon(Icons.Default.KeyboardArrowUp, "Lihat keranjang", tint = colors.onSurfaceVariant)
+                }
+                HorizontalDivider()
+                Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+                    Text("Total", Modifier.weight(1f), fontSize = 15.sp)
+                    Text(total, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+                Button(onCheckout, Modifier.fillMaxWidth().heightIn(min = 44.dp), shape = RoundedCornerShape(6.dp)) {
+                    Text("Bayar $total", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.width(10.dp)); Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(22.dp))
+                }
             }
         }
     }

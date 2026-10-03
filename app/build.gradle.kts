@@ -140,6 +140,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.okhttp)
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     // ── Unit Tests ────────────────────────────────────────────────────────────
     testImplementation(platform(libs.androidx.compose.bom))
