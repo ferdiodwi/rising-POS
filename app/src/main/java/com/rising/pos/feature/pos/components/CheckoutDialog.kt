@@ -93,11 +93,11 @@ fun CheckoutDialog(cart: CartState, settings: BusinessSettings, isProcessing: Bo
                     cart.customer?.let { Text("Pelanggan: ${it.name}", fontSize = 13.sp) }
                     if (settings.type == BusinessType.CAFE || settings.isTableEnabled) {
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            listOf(OrderType.DINE_IN, OrderType.TAKEAWAY).forEach { type ->
-                                OptionChip(if (type == OrderType.DINE_IN) "Makan di tempat" else "Bawa pulang", selectedOrderType == type, enabled = !isProcessing) { selectedOrderType = type }
+                            listOf(OrderType.DINE_IN to "Makan di tempat", OrderType.TAKEAWAY to "Bungkus", OrderType.DELIVERY to "Diantar").forEach { (type, label) ->
+                                OptionChip(label, selectedOrderType == type, enabled = !isProcessing) { selectedOrderType = type }
                             }
                         }
-                        if (selectedOrderType == OrderType.DINE_IN) OutlinedTextField(tableNumber, { tableNumber = it }, label = { Text("Nomor meja") }, enabled = !isProcessing, modifier = Modifier.fillMaxWidth())
+                        if (settings.isTableEnabled && selectedOrderType == OrderType.DINE_IN) OutlinedTextField(tableNumber, { tableNumber = it }, label = { Text("Nomor meja") }, enabled = !isProcessing, modifier = Modifier.fillMaxWidth())
                     }
                     OutlinedTextField(orderNote, { orderNote = it }, label = { Text("Catatan pesanan (opsional)") }, enabled = !isProcessing, modifier = Modifier.fillMaxWidth())
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
