@@ -1,6 +1,7 @@
 package com.rising.pos.domain.repository
 
 import com.rising.pos.core.database.entity.CategoryEntity
+import com.rising.pos.core.database.entity.ModifierEntity
 import com.rising.pos.core.database.entity.ProductEntity
 import com.rising.pos.core.database.entity.ProductVariantEntity
 import com.rising.pos.core.database.entity.ProductWithCategory
@@ -18,11 +19,22 @@ interface ProductRepository {
     suspend fun getProductById(id: String): ProductEntity?
     fun getProductDetails(id: String): Flow<ProductWithVariants?>
     suspend fun getVariantsByProductId(productId: String): List<ProductVariantEntity>
-    suspend fun saveProduct(product: ProductEntity, variants: List<ProductVariantEntity> = emptyList())
+    suspend fun saveProduct(
+        product: ProductEntity,
+        variants: List<ProductVariantEntity> = emptyList(),
+        modifierIds: List<String> = emptyList()
+    )
     suspend fun updateStock(productId: String, newStock: Double)
     suspend fun deleteProduct(product: ProductEntity)
     fun getLowStockProducts(): Flow<List<ProductEntity>>
     fun getProductCount(): Flow<Int>
+
+    // Modifier / Topping
+    fun getAllModifiers(): Flow<List<ModifierEntity>>
+    suspend fun getModifiersByProductId(productId: String): List<ModifierEntity>
+    suspend fun saveModifier(modifier: ModifierEntity)
+    suspend fun deleteModifier(modifier: ModifierEntity)
+    suspend fun seedDefaultModifiersIfEmpty()
 
     // Category
     fun getAllCategories(): Flow<List<CategoryEntity>>

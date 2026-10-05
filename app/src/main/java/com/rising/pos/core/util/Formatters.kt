@@ -104,9 +104,16 @@ object ReceiptFormatter {
         }
         sb.appendLine(line('='))
         sb.appendLine(twoColumns("TOTAL:", CurrencyFormatter.format(trx.grandTotal, settings.currencySymbol)))
-        sb.appendLine(twoColumns("Metode Bayar:", trx.paymentMethod.name))
-        sb.appendLine(twoColumns("Bayar:", CurrencyFormatter.format(trx.paymentAmount, settings.currencySymbol)))
-        sb.appendLine(twoColumns("Kembalian:", CurrencyFormatter.format(trx.changeAmount, settings.currencySymbol)))
+        if (trx.splitPaymentMethod != null && trx.splitAmount > 0) {
+            val amount1 = (trx.grandTotal - trx.splitAmount).coerceAtLeast(0L)
+            sb.appendLine(twoColumns("Metode Bayar:", "${trx.paymentMethod.name} + ${trx.splitPaymentMethod.name}"))
+            sb.appendLine(twoColumns("Bayar (${trx.paymentMethod.name}):", CurrencyFormatter.format(amount1, settings.currencySymbol)))
+            sb.appendLine(twoColumns("Bayar (${trx.splitPaymentMethod.name}):", CurrencyFormatter.format(trx.splitAmount, settings.currencySymbol)))
+        } else {
+            sb.appendLine(twoColumns("Metode Bayar:", trx.paymentMethod.name))
+            sb.appendLine(twoColumns("Bayar:", CurrencyFormatter.format(trx.paymentAmount, settings.currencySymbol)))
+            sb.appendLine(twoColumns("Kembalian:", CurrencyFormatter.format(trx.changeAmount, settings.currencySymbol)))
+        }
 
         sb.appendLine(line('-'))
         if (settings.footerNote.isNotEmpty()) {

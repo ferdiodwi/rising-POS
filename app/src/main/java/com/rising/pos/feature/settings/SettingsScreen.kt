@@ -22,12 +22,14 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.CloudUpload
+import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.CreditCard
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Description
@@ -43,6 +45,7 @@ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.TableRestaurant
+import com.rising.pos.feature.pos.components.TableFloorDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -108,6 +111,8 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
+    val tables by viewModel.tables.collectAsState()
+    val syncPendingCount by viewModel.syncPendingCount.collectAsState()
 
     // State dialog modular
     var isStoreProfileDialogOpen by remember { mutableStateOf(false) }
@@ -216,6 +221,15 @@ fun SettingsScreen(
                         )
                     }
                 )
+                if (settings.isTableEnabled) {
+                    SettingsDivider()
+                    SettingNavigationItem(
+                        title = "Kelola Meja Restoran",
+                        subtitle = "Atur nomor meja dan kapasitas (${tables.size} meja)",
+                        icon = Icons.Outlined.TableRestaurant,
+                        onClick = viewModel::openTableManagement
+                    )
+                }
                 SettingsDivider()
                 SettingSwitchItem(
                     title = "Topping & Modifier",
@@ -409,6 +423,61 @@ fun SettingsScreen(
                     icon = Icons.Outlined.CloudUpload,
                     onClick = { isExportReportDialogOpen = true }
                 )
+            }
+
+            // ── Section: Sinkronisasi Cloud (Offline-First) ──────────────────
+            SettingsSectionTitle("Sinkronisasi Cloud")
+            SettingsGroupCard {
+                SettingNavigationItem(
+                    title = "Sinkronkan Sekarang",
+                    subtitle = if (syncPendingCount > 0) {
+                        "$syncPendingCount data antrean menunggu sinkron ke cloud"
+                    } else {
+                        "Semua data lokal telah tersinkron ke cloud"
+                    },
+                    icon = Icons.Outlined.Sync,
+                    isLoading = uiState.isSyncing,
+                    onClick = {
+                        if (!uiState.isSyncing) viewModel.syncNow()
+                    }
+                )
+            }
+
+            uiState.syncStatusMessage?.let { msg ->
+                val isSuccess = msg.contains("Berhasil", ignoreCase = true) || msg.contains("tersinkron", ignoreCase = true)
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isSuccess) SuccessGreenContainer else DangerRedContainer
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = msg,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (isSuccess) SuccessGreen else DangerRed,
+                            modifier = Modifier.weight(1f)
+                        )
+                        IconButton(
+                            onClick = viewModel::dismissSyncMessage,
+                            modifier = Modifier.size(24.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Tutup",
+                                tint = Slate500,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
             }
 
             // Feedback status pemulihan / cadangan jika ada pesan
@@ -654,6 +723,21 @@ fun SettingsScreen(
         },
         onDismiss = viewModel::dismissUpdate
     )
+
+    if (uiState.isTableManagementDialogOpen) {
+        TableFloorDialog(
+            tables = tables,
+            heldOrders = emptyList(),
+            isSelectionMode = false,
+            currencySymbol = settings.currencySymbol,
+            onDismiss = viewModel::closeTableManagement,
+            onSelectTable = { },
+            onSaveTable = viewModel::saveTable,
+            onDeleteTable = viewModel::deleteTable,
+            onToggleOccupied = viewModel::toggleTableOccupied,
+            onSeedDefaultTables = viewModel::seedDefaultTables
+        )
+    }
 }
 
 // ── Komponen UI Modern (Mirip Referensi Gambar) ──────────────────────────────

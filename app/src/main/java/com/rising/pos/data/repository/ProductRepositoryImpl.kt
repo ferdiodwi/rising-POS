@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import com.rising.pos.core.database.entity.ModifierEntity
+import com.rising.pos.core.database.entity.ProductModifierCrossRef
+
 @Singleton
 class ProductRepositoryImpl @Inject constructor(
     private val productDao: ProductDao,
@@ -45,7 +48,15 @@ class ProductRepositoryImpl @Inject constructor(
     override suspend fun getVariantsByProductId(productId: String): List<ProductVariantEntity> =
         productDao.getVariantsByProductIdSync(productId)
 
-    override suspend fun saveProduct(product: ProductEntity, variants: List<ProductVariantEntity>) {
+    suspend fun saveProduct(product: ProductEntity, variants: List<ProductVariantEntity>) {
+        saveProduct(product, variants, emptyList())
+    }
+
+    override suspend fun saveProduct(
+        product: ProductEntity,
+        variants: List<ProductVariantEntity>,
+        modifierIds: List<String>
+    ) {
         val existing = productDao.getProductById(product.id)
         if (existing != null) {
             // PENTING: gunakan UPDATE, bukan INSERT OR REPLACE.
@@ -62,6 +73,18 @@ class ProductRepositoryImpl @Inject constructor(
             productDao.deleteVariantsByProductId(product.id)
             productDao.insertVariants(variants)
         }
+        
+        // Sync product modifier cross references
+        productDao.deleteProductModifierCrossRefs(product.id)
+        if (modifierIds.isNotEmpty()) {
+            val crossRefs = modifierIds.map { modId ->
+                ProductModifierCrossRef(
+                    productId = product.id,
+                    modifierId = modId
+                )
+            }
+            productDao.insertProductModifierCrossRefs(crossRefs)
+        }
     }
 
     override suspend fun updateStock(productId: String, newStock: Double) {
@@ -75,6 +98,80 @@ class ProductRepositoryImpl @Inject constructor(
     override fun getLowStockProducts(): Flow<List<ProductEntity>> = productDao.getLowStockProducts()
 
     override fun getProductCount(): Flow<Int> = productDao.getProductCount()
+
+    override fun getAllModifiers(): Flow<List<ModifierEntity>> = productDao.getAllModifiers()
+
+    override suspend fun getModifiersByProductId(productId: String): List<ModifierEntity> =
+        productDao.getModifiersByProductIdSync(productId)
+
+    override suspend fun saveModifier(modifier: ModifierEntity) {
+        val existing = productDao.getModifierById(modifier.id)
+        if (existing != null) {
+            productDao.updateModifier(modifier)
+        } else {
+            productDao.insertModifier(modifier)
+        }
+    }
+
+    override suspend fun deleteModifier(modifier: ModifierEntity) {
+        productDao.deleteModifier(modifier)
+    }
+
+    override suspend fun seedDefaultModifiersIfEmpty() {
+        if (productDao.countModifiers() == 0) {
+            val defaultModifiers = listOf(
+                ModifierEntity(
+                    id = "mod-extra-shot",
+                    name = "Extra Espresso Shot",
+                    price = 5000,
+                    isRequired = false,
+                    isMultipleSelect = true,
+                    isActive = true
+                ),
+                ModifierEntity(
+                    id = "mod-less-sugar",
+                    name = "Less Sugar",
+                    price = 0,
+                    isRequired = false,
+                    isMultipleSelect = false,
+                    isActive = true
+                ),
+                ModifierEntity(
+                    id = "mod-extra-sugar",
+                    name = "Extra Sugar",
+                    price = 0,
+                    isRequired = false,
+                    isMultipleSelect = false,
+                    isActive = true
+                ),
+                ModifierEntity(
+                    id = "mod-boba",
+                    name = "Topping Boba",
+                    price = 4000,
+                    isRequired = false,
+                    isMultipleSelect = true,
+                    isActive = true
+                ),
+                ModifierEntity(
+                    id = "mod-cheese-slice",
+                    name = "Keju Slice / Cheese",
+                    price = 3000,
+                    isRequired = false,
+                    isMultipleSelect = true,
+                    isActive = true
+                ),
+                ModifierEntity(
+                    id = "mod-sambal-extra",
+                    name = "Sambal Ekstra",
+                    price = 2000,
+                    isRequired = false,
+                    isMultipleSelect = true,
+                    isActive = true
+                )
+            )
+            productDao.insertModifiers(defaultModifiers)
+        }
+    }
 
     override fun getAllCategories(): Flow<List<CategoryEntity>> = categoryDao.getAllCategories()
 

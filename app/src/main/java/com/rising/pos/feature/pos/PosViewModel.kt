@@ -6,6 +6,7 @@ import com.rising.pos.core.database.entity.CategoryEntity
 import com.rising.pos.core.database.entity.CustomerEntity
 import com.rising.pos.core.database.entity.ProductEntity
 import com.rising.pos.core.database.entity.ProductWithCategory
+import com.rising.pos.core.database.entity.RestaurantTableEntity
 import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.datastore.AppPreferences
 import com.rising.pos.core.datastore.BusinessSettings
@@ -15,6 +16,7 @@ import com.rising.pos.domain.model.CartItem
 import com.rising.pos.domain.model.CartState
 import com.rising.pos.domain.repository.CustomerRepository
 import com.rising.pos.domain.repository.ProductRepository
+import com.rising.pos.domain.repository.TableRepository
 import com.rising.pos.domain.repository.TransactionRepository
 import com.rising.pos.core.printer.BluetoothPrinterManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -49,7 +51,10 @@ data class PosUiState(
     val printMessage: String? = null,
     val printErrorMessage: String? = null,
     val selectedProductForVariants: ProductEntity? = null,
-    val availableVariants: List<ProductVariantEntity> = emptyList()
+    val availableVariants: List<ProductVariantEntity> = emptyList(),
+    val availableModifiers: List<ModifierEntity> = emptyList(),
+    val isTableFloorDialogOpen: Boolean = false,
+    val isTablePickerMode: Boolean = false
 )
 
 sealed interface ScanFeedback {
@@ -69,6 +74,7 @@ class PosViewModel @Inject constructor(
     private val productRepository: ProductRepository,
     private val transactionRepository: TransactionRepository,
     private val customerRepository: CustomerRepository,
+    private val tableRepository: TableRepository,
     private val appPreferences: AppPreferences,
     private val printerManager: BluetoothPrinterManager
 ) : ViewModel() {
@@ -93,6 +99,13 @@ class PosViewModel @Inject constructor(
 
     val heldTransactions: StateFlow<List<TransactionWithDetails>> =
         transactionRepository.getHeldTransactions().stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    val tables: StateFlow<List<RestaurantTableEntity>> =
+        tableRepository.getAllTables().stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
@@ -157,11 +170,13 @@ class PosViewModel @Inject constructor(
         val matched = productRepository.getProductByBarcode(trimmed)
         if (matched != null) {
             val variants = productRepository.getVariantsByProductId(matched.product.id)
-            if (variants.isNotEmpty() && settings.value.isModifierEnabled) {
+            val modifiers = productRepository.getModifiersByProductId(matched.product.id)
+            if ((variants.isNotEmpty() || modifiers.isNotEmpty()) && settings.value.isModifierEnabled) {
                 _uiState.update {
                     it.copy(
                         selectedProductForVariants = matched.product,
-                        availableVariants = variants
+                        availableVariants = variants,
+                        availableModifiers = modifiers
                     )
                 }
                 return ScanFeedback.NeedsVariant(matched.product, variants)
@@ -202,11 +217,13 @@ class PosViewModel @Inject constructor(
                 return@launch
             }
             val variants = productRepository.getVariantsByProductId(product.id)
-            if (variants.isNotEmpty()) {
+            val modifiers = productRepository.getModifiersByProductId(product.id)
+            if (variants.isNotEmpty() || modifiers.isNotEmpty()) {
                 _uiState.update {
                     it.copy(
                         selectedProductForVariants = product,
-                        availableVariants = variants
+                        availableVariants = variants,
+                        availableModifiers = modifiers
                     )
                 }
             } else {
@@ -216,9 +233,20 @@ class PosViewModel @Inject constructor(
     }
 
     fun addProductVariantToCart(product: ProductEntity, variant: ProductVariantEntity) {
+        addProductWithCustomizationsToCart(product, variant, emptyList())
+    }
+
+    fun addProductWithCustomizationsToCart(
+        product: ProductEntity,
+        variant: ProductVariantEntity?,
+        modifiers: List<ModifierEntity>
+    ) {
         _uiState.update { state ->
+            val modIds = modifiers.map { it.id }.toSet()
             val existingItemIndex = state.cart.items.indexOfFirst {
-                it.product.id == product.id && it.variant?.id == variant.id && it.selectedModifiers.isEmpty()
+                it.product.id == product.id &&
+                it.variant?.id == variant?.id &&
+                it.selectedModifiers.map { m -> m.id }.toSet() == modIds
             }
 
             val updatedItems = if (existingItemIndex != -1) {
@@ -231,6 +259,7 @@ class PosViewModel @Inject constructor(
                 state.cart.items + CartItem(
                     product = product,
                     variant = variant,
+                    selectedModifiers = modifiers,
                     quantity = 1.0
                 )
             }
@@ -238,7 +267,8 @@ class PosViewModel @Inject constructor(
             state.copy(
                 cart = state.cart.copy(items = updatedItems),
                 selectedProductForVariants = null,
-                availableVariants = emptyList()
+                availableVariants = emptyList(),
+                availableModifiers = emptyList()
             )
         }
     }
@@ -247,7 +277,8 @@ class PosViewModel @Inject constructor(
         _uiState.update {
             it.copy(
                 selectedProductForVariants = null,
-                availableVariants = emptyList()
+                availableVariants = emptyList(),
+                availableModifiers = emptyList()
             )
         }
     }
@@ -377,7 +408,9 @@ class PosViewModel @Inject constructor(
         paymentMethod: PaymentMethod,
         cashPaidAmount: Long,
         orderType: OrderType = _uiState.value.cart.orderType,
-        note: String? = _uiState.value.cart.note
+        note: String? = _uiState.value.cart.note,
+        splitPaymentMethod: PaymentMethod? = null,
+        splitAmount: Long = 0L
     ) {
         val currentSettings = settings.value
         val currentCart = _uiState.value.cart.copy(
@@ -392,7 +425,13 @@ class PosViewModel @Inject constructor(
             serviceChargePercentage = currentSettings.serviceChargePercentage
         )
 
-        val paidAmount = if (paymentMethod == PaymentMethod.CASH) cashPaidAmount else calc.grandTotal
+        val paidAmount = if (splitPaymentMethod != null) {
+            cashPaidAmount
+        } else if (paymentMethod == PaymentMethod.CASH) {
+            cashPaidAmount
+        } else {
+            calc.grandTotal
+        }
 
         _uiState.update { it.copy(isProcessingPayment = true, paymentErrorMessage = null) }
 
@@ -408,7 +447,9 @@ class PosViewModel @Inject constructor(
                 isTaxInclusive = currentSettings.isTaxInclusive,
                 isServiceChargeEnabled = currentSettings.isServiceChargeEnabled,
                 serviceChargePercentage = currentSettings.serviceChargePercentage,
-                isStockTrackingEnabled = currentSettings.isStockTrackingEnabled
+                isStockTrackingEnabled = currentSettings.isStockTrackingEnabled,
+                splitPaymentMethod = splitPaymentMethod,
+                splitAmount = splitAmount
             )
 
             result.fold(
@@ -560,6 +601,12 @@ class PosViewModel @Inject constructor(
                 )
             }
 
+            val tableFromNote = heldTrx.transaction.note?.let { n ->
+                if (n.contains("Meja: ")) n.substringAfter("Meja: ").substringBefore("\n").substringBefore(",").trim()
+                else if (n.startsWith("Meja ", ignoreCase = true)) n.trim()
+                else null
+            }
+
             _uiState.update {
                 it.copy(
                     cart = CartState(
@@ -567,10 +614,12 @@ class PosViewModel @Inject constructor(
                         discount = heldTrx.transaction.discount,
                         discountReason = heldTrx.transaction.discountReason,
                         orderType = heldTrx.transaction.orderType,
+                        tableNumber = tableFromNote,
                         note = heldTrx.transaction.note
                     ),
                     isHeldOrdersListDialogOpen = false,
-                    isHoldDialogOpen = false
+                    isHoldDialogOpen = false,
+                    isTableFloorDialogOpen = false
                 )
             }
 
@@ -581,6 +630,49 @@ class PosViewModel @Inject constructor(
     fun deleteHeldOrder(heldTrxId: String) {
         viewModelScope.launch {
             transactionRepository.deleteHeldTransaction(heldTrxId)
+        }
+    }
+
+    fun openTableFloorDialog(isPickerMode: Boolean = false) {
+        _uiState.update { it.copy(isTableFloorDialogOpen = true, isTablePickerMode = isPickerMode) }
+    }
+
+    fun closeTableFloorDialog() {
+        _uiState.update { it.copy(isTableFloorDialogOpen = false, isTablePickerMode = false) }
+    }
+
+    fun setTableNumber(tableNumber: String?) {
+        _uiState.update {
+            it.copy(
+                cart = it.cart.copy(
+                    tableNumber = tableNumber,
+                    orderType = if (tableNumber != null) OrderType.DINE_IN else it.cart.orderType
+                )
+            )
+        }
+    }
+
+    fun saveTable(table: RestaurantTableEntity) {
+        viewModelScope.launch {
+            tableRepository.saveTable(table)
+        }
+    }
+
+    fun deleteTable(table: RestaurantTableEntity) {
+        viewModelScope.launch {
+            tableRepository.deleteTable(table)
+        }
+    }
+
+    fun toggleTableOccupied(tableNumber: String, isOccupied: Boolean) {
+        viewModelScope.launch {
+            tableRepository.updateOccupiedStatus(tableNumber, isOccupied)
+        }
+    }
+
+    fun seedDefaultTables() {
+        viewModelScope.launch {
+            tableRepository.seedDefaultTablesIfEmpty()
         }
     }
 }

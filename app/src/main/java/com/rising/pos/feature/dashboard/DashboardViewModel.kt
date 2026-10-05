@@ -7,6 +7,8 @@ import com.rising.pos.core.database.entity.TopSellingProduct
 import com.rising.pos.core.datastore.AppPreferences
 import com.rising.pos.core.datastore.BusinessSettings
 import com.rising.pos.core.model.PaymentMethod
+import com.rising.pos.core.printer.BluetoothPrinterManager
+import com.rising.pos.core.printer.ReportPrintData
 import com.rising.pos.domain.repository.ExpenseRepository
 import com.rising.pos.domain.repository.ProductRepository
 import com.rising.pos.domain.repository.TransactionRepository
@@ -19,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -60,7 +63,8 @@ class DashboardViewModel @Inject constructor(
     private val transactionRepository: TransactionRepository,
     private val productRepository: ProductRepository,
     private val expenseRepository: ExpenseRepository,
-    private val appPreferences: AppPreferences
+    private val appPreferences: AppPreferences,
+    private val printerManager: BluetoothPrinterManager
 ) : ViewModel() {
 
     val settings: StateFlow<BusinessSettings> = appPreferences.settingsFlow.stateIn(
@@ -68,6 +72,53 @@ class DashboardViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = BusinessSettings()
     )
+
+    private val _isPrinting = MutableStateFlow(false)
+    val isPrinting: StateFlow<Boolean> = _isPrinting.asStateFlow()
+
+    private val _printMessage = MutableStateFlow<String?>(null)
+    val printMessage: StateFlow<String?> = _printMessage.asStateFlow()
+
+    fun printReport() {
+        val currentSettings = settings.value
+        if (currentSettings.printerMacAddress.isBlank()) {
+            _printMessage.value = "Printer thermal belum dipilih di Pengaturan."
+            return
+        }
+
+        val m = metrics.value
+        val reportData = ReportPrintData(
+            title = "REKAP PENJUALAN",
+            dateRangeText = m.dateRangeText.ifBlank { selectedPeriod.value.label },
+            grossSales = m.grossSales,
+            transactionCount = m.transactionCount,
+            averageTicketSize = m.averageTicketSize,
+            expenses = m.expenses,
+            netProfit = m.netProfit,
+            paymentSales = m.paymentSales,
+            topSellingProducts = m.topSellingProducts
+        )
+
+        viewModelScope.launch {
+            _isPrinting.value = true
+            _printMessage.value = null
+            val result = printerManager.printReport(
+                macAddress = currentSettings.printerMacAddress,
+                reportData = reportData,
+                settings = currentSettings
+            )
+            _isPrinting.value = false
+            _printMessage.value = if (result.isSuccess) {
+                "Laporan berhasil dicetak ke printer."
+            } else {
+                result.exceptionOrNull()?.localizedMessage ?: "Gagal mencetak laporan"
+            }
+        }
+    }
+
+    fun clearPrintMessage() {
+        _printMessage.value = null
+    }
 
     private val _selectedPeriod = MutableStateFlow(DashboardPeriod.LAST_7_DAYS)
     val selectedPeriod: StateFlow<DashboardPeriod> = _selectedPeriod.asStateFlow()
@@ -225,8 +276,18 @@ class DashboardViewModel @Inject constructor(
                         }
                     }
 
-                    val paymentBreakdown = completed.groupBy { it.transaction.paymentMethod }
-                        .mapValues { (_, entries) -> entries.sumOf { it.transaction.grandTotal } }
+                    val breakdown = mutableMapOf<PaymentMethod, Long>()
+                    for (item in completed) {
+                        val trx = item.transaction
+                        if (trx.splitPaymentMethod != null && trx.splitAmount > 0) {
+                            val amount1 = (trx.grandTotal - trx.splitAmount).coerceAtLeast(0L)
+                            breakdown[trx.paymentMethod] = (breakdown[trx.paymentMethod] ?: 0L) + amount1
+                            breakdown[trx.splitPaymentMethod] = (breakdown[trx.splitPaymentMethod] ?: 0L) + trx.splitAmount
+                        } else {
+                            breakdown[trx.paymentMethod] = (breakdown[trx.paymentMethod] ?: 0L) + trx.grandTotal
+                        }
+                    }
+                    val paymentBreakdown = breakdown.toMap()
 
                     val firstDate = if (period == DashboardPeriod.LAST_7_DAYS) sevenDays.first() else Instant.ofEpochMilli(startTime).atZone(zone).toLocalDate()
                     val lastDate = if (period == DashboardPeriod.LAST_7_DAYS) sevenDays.last() else Instant.ofEpochMilli(endTime).atZone(zone).toLocalDate()

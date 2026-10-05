@@ -33,10 +33,52 @@ import com.rising.pos.ui.components.*
 import com.rising.pos.ui.theme.*
 
 /** Reference payment layout with shared order totals and checkout callback. */
+import com.rising.pos.core.database.entity.RestaurantTableEntity
+
+@Composable
+fun CheckoutDialog(
+    cart: CartState,
+    settings: BusinessSettings,
+    isProcessing: Boolean,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+    onConfirmPayment: (
+        paymentMethod: PaymentMethod,
+        paidAmount: Long,
+        orderType: OrderType,
+        note: String?
+    ) -> Unit
+) {
+    CheckoutDialog(
+        cart = cart,
+        settings = settings,
+        isProcessing = isProcessing,
+        errorMessage = errorMessage,
+        onDismiss = onDismiss,
+        tables = emptyList(),
+        onConfirmPayment = { method, paid, orderType, note, _, _ ->
+            onConfirmPayment(method, paid, orderType, note)
+        }
+    )
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun CheckoutDialog(cart: CartState, settings: BusinessSettings, isProcessing: Boolean, errorMessage: String?,
-    onDismiss: () -> Unit, onConfirmPayment: (PaymentMethod, Long, OrderType, String?) -> Unit
+fun CheckoutDialog(
+    cart: CartState,
+    settings: BusinessSettings,
+    isProcessing: Boolean,
+    errorMessage: String?,
+    onDismiss: () -> Unit,
+    tables: List<RestaurantTableEntity> = emptyList(),
+    onConfirmPayment: (
+        paymentMethod: PaymentMethod,
+        paidAmount: Long,
+        orderType: OrderType,
+        note: String?,
+        splitPaymentMethod: PaymentMethod?,
+        splitAmount: Long
+    ) -> Unit
 ) = CashierTheme {
     val calc = cart.calculateTotals(settings.isTaxEnabled, settings.taxPercentage, settings.isTaxInclusive,
         settings.isServiceChargeEnabled, settings.serviceChargePercentage)
@@ -97,7 +139,29 @@ fun CheckoutDialog(cart: CartState, settings: BusinessSettings, isProcessing: Bo
                                 OptionChip(label, selectedOrderType == type, enabled = !isProcessing) { selectedOrderType = type }
                             }
                         }
-                        if (settings.isTableEnabled && selectedOrderType == OrderType.DINE_IN) OutlinedTextField(tableNumber, { tableNumber = it }, label = { Text("Nomor meja") }, enabled = !isProcessing, modifier = Modifier.fillMaxWidth())
+                        if (settings.isTableEnabled && selectedOrderType == OrderType.DINE_IN) {
+                            if (tables.isNotEmpty()) {
+                                Text("Pilih Meja", style = MaterialTheme.typography.labelSmall, color = Slate500)
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    tables.forEach { tbl ->
+                                        FilterChip(
+                                            selected = tableNumber == tbl.tableNumber,
+                                            onClick = { tableNumber = tbl.tableNumber },
+                                            label = { Text(tbl.tableNumber + if (tbl.isOccupied) " (Terisi)" else "") },
+                                            enabled = !isProcessing
+                                        )
+                                    }
+                                }
+                            }
+                            OutlinedTextField(
+                                tableNumber,
+                                { tableNumber = it },
+                                label = { Text("Nomor meja") },
+                                placeholder = { Text("Contoh: Meja 01") },
+                                enabled = !isProcessing,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                     OutlinedTextField(orderNote, { orderNote = it }, label = { Text("Catatan pesanan (opsional)") }, enabled = !isProcessing, modifier = Modifier.fillMaxWidth())
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -176,7 +240,11 @@ fun CheckoutDialog(cart: CartState, settings: BusinessSettings, isProcessing: Bo
                 }
                 if (orderNote.isNotBlank()) { if (isNotEmpty()) append(" • "); append(orderNote.trim()) }
             }.ifBlank { null }
-            onConfirmPayment(if (isSplitPayment) splitMethod1 else selectedMethod, paid, selectedOrderType, note)
+            if (isSplitPayment) {
+                onConfirmPayment(splitMethod1, splitAmount1, selectedOrderType, note, splitMethod2, splitAmount2)
+            } else {
+                onConfirmPayment(selectedMethod, paid, selectedOrderType, note, null, 0L)
+            }
         }, enabled = canSubmit, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp), shape = RoundedCornerShape(6.dp)) {
             if (isProcessing) CircularProgressIndicator(Modifier.size(20.dp), color = colors.onPrimary, strokeWidth = 2.dp)
             else { Text("Selesaikan pembayaran", fontSize = 15.sp, fontWeight = FontWeight.SemiBold); Spacer(Modifier.width(10.dp)); Icon(Icons.AutoMirrored.Filled.ArrowForward, null, Modifier.size(22.dp)) }

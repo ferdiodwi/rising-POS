@@ -40,7 +40,7 @@ import com.rising.pos.core.database.entity.TransactionItemModifierEntity
         RestaurantTableEntity::class,
         SyncQueueEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = true
 )
 abstract class PosDatabase : RoomDatabase() {

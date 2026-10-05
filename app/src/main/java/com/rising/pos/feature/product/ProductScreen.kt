@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,8 +37,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
+import com.rising.pos.core.database.entity.ModifierEntity
 import androidx.compose.material.icons.outlined.BakeryDining
 import androidx.compose.material.icons.outlined.Coffee
 import androidx.compose.material.icons.outlined.DeleteOutline
@@ -155,6 +158,7 @@ fun ProductScreen(
     val uiState by viewModel.uiState.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val categories by viewModel.categories.collectAsState()
+    val modifiers by viewModel.modifiers.collectAsState()
     val products by viewModel.filteredProducts.collectAsState()
 
     var productToDelete by remember { mutableStateOf<ProductWithCategory?>(null) }
@@ -499,10 +503,13 @@ fun ProductScreen(
                 form = uiState.formState,
                 categories = categories,
                 currencySymbol = settings.currencySymbol,
+                modifiers = modifiers,
                 onFormChange = viewModel::updateForm,
                 onAddVariant = viewModel::addVariant,
                 onRemoveVariant = viewModel::removeVariant,
                 onUpdateVariant = viewModel::updateVariant,
+                onToggleModifier = viewModel::toggleModifierSelection,
+                onOpenAddModifier = viewModel::openModifierDialog,
                 onDismiss = viewModel::closeForm,
                 onOpenAddCategory = viewModel::openCategoryDialog,
                 onSave = viewModel::saveProduct
@@ -545,6 +552,59 @@ fun ProductScreen(
             },
             dismissButton = {
                 TextButton(onClick = viewModel::closeCategoryDialog) {
+                    Text("Batal", color = Slate700)
+                }
+            }
+        )
+    }
+
+    // ── Dialog Tambah Topping / Modifier Cepat ───────────────────────────────
+    if (uiState.isModifierDialogOpen) {
+        AlertDialog(
+            onDismissRequest = viewModel::closeModifierDialog,
+            shape = RoundedCornerShape(16.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+            title = {
+                Text(
+                    text = "Tambah Topping / Modifier",
+                    style = TextStyle(fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = uiState.newModifierName,
+                        onValueChange = { viewModel.updateNewModifier(it, uiState.newModifierPrice) },
+                        label = { Text("Nama Topping / Tambahan") },
+                        placeholder = { Text("Contoh: Boba Brown Sugar") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                    OutlinedTextField(
+                        value = uiState.newModifierPrice,
+                        onValueChange = { viewModel.updateNewModifier(uiState.newModifierName, it.filter { ch -> ch.isDigit() }) },
+                        label = { Text("Harga Tambahan (Rp)") },
+                        placeholder = { Text("0 jika gratis") },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(10.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = viewModel::saveModifier,
+                    enabled = uiState.newModifierName.isNotBlank(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
+                ) {
+                    Text("Simpan", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::closeModifierDialog) {
                     Text("Batal", color = Slate700)
                 }
             }
@@ -797,10 +857,13 @@ private fun ProductFormScreen(
     form: ProductFormState,
     categories: List<CategoryEntity>,
     currencySymbol: String,
+    modifiers: List<ModifierEntity>,
     onFormChange: (ProductFormState) -> Unit,
     onAddVariant: () -> Unit,
     onRemoveVariant: (String) -> Unit,
     onUpdateVariant: (String, String, String, String) -> Unit,
+    onToggleModifier: (String) -> Unit,
+    onOpenAddModifier: () -> Unit,
     onDismiss: () -> Unit,
     onOpenAddCategory: () -> Unit,
     onSave: () -> Unit
@@ -1493,6 +1556,101 @@ private fun ProductFormScreen(
                                         color = BrandBlue,
                                         fontWeight = FontWeight.SemiBold
                                     )
+                                }
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+                            HorizontalDivider(color = Slate200, thickness = 1.dp)
+                            Spacer(Modifier.height(16.dp))
+
+                            // ── Topping & Modifier Tambahan (F&B) ────────────
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Topping & Tambahan (Modifier)",
+                                        style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
+                                    )
+                                    Text(
+                                        text = "Pilihan topping saat kasir memilih menu ini",
+                                        style = TextStyle(fontSize = 12.sp, color = Slate500)
+                                    )
+                                }
+                                TextButton(onClick = onOpenAddModifier) {
+                                    Icon(
+                                        imageVector = Icons.Default.Add,
+                                        contentDescription = null,
+                                        tint = BrandBlue,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                    Spacer(Modifier.width(4.dp))
+                                    Text(
+                                        text = "+ Baru",
+                                        style = TextStyle(fontSize = 13.sp, fontWeight = FontWeight.Bold, color = BrandBlue)
+                                    )
+                                }
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            if (modifiers.isEmpty()) {
+                                Text(
+                                    text = "Belum ada pilihan topping. Buat dengan klik tombol '+ Baru'.",
+                                    style = TextStyle(fontSize = 12.sp, color = Slate400)
+                                )
+                            } else {
+                                FlowRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    modifiers.forEach { mod ->
+                                        val isSelected = form.selectedModifierIds.contains(mod.id)
+                                        Surface(
+                                            onClick = { onToggleModifier(mod.id) },
+                                            shape = RoundedCornerShape(10.dp),
+                                            color = if (isSelected) BrandBlue.copy(alpha = 0.1f) else Slate50,
+                                            border = BorderStroke(
+                                                width = if (isSelected) 1.5.dp else 1.dp,
+                                                color = if (isSelected) BrandBlue else Slate200
+                                            )
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        tint = BrandBlue,
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                    Spacer(Modifier.width(6.dp))
+                                                }
+                                                Column {
+                                                    Text(
+                                                        text = mod.name,
+                                                        style = TextStyle(
+                                                            fontSize = 13.sp,
+                                                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                            color = if (isSelected) BrandBlue else Slate900
+                                                        )
+                                                    )
+                                                    Text(
+                                                        text = if (mod.price > 0) "+${CurrencyFormatter.format(mod.price, currencySymbol)}" else "Gratis / Opsi",
+                                                        style = TextStyle(
+                                                            fontSize = 11.sp,
+                                                            color = if (isSelected) BrandBlue else Slate500
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

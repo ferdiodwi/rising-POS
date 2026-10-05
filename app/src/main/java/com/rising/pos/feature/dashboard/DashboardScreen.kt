@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.ChevronRight
@@ -69,6 +70,16 @@ fun DashboardScreen(
     val snackbar = remember { SnackbarHostState() }
     val exportContent = rememberSaveable { mutableStateOf("") }
     var showDateRangePicker by remember { mutableStateOf(false) }
+
+    val isPrinting by viewModel.isPrinting.collectAsState()
+    val printMessage by viewModel.printMessage.collectAsState()
+
+    LaunchedEffect(printMessage) {
+        printMessage?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearPrintMessage()
+        }
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/csv")) { uri: Uri? ->
         if (uri != null) {
@@ -180,6 +191,25 @@ fun DashboardScreen(
                         fontSize = 14.sp,
                         color = Slate500
                     )
+                }
+                IconButton(
+                    onClick = { viewModel.printReport() },
+                    enabled = !isPrinting
+                ) {
+                    if (isPrinting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = PrimaryBlue,
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Print,
+                            contentDescription = "Cetak Rekap Laporan",
+                            tint = Slate900,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
                 IconButton(onClick = { triggerExport() }) {
                     Icon(
@@ -423,16 +453,17 @@ fun DashboardScreen(
 
             Spacer(Modifier.height(16.dp))
 
-            // Unduh Laporan Bottom Action Button
-            Box(
+            // Unduh Laporan & Cetak Rekap Bottom Action Buttons
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 OutlinedButton(
                     onClick = { triggerExport() },
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .weight(1f)
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     border = BorderStroke(1.5.dp, PrimaryBlue),
@@ -445,15 +476,57 @@ fun DashboardScreen(
                         Icons.Outlined.FileDownload,
                         contentDescription = null,
                         tint = PrimaryBlue,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(6.dp))
                     Text(
-                        text = "Unduh laporan",
-                        fontSize = 14.sp,
+                        text = "Unduh CSV",
+                        fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = PrimaryBlue
                     )
+                }
+
+                Button(
+                    onClick = { viewModel.printReport() },
+                    enabled = !isPrinting,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = PrimaryBlue,
+                        contentColor = Color.White
+                    )
+                ) {
+                    if (isPrinting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Mencetak...",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Print,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Cetak Rekap",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color.White
+                        )
+                    }
                 }
             }
 
@@ -576,10 +649,11 @@ private fun PaymentMethodList(
     currencySymbol: String
 ) {
     val items = listOf(
-        Triple(PaymentMethod.CASH, "Tunai", paymentSales[PaymentMethod.CASH] ?: 830_000L),
-        Triple(PaymentMethod.QRIS, "QRIS", paymentSales[PaymentMethod.QRIS] ?: 290_000L),
-        Triple(PaymentMethod.BANK_TRANSFER, "Transfer", paymentSales[PaymentMethod.BANK_TRANSFER] ?: 125_000L)
-    )
+        Triple(PaymentMethod.CASH, "Tunai", paymentSales[PaymentMethod.CASH] ?: 0L),
+        Triple(PaymentMethod.QRIS, "QRIS", paymentSales[PaymentMethod.QRIS] ?: 0L),
+        Triple(PaymentMethod.BANK_TRANSFER, "Transfer", paymentSales[PaymentMethod.BANK_TRANSFER] ?: 0L),
+        Triple(PaymentMethod.DEBIT_CARD, "Debit", paymentSales[PaymentMethod.DEBIT_CARD] ?: 0L)
+    ).filter { it.third > 0L || it.first == PaymentMethod.CASH || it.first == PaymentMethod.QRIS }
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
         items.forEach { (method, name, amount) ->

@@ -1,13 +1,27 @@
 package com.rising.pos.core.printer
 
+import com.rising.pos.core.database.entity.TopSellingProduct
 import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.datastore.BusinessSettings
+import com.rising.pos.core.model.PaymentMethod
 import com.rising.pos.core.util.CurrencyFormatter
 import java.io.ByteArrayOutputStream
 import java.nio.charset.Charset
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+data class ReportPrintData(
+    val title: String = "REKAP PENJUALAN",
+    val dateRangeText: String,
+    val grossSales: Long,
+    val transactionCount: Int,
+    val averageTicketSize: Long,
+    val expenses: Long,
+    val netProfit: Long,
+    val paymentSales: Map<PaymentMethod, Long>,
+    val topSellingProducts: List<TopSellingProduct> = emptyList()
+)
 
 class EscPosBuilder(
     private val charset: Charset = Charsets.ISO_8859_1
@@ -158,8 +172,14 @@ class EscPosBuilder(
             builder.twoColumns("TOTAL:", CurrencyFormatter.format(trx.grandTotal, settings.currencySymbol), paperWidthChars)
             builder.bold(false)
 
-            builder.twoColumns("Bayar (${trx.paymentMethod.name}):", CurrencyFormatter.format(trx.paymentAmount, settings.currencySymbol), paperWidthChars)
-            builder.twoColumns("Kembalian:", CurrencyFormatter.format(trx.changeAmount, settings.currencySymbol), paperWidthChars)
+            if (trx.splitPaymentMethod != null && trx.splitAmount > 0) {
+                val amount1 = (trx.grandTotal - trx.splitAmount).coerceAtLeast(0L)
+                builder.twoColumns("Bayar (${trx.paymentMethod.name}):", CurrencyFormatter.format(amount1, settings.currencySymbol), paperWidthChars)
+                builder.twoColumns("Bayar (${trx.splitPaymentMethod.name}):", CurrencyFormatter.format(trx.splitAmount, settings.currencySymbol), paperWidthChars)
+            } else {
+                builder.twoColumns("Bayar (${trx.paymentMethod.name}):", CurrencyFormatter.format(trx.paymentAmount, settings.currencySymbol), paperWidthChars)
+                builder.twoColumns("Kembalian:", CurrencyFormatter.format(trx.changeAmount, settings.currencySymbol), paperWidthChars)
+            }
 
             builder.divider('-', paperWidthChars)
 
@@ -198,6 +218,101 @@ class EscPosBuilder(
                 .textLine("Rising POS - Offline First")
                 .feed(4)
                 .cutPaper()
+
+            return builder.build()
+        }
+
+        fun buildReportBytes(
+            reportData: ReportPrintData,
+            settings: BusinessSettings
+        ): ByteArray {
+            val paperWidthChars = if (settings.printerPaperWidthMm >= 80) 48 else 32
+            val dateFormatter = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+            val printDateStr = dateFormatter.format(Date())
+
+            val builder = EscPosBuilder()
+
+            // 1. Store Header
+            builder.alignCenter()
+                .doubleWidthHeight(true)
+                .bold(true)
+                .textLine(settings.name.uppercase())
+                .doubleWidthHeight(false)
+                .bold(false)
+
+            if (settings.address.isNotEmpty()) {
+                builder.textLine(settings.address)
+            }
+            if (settings.phone.isNotEmpty()) {
+                builder.textLine("Telp: ${settings.phone}")
+            }
+
+            builder.divider('=', paperWidthChars)
+
+            // 2. Report Title & Meta
+            builder.alignCenter()
+                .bold(true)
+                .textLine(reportData.title)
+                .bold(false)
+
+            builder.alignLeft()
+            builder.twoColumns("Periode:", reportData.dateRangeText.ifBlank { "Hari ini" }, paperWidthChars)
+            builder.twoColumns("Dicetak:", printDateStr, paperWidthChars)
+            if (settings.cashierName.isNotBlank()) {
+                builder.twoColumns("Kasir:", settings.cashierName, paperWidthChars)
+            }
+
+            builder.divider('-', paperWidthChars)
+
+            // 3. Ringkasan Finansial
+            builder.bold(true)
+            builder.twoColumns("TOTAL PENJUALAN:", CurrencyFormatter.format(reportData.grossSales, settings.currencySymbol), paperWidthChars)
+            builder.bold(false)
+            builder.twoColumns("Total Transaksi:", "${reportData.transactionCount}", paperWidthChars)
+            builder.twoColumns("Rata-rata / Trx:", CurrencyFormatter.format(reportData.averageTicketSize, settings.currencySymbol), paperWidthChars)
+            if (reportData.expenses > 0) {
+                builder.twoColumns("Pengeluaran:", "-${CurrencyFormatter.format(reportData.expenses, settings.currencySymbol)}", paperWidthChars)
+            }
+            builder.bold(true)
+            builder.twoColumns("ESTIMASI LABA:", CurrencyFormatter.format(reportData.netProfit, settings.currencySymbol), paperWidthChars)
+            builder.bold(false)
+
+            builder.divider('-', paperWidthChars)
+
+            // 4. Rincian Metode Pembayaran
+            if (reportData.paymentSales.isNotEmpty()) {
+                builder.bold(true).textLine("METODE PEMBAYARAN:").bold(false)
+                reportData.paymentSales.forEach { (method, amount) ->
+                    val label = when (method) {
+                        PaymentMethod.CASH -> "Tunai"
+                        PaymentMethod.QRIS -> "QRIS"
+                        PaymentMethod.BANK_TRANSFER -> "Transfer"
+                        PaymentMethod.DEBIT_CARD -> "Debit"
+                        PaymentMethod.CREDIT_CARD -> "Kredit"
+                        PaymentMethod.E_WALLET -> "E-Wallet"
+                        PaymentMethod.OTHER -> "Lainnya"
+                    }
+                    builder.twoColumns("  $label", CurrencyFormatter.format(amount, settings.currencySymbol), paperWidthChars)
+                }
+                builder.divider('-', paperWidthChars)
+            }
+
+            // 5. Produk Terlaris (Top 5)
+            if (reportData.topSellingProducts.isNotEmpty()) {
+                builder.bold(true).textLine("PRODUK TERLARIS:").bold(false)
+                reportData.topSellingProducts.take(5).forEachIndexed { index, top ->
+                    val lineNum = "${index + 1}. ${top.productName} (${top.totalQty.toInt()}x)"
+                    val lineRevenue = CurrencyFormatter.format(top.totalRevenue, settings.currencySymbol)
+                    builder.twoColumns(lineNum, lineRevenue, paperWidthChars)
+                }
+                builder.divider('=', paperWidthChars)
+            }
+
+            // 6. Footer
+            builder.alignCenter()
+            builder.textLine("--- Laporan Kasir Rising POS ---")
+            builder.feed(4)
+            builder.cutPaper()
 
             return builder.build()
         }

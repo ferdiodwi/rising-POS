@@ -25,11 +25,14 @@ import com.rising.pos.ui.components.*
 import com.rising.pos.ui.theme.CashierTheme
 import com.rising.pos.ui.theme.posMoney
 
+import com.rising.pos.core.model.BusinessType
+
 @Composable
 fun CartView(cart: CartState, settings: BusinessSettings,
     onUpdateQuantity: (String, Double) -> Unit, onRemoveItem: (String) -> Unit,
     onClearCart: () -> Unit, onCheckout: () -> Unit, onHoldCart: () -> Unit = {},
     onOpenCustomerPicker: () -> Unit = {}, onRemoveCustomer: () -> Unit = {},
+    onOpenTablePicker: () -> Unit = {}, onRemoveTable: () -> Unit = {},
     onOpenDiscountDialog: () -> Unit = {}, modifier: Modifier = Modifier,
     onAddProducts: (() -> Unit)? = null, compact: Boolean = false
 ) = CashierTheme {
@@ -62,6 +65,23 @@ fun CartView(cart: CartState, settings: BusinessSettings,
                     }
                 }
                 HorizontalDivider()
+            }
+            if (settings.isTableEnabled || settings.type == BusinessType.CAFE) {
+                item {
+                    Surface(onClick = onOpenTablePicker, color = colors.surface) {
+                        Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.TableRestaurant, null, Modifier.size(28.dp), tint = colors.onSurfaceVariant)
+                            Spacer(Modifier.width(16.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(if (cart.tableNumber.isNullOrBlank()) "Pilih Meja" else cart.tableNumber, fontSize = 16.sp, lineHeight = 20.sp)
+                                Text(if (cart.tableNumber.isNullOrBlank()) "Dine-in / Makan di tempat" else "Makan di tempat", fontSize = 12.sp, lineHeight = 16.sp, color = colors.onSurfaceVariant)
+                            }
+                            if (!cart.tableNumber.isNullOrBlank()) IconButton(onClick = onRemoveTable) { Icon(Icons.Default.Close, "Lepas meja") }
+                            else Icon(Icons.Outlined.ChevronRight, null, tint = colors.onSurfaceVariant)
+                        }
+                    }
+                    HorizontalDivider()
+                }
             }
             if (cart.items.isEmpty()) item { Text("Keranjang masih kosong", Modifier.padding(vertical = 32.dp), color = colors.onSurfaceVariant) }
             items(cart.items, key = { it.cartItemId }) { item ->
@@ -136,6 +156,16 @@ private fun CartItemRow(item: CartItem, currencySymbol: String, onUpdateQuantity
                 Column(Modifier.weight(1f)) {
                     Text(item.product.name, fontSize = 15.sp, lineHeight = 19.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     item.variant?.let { Text(it.name, fontSize = 12.sp, lineHeight = 16.sp, color = colors.onSurfaceVariant) }
+                    if (item.selectedModifiers.isNotEmpty()) {
+                        Text(
+                            text = "+ " + item.selectedModifiers.joinToString(", ") { it.name },
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp,
+                            color = colors.primary,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
                 Spacer(Modifier.width(4.dp))
                 Text(posMoney(item.totalPrice, currencySymbol), fontSize = 16.sp, fontWeight = FontWeight.Bold)

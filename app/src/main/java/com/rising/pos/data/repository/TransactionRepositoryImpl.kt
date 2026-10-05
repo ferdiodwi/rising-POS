@@ -6,6 +6,7 @@ import com.rising.pos.core.database.dao.ProductDao
 import com.rising.pos.core.database.dao.StockMovementDao
 import com.rising.pos.core.database.dao.TransactionDao
 import com.rising.pos.core.database.entity.StockMovementEntity
+import com.rising.pos.core.database.entity.SyncQueueEntity
 import com.rising.pos.core.database.entity.TopSellingProduct
 import com.rising.pos.core.database.entity.TransactionEntity
 import com.rising.pos.core.database.entity.TransactionItemEntity
@@ -47,7 +48,9 @@ class TransactionRepositoryImpl @Inject constructor(
         isTaxInclusive: Boolean,
         isServiceChargeEnabled: Boolean,
         serviceChargePercentage: Double,
-        isStockTrackingEnabled: Boolean
+        isStockTrackingEnabled: Boolean,
+        splitPaymentMethod: PaymentMethod?,
+        splitAmount: Long
     ): Result<TransactionWithDetails> = runCatching {
         if (cartState.items.isEmpty()) {
             throw IllegalArgumentException("Keranjang belanja kosong")
@@ -71,11 +74,15 @@ class TransactionRepositoryImpl @Inject constructor(
                 serviceChargePercentage = serviceChargePercentage
             )
 
-            if (paymentMethod == PaymentMethod.CASH && paymentAmount < calc.grandTotal) {
+            if (splitPaymentMethod != null) {
+                if (paymentAmount + splitAmount < calc.grandTotal) {
+                    throw IllegalArgumentException("Total pembayaran split kurang dari total belanja")
+                }
+            } else if (paymentMethod == PaymentMethod.CASH && paymentAmount < calc.grandTotal) {
                 throw IllegalArgumentException("Jumlah pembayaran tunai kurang dari total belanja")
             }
 
-            val changeAmount = if (paymentMethod == PaymentMethod.CASH) {
+            val changeAmount = if (paymentMethod == PaymentMethod.CASH && splitPaymentMethod == null) {
                 (paymentAmount - calc.grandTotal).coerceAtLeast(0L)
             } else {
                 0L
@@ -98,6 +105,8 @@ class TransactionRepositoryImpl @Inject constructor(
                 paymentAmount = paymentAmount,
                 changeAmount = changeAmount,
                 paymentMethod = paymentMethod,
+                splitPaymentMethod = splitPaymentMethod,
+                splitAmount = splitAmount,
                 status = TransactionStatus.COMPLETED,
                 note = cartState.note,
                 createdAt = now,
@@ -186,6 +195,26 @@ class TransactionRepositoryImpl @Inject constructor(
                 stockMovementDao.insertMovements(stockMovements)
             }
 
+            val tableNum = cartState.tableNumber?.trim()?.ifBlank { null }
+            if (!tableNum.isNullOrBlank()) {
+                database.restaurantTableDao().updateOccupiedStatusByNumber(tableNum, false, null)
+            }
+
+            // Enqueue ke sync_queue untuk offline-first background sync
+            database.syncQueueDao().insert(
+                SyncQueueEntity(
+                    id = UUID.randomUUID().toString(),
+                    entityType = "TRANSACTION",
+                    entityId = transactionId,
+                    action = "INSERT",
+                    payloadJson = """{"id":"$transactionId","receiptNumber":"$receiptNumber","grandTotal":${transactionEntity.grandTotal},"paymentMethod":"${transactionEntity.paymentMethod}"}""",
+                    deviceId = deviceId,
+                    status = SyncStatus.PENDING,
+                    retryCount = 0,
+                    createdAt = now
+                )
+            )
+
             transactionDao.getTransactionById(transactionId)
                 ?: throw IllegalStateException("Gagal memuat detail transaksi yang baru dibuat")
         }
@@ -258,6 +287,20 @@ class TransactionRepositoryImpl @Inject constructor(
                     }
                 }
             }
+
+            database.syncQueueDao().insert(
+                SyncQueueEntity(
+                    id = UUID.randomUUID().toString(),
+                    entityType = "TRANSACTION",
+                    entityId = transactionId,
+                    action = "VOID",
+                    payloadJson = """{"id":"$transactionId","reason":"$reason","status":"CANCELLED"}""",
+                    deviceId = trx.deviceId,
+                    status = SyncStatus.PENDING,
+                    retryCount = 0,
+                    createdAt = now
+                )
+            )
         }
     }
 
@@ -301,6 +344,20 @@ class TransactionRepositoryImpl @Inject constructor(
                     }
                 }
             }
+
+            database.syncQueueDao().insert(
+                SyncQueueEntity(
+                    id = UUID.randomUUID().toString(),
+                    entityType = "TRANSACTION",
+                    entityId = transactionId,
+                    action = "REFUND",
+                    payloadJson = """{"id":"$transactionId","reason":"$reason","status":"REFUNDED"}""",
+                    deviceId = trx.deviceId,
+                    status = SyncStatus.PENDING,
+                    retryCount = 0,
+                    createdAt = now
+                )
+            )
         }
     }
 
@@ -386,6 +443,15 @@ class TransactionRepositoryImpl @Inject constructor(
                 transactionDao.insertTransactionItemModifiers(modifierEntities)
             }
 
+            val tableNum = cartState.tableNumber?.trim()?.ifBlank { null }
+                ?: if (note.startsWith("Meja ", ignoreCase = true) || note.startsWith("Meja:", ignoreCase = true)) {
+                    note.substringAfter(":").trim()
+                } else null
+
+            if (!tableNum.isNullOrBlank()) {
+                database.restaurantTableDao().updateOccupiedStatusByNumber(tableNum, true, transactionId)
+            }
+
             transactionDao.getTransactionById(transactionId)
                 ?: throw IllegalStateException("Gagal memuat pesanan tertunda")
         }
@@ -393,6 +459,7 @@ class TransactionRepositoryImpl @Inject constructor(
 
     override suspend fun deleteHeldTransaction(transactionId: String): Result<Unit> = runCatching {
         database.withTransaction {
+            database.restaurantTableDao().releaseTableByTransactionId(transactionId)
             transactionDao.deleteTransactionItemModifiers(transactionId)
             transactionDao.deleteTransactionItems(transactionId)
             transactionDao.deleteTransaction(transactionId)

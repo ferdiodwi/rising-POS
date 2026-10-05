@@ -7,7 +7,9 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
+import com.rising.pos.core.database.entity.ModifierEntity
 import com.rising.pos.core.database.entity.ProductEntity
+import com.rising.pos.core.database.entity.ProductModifierCrossRef
 import com.rising.pos.core.database.entity.ProductVariantEntity
 import com.rising.pos.core.database.entity.ProductWithCategory
 import com.rising.pos.core.database.entity.ProductWithVariants
@@ -91,4 +93,50 @@ interface ProductDao {
 
     @Query("SELECT * FROM product_variants WHERE product_id = :productId")
     suspend fun getVariantsByProductIdSync(productId: String): List<ProductVariantEntity>
+
+    // Modifiers / Toppings
+    @Query("SELECT * FROM modifiers WHERE is_active = 1 ORDER BY name ASC")
+    fun getAllModifiers(): Flow<List<ModifierEntity>>
+
+    @Query("SELECT * FROM modifiers WHERE id = :id LIMIT 1")
+    suspend fun getModifierById(id: String): ModifierEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertModifier(modifier: ModifierEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertModifiers(modifiers: List<ModifierEntity>)
+
+    @Update
+    suspend fun updateModifier(modifier: ModifierEntity)
+
+    @Delete
+    suspend fun deleteModifier(modifier: ModifierEntity)
+
+    @Query("SELECT COUNT(*) FROM modifiers")
+    suspend fun countModifiers(): Int
+
+    @Transaction
+    @Query("""
+        SELECT m.* FROM modifiers m
+        INNER JOIN product_modifier_cross_ref pm ON m.id = pm.modifier_id
+        WHERE pm.product_id = :productId AND m.is_active = 1
+        ORDER BY m.name ASC
+    """)
+    fun getModifiersByProductId(productId: String): Flow<List<ModifierEntity>>
+
+    @Transaction
+    @Query("""
+        SELECT m.* FROM modifiers m
+        INNER JOIN product_modifier_cross_ref pm ON m.id = pm.modifier_id
+        WHERE pm.product_id = :productId AND m.is_active = 1
+        ORDER BY m.name ASC
+    """)
+    suspend fun getModifiersByProductIdSync(productId: String): List<ModifierEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertProductModifierCrossRefs(crossRefs: List<ProductModifierCrossRef>)
+
+    @Query("DELETE FROM product_modifier_cross_ref WHERE product_id = :productId")
+    suspend fun deleteProductModifierCrossRefs(productId: String)
 }

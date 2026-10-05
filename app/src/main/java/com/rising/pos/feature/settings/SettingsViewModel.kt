@@ -22,6 +22,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+import com.rising.pos.core.database.entity.RestaurantTableEntity
+import com.rising.pos.domain.repository.SyncRepository
+import com.rising.pos.domain.repository.TableRepository
+
 data class SettingsUiState(
     val pairedPrinters: List<BluetoothPrinterDevice> = emptyList(),
     val isPrinterPickerOpen: Boolean = false,
@@ -32,7 +36,10 @@ data class SettingsUiState(
     val isRestoring: Boolean = false,
     val restoreStatusMessage: String? = null,
     val isRestoreSuccess: Boolean = false,
-    val isPinSetupDialogOpen: Boolean = false
+    val isPinSetupDialogOpen: Boolean = false,
+    val isTableManagementDialogOpen: Boolean = false,
+    val isSyncing: Boolean = false,
+    val syncStatusMessage: String? = null
 )
 
 @HiltViewModel
@@ -40,7 +47,9 @@ class SettingsViewModel @Inject constructor(
     private val appPreferences: AppPreferences,
     private val printerManager: BluetoothPrinterManager,
     private val dataExportManager: DataExportManager,
-    private val appUpdateManager: AppUpdateManager
+    private val appUpdateManager: AppUpdateManager,
+    private val tableRepository: TableRepository,
+    private val syncRepository: SyncRepository
 ) : ViewModel() {
 
     val updateState: StateFlow<UpdateState> = appUpdateManager.updateState
@@ -51,8 +60,85 @@ class SettingsViewModel @Inject constructor(
         initialValue = BusinessSettings()
     )
 
+    val tables: StateFlow<List<RestaurantTableEntity>> = tableRepository.getAllTables().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val syncPendingCount: StateFlow<Int> = syncRepository.getPendingCount().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = 0
+    )
+
+    init {
+        syncRepository.schedulePeriodicSync()
+    }
+
     private val _uiState = MutableStateFlow(SettingsUiState())
     val uiState = _uiState.asStateFlow()
+
+    fun openTableManagement() {
+        _uiState.update { it.copy(isTableManagementDialogOpen = true) }
+    }
+
+    fun closeTableManagement() {
+        _uiState.update { it.copy(isTableManagementDialogOpen = false) }
+    }
+
+    fun saveTable(table: RestaurantTableEntity) {
+        viewModelScope.launch {
+            tableRepository.saveTable(table)
+        }
+    }
+
+    fun deleteTable(table: RestaurantTableEntity) {
+        viewModelScope.launch {
+            tableRepository.deleteTable(table)
+        }
+    }
+
+    fun toggleTableOccupied(tableNumber: String, isOccupied: Boolean) {
+        viewModelScope.launch {
+            tableRepository.updateOccupiedStatus(tableNumber, isOccupied)
+        }
+    }
+
+    fun seedDefaultTables() {
+        viewModelScope.launch {
+            tableRepository.seedDefaultTablesIfEmpty()
+        }
+    }
+
+    fun syncNow() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSyncing = true, syncStatusMessage = null) }
+            val result = syncRepository.syncNow()
+            result.fold(
+                onSuccess = { syncResult ->
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = false,
+                            syncStatusMessage = syncResult.message
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            isSyncing = false,
+                            syncStatusMessage = error.message ?: "Gagal melakukan sinkronisasi"
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    fun dismissSyncMessage() {
+        _uiState.update { it.copy(syncStatusMessage = null) }
+    }
 
     fun openPrinterPicker() {
         val printers = printerManager.getPairedPrinters()

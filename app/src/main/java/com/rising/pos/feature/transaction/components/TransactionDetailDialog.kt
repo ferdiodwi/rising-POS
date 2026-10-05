@@ -90,7 +90,8 @@ fun TransactionDetailDialog(
     isPrinting: Boolean = false,
     onPrintReceipt: () -> Unit = {},
     onDismiss: () -> Unit,
-    onVoidTransaction: (transactionId: String, reason: String) -> Unit
+    onVoidTransaction: (transactionId: String, reason: String) -> Unit,
+    onRefundTransaction: (transactionId: String, reason: String) -> Unit = { _, _ -> }
 ) {
     val context = LocalContext.current
     val trx = transactionWithDetails.transaction
@@ -99,6 +100,7 @@ fun TransactionDetailDialog(
     val formattedDate = dateFormatter.format(Date(trx.createdAt))
 
     var showVoidConfirmDialog by remember { mutableStateOf(false) }
+    var showRefundConfirmDialog by remember { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -165,7 +167,11 @@ fun TransactionDetailDialog(
                         if (!trx.cashierId.isNullOrEmpty()) {
                             ReceiptRow("Kasir", trx.cashierId)
                         }
-                        ReceiptRow("Metode bayar", paymentLabel(trx.paymentMethod))
+                        if (trx.splitPaymentMethod != null && trx.splitAmount > 0) {
+                            ReceiptRow("Metode bayar", "Split (${paymentLabel(trx.paymentMethod)} + ${paymentLabel(trx.splitPaymentMethod)})")
+                        } else {
+                            ReceiptRow("Metode bayar", paymentLabel(trx.paymentMethod))
+                        }
 
                         ReceiptDivider()
 
@@ -233,8 +239,14 @@ fun TransactionDetailDialog(
 
                         Spacer(Modifier.height(4.dp))
 
-                        ReceiptRow("Bayar", CurrencyFormatter.format(trx.paymentAmount, settings.currencySymbol))
-                        ReceiptRow("Kembalian", CurrencyFormatter.format(trx.changeAmount, settings.currencySymbol), isGreen = true)
+                        if (trx.splitPaymentMethod != null && trx.splitAmount > 0) {
+                            val amount1 = (trx.grandTotal - trx.splitAmount).coerceAtLeast(0L)
+                            ReceiptRow("• ${paymentLabel(trx.paymentMethod)}", CurrencyFormatter.format(amount1, settings.currencySymbol))
+                            ReceiptRow("• ${paymentLabel(trx.splitPaymentMethod)}", CurrencyFormatter.format(trx.splitAmount, settings.currencySymbol))
+                        } else {
+                            ReceiptRow("Bayar", CurrencyFormatter.format(trx.paymentAmount, settings.currencySymbol))
+                            ReceiptRow("Kembalian", CurrencyFormatter.format(trx.changeAmount, settings.currencySymbol), isGreen = true)
+                        }
                     }
                 }
 
@@ -288,23 +300,45 @@ fun TransactionDetailDialog(
 
                 if (trx.status == TransactionStatus.COMPLETED) {
                     Spacer(Modifier.height(10.dp))
-                    Button(
-                        onClick = { showVoidConfirmDialog = true },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
-                        enabled = !isProcessing && !isPrinting
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
-                        if (isProcessing) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(16.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
+                        OutlinedButton(
+                            onClick = { showRefundConfirmDialog = true },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, WarningAmber),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = WarningAmber
+                            ),
+                            enabled = !isProcessing && !isPrinting
+                        ) {
+                            Icon(
+                                Icons.Outlined.Refresh,
+                                contentDescription = null,
+                                tint = WarningAmber,
+                                modifier = Modifier.size(18.dp)
                             )
-                        } else {
-                            Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Batalkan transaksi (void)", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                            Text("Refund", style = MaterialTheme.typography.labelLarge, color = WarningAmber)
+                        }
+
+                        Button(
+                            onClick = { showVoidConfirmDialog = true },
+                            modifier = Modifier.weight(1f).height(50.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
+                            enabled = !isProcessing && !isPrinting
+                        ) {
+                            Icon(
+                                Icons.Outlined.DeleteOutline,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("Void", style = MaterialTheme.typography.labelLarge, color = Color.White)
                         }
                     }
                 }
@@ -319,6 +353,17 @@ fun TransactionDetailDialog(
             onConfirmVoid = { reason ->
                 showVoidConfirmDialog = false
                 onVoidTransaction(trx.id, reason)
+            }
+        )
+    }
+
+    if (showRefundConfirmDialog) {
+        RefundReasonConfirmDialog(
+            receiptNumber = trx.receiptNumber,
+            onDismiss = { showRefundConfirmDialog = false },
+            onConfirmRefund = { reason ->
+                showRefundConfirmDialog = false
+                onRefundTransaction(trx.id, reason)
             }
         )
     }
@@ -478,6 +523,99 @@ private fun VoidReasonConfirmDialog(
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Ya, batalkan", style = MaterialTheme.typography.labelLarge, color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Batal", style = MaterialTheme.typography.labelLarge, color = Slate700)
+            }
+        }
+    )
+}
+
+@Composable
+private fun RefundReasonConfirmDialog(
+    receiptNumber: String,
+    onDismiss: () -> Unit,
+    onConfirmRefund: (reason: String) -> Unit
+) {
+    val predefinedReasons = listOf(
+        "Pelanggan retur barang",
+        "Barang cacat / rusak",
+        "Kelebihan pembayaran",
+        "Pesanan tidak sesuai",
+        "Lainnya"
+    )
+
+    var selectedReason by remember { mutableStateOf(predefinedReasons[0]) }
+    var customReason by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(20.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Refresh, contentDescription = null, tint = WarningAmber, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Refund transaksi?", style = MaterialTheme.typography.titleMedium, color = Slate900)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "Transaksi $receiptNumber akan di-refund. Dana dikembalikan ke pelanggan dan stok seluruh item akan otomatis dikembalikan ke inventaris.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Slate700
+                )
+
+                Text("Alasan refund", style = MaterialTheme.typography.labelLarge, color = Slate900)
+
+                predefinedReasons.forEach { reason ->
+                    FilterChip(
+                        selected = selectedReason == reason,
+                        onClick = { selectedReason = reason },
+                        label = { Text(reason) },
+                        shape = RoundedCornerShape(999.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        border = BorderStroke(
+                            width = 1.dp,
+                            color = if (selectedReason == reason) WarningAmber else Slate200
+                        ),
+                        colors = FilterChipDefaults.filterChipColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            labelColor = Slate500,
+                            selectedContainerColor = WarningAmberContainer,
+                            selectedLabelColor = WarningAmber
+                        )
+                    )
+                }
+
+                if (selectedReason == "Lainnya") {
+                    OutlinedTextField(
+                        value = customReason,
+                        onValueChange = { customReason = it },
+                        placeholder = { Text("Tuliskan alasan") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    val finalReason = if (selectedReason == "Lainnya" && customReason.isNotBlank()) {
+                        customReason.trim()
+                    } else {
+                        selectedReason
+                    }
+                    onConfirmRefund(finalReason)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = WarningAmber),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Ya, refund", style = MaterialTheme.typography.labelLarge, color = Color.White)
             }
         },
         dismissButton = {

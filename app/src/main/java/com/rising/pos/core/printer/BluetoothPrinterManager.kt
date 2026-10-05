@@ -118,4 +118,13 @@ class BluetoothPrinterManager @Inject constructor(
         val bytes = EscPosBuilder.buildTestPrintBytes(storeName, paperWidthMm)
         return printBytes(macAddress, bytes)
     }
+
+    suspend fun printReport(
+        macAddress: String,
+        reportData: ReportPrintData,
+        settings: BusinessSettings
+    ): Result<Unit> {
+        val bytes = EscPosBuilder.buildReportBytes(reportData, settings)
+        return printBytes(macAddress, bytes)
+    }
 }

@@ -19,7 +19,9 @@ interface TransactionRepository {
         isTaxInclusive: Boolean = true,
         isServiceChargeEnabled: Boolean = false,
         serviceChargePercentage: Double = 0.0,
-        isStockTrackingEnabled: Boolean = true
+        isStockTrackingEnabled: Boolean = true,
+        splitPaymentMethod: PaymentMethod? = null,
+        splitAmount: Long = 0L
     ): Result<TransactionWithDetails>
 
     fun getRecentTransactions(limit: Int = 100): Flow<List<TransactionWithDetails>>

@@ -43,4 +43,16 @@ abstract class RepositoryModule {
     abstract fun bindCustomerRepository(
         impl: com.rising.pos.data.repository.CustomerRepositoryImpl
     ): com.rising.pos.domain.repository.CustomerRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTableRepository(
+        impl: com.rising.pos.data.repository.TableRepositoryImpl
+    ): com.rising.pos.domain.repository.TableRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindSyncRepository(
+        impl: com.rising.pos.data.repository.SyncRepositoryImpl
+    ): com.rising.pos.domain.repository.SyncRepository
 }

@@ -54,6 +54,10 @@ data class TransactionEntity(
     val changeAmount: Long = 0L,
     @ColumnInfo(name = "payment_method")
     val paymentMethod: PaymentMethod = PaymentMethod.CASH,
+    @ColumnInfo(name = "split_payment_method")
+    val splitPaymentMethod: PaymentMethod? = null,
+    @ColumnInfo(name = "split_amount")
+    val splitAmount: Long = 0L,
     val status: TransactionStatus = TransactionStatus.COMPLETED,
     val note: String? = null,
     @ColumnInfo(name = "created_at")

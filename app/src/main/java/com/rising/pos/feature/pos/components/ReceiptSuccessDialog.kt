@@ -145,7 +145,11 @@ fun ReceiptSuccessDialog(
                             color = Slate700
                         )
                         Text(
-                            trx.paymentMethod.label(),
+                            text = if (trx.splitPaymentMethod != null && trx.splitAmount > 0) {
+                                "${trx.paymentMethod.label()} + ${trx.splitPaymentMethod.label()}"
+                            } else {
+                                trx.paymentMethod.label()
+                            },
                             style = MaterialTheme.typography.labelSmall,
                             color = Slate700
                         )
@@ -182,6 +186,27 @@ fun ReceiptSuccessDialog(
                                 color = Slate900
                             )
                         }
+                        if (itemDetail.modifiers.isNotEmpty()) {
+                            itemDetail.modifiers.forEach { mod ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(start = 12.dp, top = 1.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        "+ ${mod.modifierName}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Slate500
+                                    )
+                                    if (mod.price > 0) {
+                                        Text(
+                                            CurrencyFormatter.format(mod.price * item.qty.toLong(), settings.currencySymbol),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Slate500
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     ReceiptDivider()
@@ -213,22 +238,27 @@ fun ReceiptSuccessDialog(
                         )
                     }
 
-                    ReceiptLine("Bayar", CurrencyFormatter.format(trx.paymentAmount, settings.currencySymbol))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            "Kembalian",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Slate500
-                        )
-                        Text(
-                            CurrencyFormatter.format(trx.changeAmount, settings.currencySymbol),
-                            style = PosTextStyles.money,
-                            color = SuccessGreen
-                        )
+                    if (trx.splitPaymentMethod != null && trx.splitAmount > 0) {
+                        val amount1 = (trx.grandTotal - trx.splitAmount).coerceAtLeast(0L)
+                        ReceiptLine("Bayar (${trx.paymentMethod.label()})", CurrencyFormatter.format(amount1, settings.currencySymbol))
+                        ReceiptLine("Bayar (${trx.splitPaymentMethod.label()})", CurrencyFormatter.format(trx.splitAmount, settings.currencySymbol))
+                    } else {
+                        ReceiptLine("Bayar", CurrencyFormatter.format(trx.paymentAmount, settings.currencySymbol))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                "Kembalian",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Slate500
+                            )
+                            Text(
+                                CurrencyFormatter.format(trx.changeAmount, settings.currencySymbol),
+                                style = PosTextStyles.money,
+                                color = SuccessGreen
+                            )
+                        }
                     }
 
                     Spacer(Modifier.height(10.dp))

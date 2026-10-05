@@ -51,6 +51,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Storefront
+import androidx.compose.material.icons.outlined.TableRestaurant
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -97,6 +98,7 @@ import com.rising.pos.feature.pos.components.HeldOrdersDialog
 import com.rising.pos.feature.pos.components.HoldCartDialog
 import com.rising.pos.feature.pos.components.ProductCard
 import com.rising.pos.feature.pos.components.ReceiptSuccessDialog
+import com.rising.pos.feature.pos.components.TableFloorDialog
 import com.rising.pos.feature.pos.components.CameraBarcodeScannerDialog
 import com.rising.pos.feature.pos.components.VariantPickerDialog
 import com.rising.pos.ui.components.WorkspaceEmptyState
@@ -123,6 +125,10 @@ private fun PosScreenContent(viewModel: PosViewModel) {
     val products by viewModel.filteredProducts.collectAsState()
     val heldTransactions by viewModel.heldTransactions.collectAsState()
     val customers by viewModel.customers.collectAsState()
+    val tables by viewModel.tables.collectAsState()
+
+    val isTableEnabled = settings.isTableEnabled || settings.type == com.rising.pos.core.model.BusinessType.CAFE
+    val occupiedTablesCount = tables.count { it.isOccupied }
 
     var newCustomerFormState by remember { mutableStateOf(CustomerFormState()) }
     var isCameraScannerOpen by remember { mutableStateOf(false) }
@@ -148,10 +154,13 @@ private fun PosScreenContent(viewModel: PosViewModel) {
                         cashierName = settings.cashierName,
                         searchQuery = uiState.searchQuery,
                         heldOrdersCount = heldTransactions.size,
+                        occupiedTablesCount = occupiedTablesCount,
+                        isTableEnabled = isTableEnabled,
                         onSearchChange = viewModel::updateSearchQuery,
                         onScanBarcode = viewModel::scanBarcode,
                         onOpenScanner = { isCameraScannerOpen = true },
                         onOpenHeldOrders = viewModel::openHeldOrdersList,
+                        onOpenTables = { viewModel.openTableFloorDialog(isPickerMode = false) },
                         showBarcodeScanner = settings.isBarcodeEnabled
                     )
                     Spacer(Modifier.height(12.dp))
@@ -194,6 +203,8 @@ private fun PosScreenContent(viewModel: PosViewModel) {
                         onHoldCart = viewModel::openHoldDialog,
                         onOpenCustomerPicker = { viewModel.openCustomerPicker(true) },
                         onRemoveCustomer = { viewModel.setCustomer(null) },
+                        onOpenTablePicker = { viewModel.openTableFloorDialog(isPickerMode = true) },
+                        onRemoveTable = { viewModel.setTableNumber(null) },
                         onOpenDiscountDialog = { viewModel.openDiscountDialog(true) }
                     )
                 }
@@ -207,10 +218,13 @@ private fun PosScreenContent(viewModel: PosViewModel) {
                 searchQuery = uiState.searchQuery,
                 selectedCategoryId = uiState.selectedCategoryId,
                 heldOrdersCount = heldTransactions.size,
+                occupiedTablesCount = occupiedTablesCount,
+                isTableEnabled = isTableEnabled,
                 onSearch = viewModel::updateSearchQuery,
                 onScanBarcode = viewModel::scanBarcode,
                 onOpenScanner = { isCameraScannerOpen = true },
                 onHeldOrders = viewModel::openHeldOrdersList,
+                onOpenTables = { viewModel.openTableFloorDialog(isPickerMode = false) },
                 onCategory = viewModel::selectCategory,
                 onProduct = viewModel::onProductClicked,
                 onDecrease = viewModel::decreaseProductQuantity,
@@ -242,6 +256,8 @@ private fun PosScreenContent(viewModel: PosViewModel) {
                     },
                     onOpenCustomerPicker = { viewModel.openCustomerPicker(true) },
                     onRemoveCustomer = { viewModel.setCustomer(null) },
+                    onOpenTablePicker = { viewModel.openTableFloorDialog(isPickerMode = true) },
+                    onRemoveTable = { viewModel.setTableNumber(null) },
                     onOpenDiscountDialog = { viewModel.openDiscountDialog(true) },
                     onAddProducts = { viewModel.setCartSheetOpen(false) },
                     compact = true
@@ -256,14 +272,19 @@ private fun PosScreenContent(viewModel: PosViewModel) {
                 settings = settings,
                 isProcessing = uiState.isProcessingPayment,
                 errorMessage = uiState.paymentErrorMessage,
+                tables = tables,
                 onDismiss = viewModel::closeCheckoutDialog,
-                onConfirmPayment = viewModel::processPayment
+                onConfirmPayment = { method, paid, orderType, note, splitMethod, splitAmount ->
+                    viewModel.processPayment(method, paid, orderType, note, splitMethod, splitAmount)
+                }
             )
         }
 
         if (uiState.isHoldDialogOpen) {
             HoldCartDialog(
                 itemCount = uiState.cart.totalItemCount.toInt(),
+                tables = tables,
+                preselectedTable = uiState.cart.tableNumber,
                 onDismiss = viewModel::closeHoldDialog,
                 onConfirmHold = viewModel::holdCurrentCart
             )
@@ -276,6 +297,23 @@ private fun PosScreenContent(viewModel: PosViewModel) {
                 onDismiss = viewModel::closeHeldOrdersList,
                 onResumeOrder = viewModel::resumeHeldTransaction,
                 onDeleteOrder = viewModel::deleteHeldOrder
+            )
+        }
+
+        if (uiState.isTableFloorDialogOpen) {
+            TableFloorDialog(
+                tables = tables,
+                heldOrders = heldTransactions,
+                selectedTableNumber = uiState.cart.tableNumber,
+                isSelectionMode = uiState.isTablePickerMode,
+                currencySymbol = settings.currencySymbol,
+                onDismiss = viewModel::closeTableFloorDialog,
+                onSelectTable = viewModel::setTableNumber,
+                onResumeHeldOrder = viewModel::resumeHeldTransaction,
+                onSaveTable = viewModel::saveTable,
+                onDeleteTable = viewModel::deleteTable,
+                onToggleOccupied = viewModel::toggleTableOccupied,
+                onSeedDefaultTables = viewModel::seedDefaultTables
             )
         }
 
@@ -350,9 +388,10 @@ private fun PosScreenContent(viewModel: PosViewModel) {
             VariantPickerDialog(
                 product = product,
                 variants = uiState.availableVariants,
+                modifiers = uiState.availableModifiers,
                 currencySymbol = settings.currencySymbol,
-                onSelectVariant = { variant ->
-                    viewModel.addProductVariantToCart(product, variant)
+                onConfirm = { variant, selectedModifiers ->
+                    viewModel.addProductWithCustomizationsToCart(product, variant, selectedModifiers)
                 },
                 onDismiss = viewModel::dismissVariantPicker
             )
@@ -376,14 +415,17 @@ internal fun PosHeader(
     cashierName: String,
     searchQuery: String,
     heldOrdersCount: Int = 0,
+    occupiedTablesCount: Int = 0,
+    isTableEnabled: Boolean = false,
     onSearchChange: (String) -> Unit,
     onOpenScanner: () -> Unit = {},
     onScanBarcode: (String) -> Unit = {},
     onOpenHeldOrders: () -> Unit = {},
+    onOpenTables: () -> Unit = {},
     showBarcodeScanner: Boolean = true
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Baris Header: Ikon Toko + Nama Usaha & Kasir + Tombol Struk/Pesanan Tertunda
+        // Baris Header: Ikon Toko + Nama Usaha & Kasir + Tombol Meja & Struk/Pesanan Tertunda
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
@@ -413,6 +455,33 @@ internal fun PosHeader(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+            }
+
+            if (isTableEnabled) {
+                IconButton(
+                    onClick = onOpenTables,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    BadgedBox(
+                        badge = {
+                            if (occupiedTablesCount > 0) {
+                                Badge(
+                                    containerColor = Color(0xFFEA580C),
+                                    contentColor = Color.White
+                                ) {
+                                    Text("$occupiedTablesCount")
+                                }
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.TableRestaurant,
+                            contentDescription = "Kelola Meja",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(26.dp)
+                        )
+                    }
+                }
             }
 
             IconButton(
@@ -655,7 +724,9 @@ private fun ProductGrid(
 internal fun PosPhoneCatalog(
     settings: BusinessSettings, products: List<ProductWithCategory>, categories: List<CategoryEntity>, cart: CartState,
     searchQuery: String, selectedCategoryId: String?, heldOrdersCount: Int,
-    onSearch: (String) -> Unit, onScanBarcode: (String) -> Unit = {}, onOpenScanner: () -> Unit, onHeldOrders: () -> Unit,
+    occupiedTablesCount: Int = 0, isTableEnabled: Boolean = false,
+    onSearch: (String) -> Unit, onScanBarcode: (String) -> Unit = {}, onOpenScanner: () -> Unit,
+    onHeldOrders: () -> Unit, onOpenTables: () -> Unit = {},
     onCategory: (String?) -> Unit, onProduct: (com.rising.pos.core.database.entity.ProductEntity) -> Unit,
     onDecrease: (com.rising.pos.core.database.entity.ProductEntity) -> Unit, onCart: () -> Unit, onCheckout: () -> Unit
 ) = CashierTheme {
@@ -664,8 +735,10 @@ internal fun PosPhoneCatalog(
         Column(Modifier.weight(1f).padding(top = 8.dp)) {
             Box(Modifier.padding(horizontal = 16.dp)) {
                 PosHeader(
-                    settings.name, settings.cashierName, searchQuery, heldOrdersCount, onSearch,
-                    onOpenScanner = onOpenScanner, onScanBarcode = onScanBarcode, onOpenHeldOrders = onHeldOrders,
+                    settings.name, settings.cashierName, searchQuery, heldOrdersCount,
+                    occupiedTablesCount = occupiedTablesCount, isTableEnabled = isTableEnabled,
+                    onSearchChange = onSearch, onOpenScanner = onOpenScanner, onScanBarcode = onScanBarcode,
+                    onOpenHeldOrders = onHeldOrders, onOpenTables = onOpenTables,
                     showBarcodeScanner = settings.isBarcodeEnabled
                 )
             }

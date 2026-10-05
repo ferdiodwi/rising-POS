@@ -131,8 +131,20 @@ object Migrations {
         }
     }
 
+    /**
+     * v2 → v3: menambahkan kolom `split_payment_method` dan `split_amount` pada
+     * tabel `transactions` untuk mendukung pencatatan split payment yang terstruktur.
+     */
+    private val MIGRATION_2_3 = object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE `transactions` ADD COLUMN `split_payment_method` TEXT DEFAULT NULL")
+            db.execSQL("ALTER TABLE `transactions` ADD COLUMN `split_amount` INTEGER NOT NULL DEFAULT 0")
+        }
+    }
+
     /** Daftar semua migrasi, dari versi terendah ke tertinggi. */
     val ALL: Array<Migration> = arrayOf(
         MIGRATION_1_2,
+        MIGRATION_2_3,
     )
 }

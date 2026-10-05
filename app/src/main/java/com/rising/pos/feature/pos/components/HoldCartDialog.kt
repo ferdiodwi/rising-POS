@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +38,8 @@ import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
 
+import com.rising.pos.core.database.entity.RestaurantTableEntity
+
 /**
  * Dialog menahan pesanan. Kasir memilih label cepat atau menulis label sendiri.
  * Label inilah yang muncul di daftar pesanan tertunda.
@@ -45,11 +48,25 @@ import com.rising.pos.ui.theme.Slate700
 @Composable
 fun HoldCartDialog(
     itemCount: Int,
+    tables: List<RestaurantTableEntity> = emptyList(),
+    preselectedTable: String? = null,
     onDismiss: () -> Unit,
     onConfirmHold: (note: String) -> Unit
 ) {
-    var note by remember { mutableStateOf("") }
-    val quickLabels = listOf("Meja 1", "Meja 2", "Meja 3", "Meja 4", "Bungkus / Takeaway", "Tunggu Pembayaran")
+    val initialNote = remember(preselectedTable) {
+        if (!preselectedTable.isNullOrBlank()) {
+            if (preselectedTable.startsWith("Meja", ignoreCase = true)) preselectedTable else "Meja $preselectedTable"
+        } else ""
+    }
+    var note by rememberSaveable(preselectedTable) { mutableStateOf(initialNote) }
+
+    val quickLabels = remember(tables) {
+        if (tables.isNotEmpty()) {
+            tables.map { it.tableNumber } + listOf("Bungkus / Takeaway", "Tunggu Pembayaran")
+        } else {
+            listOf("Meja 1", "Meja 2", "Meja 3", "Meja 4", "Bungkus / Takeaway", "Tunggu Pembayaran")
+        }
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,

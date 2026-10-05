@@ -20,6 +20,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 
+import com.rising.pos.core.database.entity.ModifierEntity
 import com.rising.pos.core.database.entity.ProductVariantEntity
 
 data class VariantFormItem(
@@ -44,7 +45,8 @@ data class ProductFormState(
     val minStock: String = "5",
     val isFavorite: Boolean = false,
     val hasVariants: Boolean = false,
-    val variants: List<VariantFormItem> = emptyList()
+    val variants: List<VariantFormItem> = emptyList(),
+    val selectedModifierIds: Set<String> = emptySet()
 )
 
 data class ProductUiState(
@@ -53,7 +55,10 @@ data class ProductUiState(
     val isFormOpen: Boolean = false,
     val formState: ProductFormState = ProductFormState(),
     val isCategoryDialogOpen: Boolean = false,
-    val newCategoryName: String = ""
+    val newCategoryName: String = "",
+    val isModifierDialogOpen: Boolean = false,
+    val newModifierName: String = "",
+    val newModifierPrice: String = "0"
 )
 
 @HiltViewModel
@@ -73,6 +78,18 @@ class ProductViewModel @Inject constructor(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+
+    val modifiers: StateFlow<List<ModifierEntity>> = productRepository.getAllModifiers().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    init {
+        viewModelScope.launch {
+            productRepository.seedDefaultModifiersIfEmpty()
+        }
+    }
 
     private val _uiState = MutableStateFlow(ProductUiState())
     val uiState = _uiState.asStateFlow()
@@ -111,6 +128,7 @@ class ProductViewModel @Inject constructor(
         val p = item.product
         viewModelScope.launch {
             val variants = productRepository.getVariantsByProductId(p.id)
+            val assignedModifiers = productRepository.getModifiersByProductId(p.id)
             val variantItems = variants.map {
                 val finalPrice = p.sellingPrice + it.priceAdjustment
                 VariantFormItem(
@@ -138,7 +156,8 @@ class ProductViewModel @Inject constructor(
                         minStock = p.minStock.toInt().toString(),
                         isFavorite = p.isFavorite,
                         hasVariants = variantItems.isNotEmpty(),
-                        variants = variantItems
+                        variants = variantItems,
+                        selectedModifierIds = assignedModifiers.map { mod -> mod.id }.toSet()
                     )
                 )
             }
@@ -231,8 +250,65 @@ class ProductViewModel @Inject constructor(
         } else emptyList()
 
         viewModelScope.launch {
-            productRepository.saveProduct(productEntity, variantEntities)
+            productRepository.saveProduct(
+                product = productEntity,
+                variants = variantEntities,
+                modifierIds = form.selectedModifierIds.toList()
+            )
             _uiState.update { it.copy(isFormOpen = false) }
+        }
+    }
+
+    fun toggleModifierSelection(modifierId: String) {
+        val current = _uiState.value.formState
+        val updated = if (current.selectedModifierIds.contains(modifierId)) {
+            current.selectedModifierIds - modifierId
+        } else {
+            current.selectedModifierIds + modifierId
+        }
+        _uiState.update { it.copy(formState = current.copy(selectedModifierIds = updated)) }
+    }
+
+    fun openModifierDialog() {
+        _uiState.update {
+            it.copy(
+                isModifierDialogOpen = true,
+                newModifierName = "",
+                newModifierPrice = "0"
+            )
+        }
+    }
+
+    fun closeModifierDialog() {
+        _uiState.update { it.copy(isModifierDialogOpen = false) }
+    }
+
+    fun updateNewModifier(name: String, price: String) {
+        _uiState.update { it.copy(newModifierName = name, newModifierPrice = price) }
+    }
+
+    fun saveModifier() {
+        val name = _uiState.value.newModifierName.trim()
+        if (name.isBlank()) return
+        val price = _uiState.value.newModifierPrice.toLongOrNull() ?: 0L
+        val modId = "mod-${UUID.randomUUID().toString().take(8)}"
+        val newMod = ModifierEntity(
+            id = modId,
+            name = name,
+            price = price,
+            isRequired = false,
+            isMultipleSelect = true,
+            isActive = true
+        )
+        viewModelScope.launch {
+            productRepository.saveModifier(newMod)
+            val currentForm = _uiState.value.formState
+            _uiState.update {
+                it.copy(
+                    isModifierDialogOpen = false,
+                    formState = currentForm.copy(selectedModifierIds = currentForm.selectedModifierIds + modId)
+                )
+            }
         }
     }
 

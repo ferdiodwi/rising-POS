@@ -86,6 +86,7 @@ import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate100
 import com.rising.pos.ui.theme.Slate50
 import com.rising.pos.ui.theme.DangerRed
+import com.rising.pos.ui.theme.WarningAmber
 import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.PrimaryBlueContainer
 
@@ -120,6 +121,7 @@ fun TransactionScreen(
 
     var showPinDialog by remember { mutableStateOf(false) }
     var pendingVoidAction by remember { mutableStateOf<Pair<String, String>?>(null) }
+    var pendingRefundAction by remember { mutableStateOf<Pair<String, String>?>(null) }
     var showDatePicker by remember { mutableStateOf(false) }
 
     // Hitung penjualan transaksi yang sukses (COMPLETED)
@@ -358,7 +360,7 @@ fun TransactionScreen(
             Spacer(Modifier.height(6.dp))
 
             Text(
-                text = "Transaksi batal tidak dihitung.",
+                text = "Transaksi batal dan refund tidak dihitung.",
                 style = TextStyle(fontSize = 12.sp, color = Slate400),
                 modifier = Modifier.padding(horizontal = 18.dp)
             )
@@ -462,26 +464,45 @@ fun TransactionScreen(
                 } else {
                     viewModel.voidTransaction(trxId, reason)
                 }
+            },
+            onRefundTransaction = { trxId, reason ->
+                if (settings.isPinSecurityEnabled && settings.hasPin) {
+                    pendingRefundAction = Pair(trxId, reason)
+                    showPinDialog = true
+                } else {
+                    viewModel.refundTransaction(trxId, reason)
+                }
             }
         )
     }
 
-    // ── Dialog Otorisasi PIN untuk Void Transaksi ─────────────────────────────
-    if (showPinDialog && pendingVoidAction != null) {
+    // ── Dialog Otorisasi PIN untuk Void / Refund Transaksi ─────────────────────
+    if (showPinDialog && (pendingVoidAction != null || pendingRefundAction != null)) {
+        val isRefund = pendingRefundAction != null
         SecurityPinDialog(
             verifyPin = viewModel::verifyPin,
-            title = "Otorisasi Void",
-            description = "Masukkan PIN owner untuk menyetujui pembatalan transaksi ini.",
+            title = if (isRefund) "Otorisasi Refund" else "Otorisasi Void",
+            description = if (isRefund) {
+                "Masukkan PIN owner untuk menyetujui refund transaksi ini."
+            } else {
+                "Masukkan PIN owner untuk menyetujui pembatalan transaksi ini."
+            },
             onDismiss = {
                 showPinDialog = false
                 pendingVoidAction = null
+                pendingRefundAction = null
             },
             onSuccess = {
-                val action = pendingVoidAction
+                val voidAction = pendingVoidAction
+                val refundAction = pendingRefundAction
                 showPinDialog = false
                 pendingVoidAction = null
-                action?.let { (trxId, reason) ->
+                pendingRefundAction = null
+                voidAction?.let { (trxId, reason) ->
                     viewModel.voidTransaction(trxId, reason)
+                }
+                refundAction?.let { (trxId, reason) ->
+                    viewModel.refundTransaction(trxId, reason)
                 }
             }
         )
@@ -595,6 +616,8 @@ private fun TransactionRowItem(
 ) {
     val trx = trxDetails.transaction
     val isVoided = trx.status == TransactionStatus.CANCELLED
+    val isRefunded = trx.status == TransactionStatus.REFUNDED
+    val isCancelledOrRefunded = isVoided || isRefunded
     val totalQty = trxDetails.items.sumOf { it.item.qty.toInt() }
 
     Row(
@@ -633,7 +656,11 @@ private fun TransactionRowItem(
             Spacer(Modifier.height(2.dp))
 
             Text(
-                text = "$timeStr • ${paymentLabel(trx.paymentMethod)}",
+                text = if (trx.splitPaymentMethod != null && trx.splitAmount > 0) {
+                    "$timeStr • ${paymentLabel(trx.paymentMethod)} + ${paymentLabel(trx.splitPaymentMethod)}"
+                } else {
+                    "$timeStr • ${paymentLabel(trx.paymentMethod)}"
+                },
                 style = TextStyle(
                     fontSize = 13.sp,
                     color = Slate500
@@ -649,6 +676,15 @@ private fun TransactionRowItem(
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Medium,
                         color = DangerRed
+                    )
+                )
+            } else if (isRefunded) {
+                Text(
+                    text = "Di-refund",
+                    style = TextStyle(
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = WarningAmber
                     )
                 )
             } else {
@@ -669,8 +705,8 @@ private fun TransactionRowItem(
                 style = TextStyle(
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (isVoided) Slate400 else Slate900,
-                    textDecoration = if (isVoided) TextDecoration.LineThrough else TextDecoration.None
+                    color = if (isCancelledOrRefunded) Slate400 else Slate900,
+                    textDecoration = if (isCancelledOrRefunded) TextDecoration.LineThrough else TextDecoration.None
                 )
             )
             Spacer(Modifier.width(6.dp))
