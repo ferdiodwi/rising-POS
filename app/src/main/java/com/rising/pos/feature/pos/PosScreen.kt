@@ -425,171 +425,45 @@ internal fun PosHeader(
     showBarcodeScanner: Boolean = true
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Baris Header: Ikon Toko + Nama Usaha & Kasir + Tombol Meja & Struk/Pesanan Tertunda
+        // Baris Header: Judul "Kasir" + Subtitle Toko + Tombol Aksi Rounded
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = CashierIcons.Store,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(34.dp)
+            com.rising.pos.ui.components.PosHeaderTitleSection(
+                title = "Kasir",
+                subtitle = storeName.ifBlank { "Rising Studio" },
+                modifier = Modifier.weight(1f)
             )
-            Spacer(Modifier.width(14.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = storeName.ifBlank { "Nama usaha" },
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = cashierName.ifBlank { "Kasir" },
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp),
-                    color = Slate500,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
 
             if (isTableEnabled) {
-                IconButton(
+                com.rising.pos.ui.components.PosHeaderActionButton(
+                    icon = Icons.Outlined.TableRestaurant,
+                    contentDescription = "Kelola Meja",
                     onClick = onOpenTables,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    BadgedBox(
-                        badge = {
-                            if (occupiedTablesCount > 0) {
-                                Badge(
-                                    containerColor = Color(0xFFEA580C),
-                                    contentColor = Color.White
-                                ) {
-                                    Text("$occupiedTablesCount")
-                                }
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.TableRestaurant,
-                            contentDescription = "Kelola Meja",
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
-                }
+                    badgeCount = occupiedTablesCount,
+                    badgeColor = Color(0xFFEA580C)
+                )
+                Spacer(Modifier.width(8.dp))
             }
 
-            IconButton(
+            com.rising.pos.ui.components.PosHeaderActionButton(
+                icon = CashierIcons.Receipt,
+                contentDescription = "Pesanan Tertunda",
                 onClick = onOpenHeldOrders,
-                modifier = Modifier.size(48.dp)
-            ) {
-                BadgedBox(
-                    badge = {
-                        if (heldOrdersCount > 0) {
-                            Badge(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                contentColor = Color.White
-                            ) {
-                                Text("$heldOrdersCount")
-                            }
-                        }
-                    }
-                ) {
-                    Icon(
-                        imageVector = CashierIcons.Receipt,
-                        contentDescription = "Pesanan Tertunda",
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-            }
+                badgeCount = heldOrdersCount,
+                badgeColor = MaterialTheme.colorScheme.primary
+            )
         }
 
         // Search Bar dengan Ikon Barcode Terpadu
-        Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp),
-            shape = RoundedCornerShape(6.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(1.dp, Slate200)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Spacer(Modifier.width(12.dp))
-                Icon(
-                    imageVector = Icons.Default.Search,
-                    contentDescription = null,
-                    tint = Slate500,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                BasicTextField(
-                    value = searchQuery,
-                    onValueChange = onSearchChange,
-                    singleLine = true,
-                    textStyle = MaterialTheme.typography.bodyMedium.copy(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 14.sp
-                    ),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { if (showBarcodeScanner) onScanBarcode(searchQuery) }),
-                    modifier = Modifier.weight(1f),
-                    decorationBox = { innerTextField ->
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = "Cari nama atau kode barang",
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    color = Slate400,
-                                    fontSize = 14.sp
-                                )
-                            )
-                        }
-                        innerTextField()
-                    }
-                )
-                if (searchQuery.isNotEmpty()) {
-                    IconButton(
-                        onClick = { onSearchChange("") },
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Clear,
-                            contentDescription = "Hapus",
-                            tint = Slate400,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
-                }
-                if (showBarcodeScanner) {
-                    Box(
-                        modifier = Modifier
-                            .width(1.dp)
-                            .fillMaxHeight(0.6f)
-                            .background(Slate200)
-                    )
-                    IconButton(
-                        onClick = onOpenScanner,
-                        modifier = Modifier.size(48.dp)
-                    ) {
-                        Icon(
-                            imageVector = CashierIcons.Barcode,
-                            contentDescription = "Scan barcode",
-                            tint = Slate700,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
-                }
-            }
-        }
+        com.rising.pos.ui.components.PosSearchBar(
+            value = searchQuery,
+            onValueChange = onSearchChange,
+            placeholder = "Cari nama atau kode barang",
+            trailingBarcodeAction = if (showBarcodeScanner) onOpenScanner else null,
+            onSearchAction = { if (showBarcodeScanner) onScanBarcode(searchQuery) }
+        )
     }
 }
 
@@ -732,7 +606,7 @@ internal fun PosPhoneCatalog(
 ) = CashierTheme {
     val colors = MaterialTheme.colorScheme
     Column(Modifier.fillMaxSize().background(colors.surface)) {
-        Column(Modifier.weight(1f).padding(top = 8.dp)) {
+        Column(Modifier.weight(1f).padding(top = 12.dp)) {
             Box(Modifier.padding(horizontal = 16.dp)) {
                 PosHeader(
                     settings.name, settings.cashierName, searchQuery, heldOrdersCount,

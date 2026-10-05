@@ -97,7 +97,7 @@ fun DashboardScreen(
 
     fun triggerExport() {
         exportContent.value = buildString {
-            appendLine("Laporan Penjualan - ${settings.name.ifBlank { "Warung Bu Siti" }}")
+            appendLine("Laporan Penjualan - ${settings.name.ifBlank { "Rising Studio" }}")
             appendLine("Periode,${metrics.dateRangeText}")
             appendLine("Total Penjualan,${metrics.grossSales}")
             appendLine("Jumlah Transaksi,${metrics.transactionCount}")
@@ -171,54 +171,30 @@ fun DashboardScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             // Header Top Bar
-            // Header Top Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = "Laporan",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = settings.name.ifBlank { "Warung Bu Siti" },
-                        fontSize = 14.sp,
-                        color = Slate500
-                    )
-                }
-                IconButton(
+                com.rising.pos.ui.components.PosHeaderTitleSection(
+                    title = "Laporan",
+                    subtitle = settings.name.ifBlank { "Rising Studio" },
+                    modifier = Modifier.weight(1f)
+                )
+                com.rising.pos.ui.components.PosHeaderActionButton(
+                    icon = Icons.Default.Print,
+                    contentDescription = "Cetak Rekap Laporan",
                     onClick = { viewModel.printReport() },
-                    enabled = !isPrinting
-                ) {
-                    if (isPrinting) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(20.dp),
-                            color = PrimaryBlue,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            Icons.Default.Print,
-                            contentDescription = "Cetak Rekap Laporan",
-                            tint = Slate900,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                }
-                IconButton(onClick = { triggerExport() }) {
-                    Icon(
-                        Icons.Outlined.FileDownload,
-                        contentDescription = "Unduh",
-                        tint = Slate900,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+                    enabled = !isPrinting,
+                    isLoading = isPrinting
+                )
+                Spacer(Modifier.width(8.dp))
+                com.rising.pos.ui.components.PosHeaderActionButton(
+                    icon = Icons.Outlined.FileDownload,
+                    contentDescription = "Unduh",
+                    onClick = { triggerExport() }
+                )
             }
 
             Spacer(Modifier.height(10.dp))
@@ -231,25 +207,25 @@ fun DashboardScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Hari ini
-                PeriodButton(
+                com.rising.pos.ui.components.PosDateFilterButton(
                     text = "Hari ini",
-                    isSelected = selectedPeriod == DashboardPeriod.TODAY,
+                    selected = selectedPeriod == DashboardPeriod.TODAY,
                     modifier = Modifier.weight(1f),
                     onClick = { viewModel.setPeriod(DashboardPeriod.TODAY) }
                 )
 
                 // 7 hari
-                PeriodButton(
+                com.rising.pos.ui.components.PosDateFilterButton(
                     text = "7 hari",
-                    isSelected = selectedPeriod == DashboardPeriod.LAST_7_DAYS,
+                    selected = selectedPeriod == DashboardPeriod.LAST_7_DAYS,
                     modifier = Modifier.weight(1f),
                     onClick = { viewModel.setPeriod(DashboardPeriod.LAST_7_DAYS) }
                 )
 
                 // Pilih tanggal
-                PeriodButton(
+                com.rising.pos.ui.components.PosDateFilterButton(
                     text = "Pilih tanggal",
-                    isSelected = selectedPeriod == DashboardPeriod.CUSTOM,
+                    selected = selectedPeriod == DashboardPeriod.CUSTOM,
                     icon = Icons.Outlined.CalendarToday,
                     modifier = Modifier.weight(1.3f),
                     onClick = { showDateRangePicker = true }

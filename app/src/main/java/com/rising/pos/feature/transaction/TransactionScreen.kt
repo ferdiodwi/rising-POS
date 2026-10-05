@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -165,27 +166,16 @@ fun TransactionScreen(
                 .padding(paddingValues)
         ) {
             // ── Top Header Row ────────────────────────────────────────────────
-            Column(
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp)
+                    .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Riwayat",
-                    style = TextStyle(
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Slate900
-                    )
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = settings.name.ifBlank { "Warung Bu Siti" },
-                    style = TextStyle(
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Normal,
-                        color = Slate500
-                    )
+                com.rising.pos.ui.components.PosHeaderTitleSection(
+                    title = "Riwayat",
+                    subtitle = settings.name.ifBlank { "Rising Studio" },
+                    modifier = Modifier.weight(1f)
                 )
             }
 
@@ -195,46 +185,10 @@ fun TransactionScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
             ) {
-                OutlinedTextField(
+                com.rising.pos.ui.components.PosSearchBar(
                     value = searchQuery,
                     onValueChange = viewModel::onSearchQueryChange,
-                    placeholder = {
-                        Text(
-                            text = "Cari nomor struk",
-                            style = TextStyle(fontSize = 14.sp, color = Slate400)
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = Slate500,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    trailingIcon = if (searchQuery.isNotBlank()) {
-                        {
-                            IconButton(onClick = { viewModel.onSearchQueryChange("") }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Hapus pencarian",
-                                    tint = Slate500,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    } else null,
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = Slate50,
-                        focusedBorderColor = BrandBlue,
-                        unfocusedBorderColor = Slate200
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
+                    placeholder = "Cari nomor struk"
                 )
             }
 
@@ -248,7 +202,7 @@ fun TransactionScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Button 1: Hari ini
-                DateFilterButton(
+                com.rising.pos.ui.components.PosDateFilterButton(
                     text = "Hari ini",
                     selected = period == HistoryPeriod.TODAY && customDate == null,
                     onClick = {
@@ -259,7 +213,7 @@ fun TransactionScreen(
                 )
 
                 // Button 2: 7 hari
-                DateFilterButton(
+                com.rising.pos.ui.components.PosDateFilterButton(
                     text = "7 hari",
                     selected = period == HistoryPeriod.LAST_7_DAYS && customDate == null,
                     onClick = {
@@ -279,10 +233,10 @@ fun TransactionScreen(
                         "Pilih tanggal"
                     }
                 }
-                DateFilterButton(
+                com.rising.pos.ui.components.PosDateFilterButton(
                     text = customDateText,
                     selected = customDate != null || period == HistoryPeriod.ALL,
-                    icon = Icons.Outlined.CalendarMonth,
+                    icon = Icons.Outlined.CalendarToday,
                     onClick = { showDatePicker = true },
                     modifier = Modifier.weight(1.2f)
                 )
@@ -360,7 +314,7 @@ fun TransactionScreen(
             Spacer(Modifier.height(6.dp))
 
             Text(
-                text = "Transaksi batal dan refund tidak dihitung.",
+                text = "Transaksi batal tidak dihitung.",
                 style = TextStyle(fontSize = 12.sp, color = Slate400),
                 modifier = Modifier.padding(horizontal = 18.dp)
             )

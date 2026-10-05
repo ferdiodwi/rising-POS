@@ -139,18 +139,22 @@ fun SettingsScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (onBackClick != null) {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Outlined.ChevronLeft, contentDescription = "Kembali", tint = Slate900)
                 }
+                Spacer(Modifier.width(8.dp))
             }
-            Column {
-                Text("Pengaturan", style = MaterialTheme.typography.headlineSmall, color = Slate900)
-                Text("Sesuaikan usaha dan perangkat kasir.", style = MaterialTheme.typography.bodySmall, color = Slate500)
-            }
+            com.rising.pos.ui.components.PosHeaderTitleSection(
+                title = "Pengaturan",
+                subtitle = settings.name.ifBlank { "Rising Studio" },
+                extraSubtitle = "Sesuaikan usaha dan perangkat kasir."
+            )
         }
 
         // ── Konten Pengaturan ────────────────────────────────────────────────

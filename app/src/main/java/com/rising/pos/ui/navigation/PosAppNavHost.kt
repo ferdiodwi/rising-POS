@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -92,7 +93,11 @@ fun PosAppNavHost(
 
     if (isTablet) {
         // Tablet: NavigationRail layout with full items
-        Row(modifier = Modifier.fillMaxSize()) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+        ) {
             NavigationRail(
                 containerColor = MaterialTheme.colorScheme.surface,
                 modifier = Modifier.fillMaxHeight()
@@ -145,6 +150,9 @@ fun PosAppNavHost(
     } else {
         // Phone: Scaffold with PosBottomNavBar
         Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding(),
             bottomBar = {
                 PosBottomNavBar(
                     items = phoneNavigationItems,
@@ -213,19 +221,7 @@ private fun MainAppNavHostContent(
             )
         }
         composable(Screen.Settings.route) {
-            SettingsScreen(
-                onBackClick = {
-                    if (!navController.popBackStack()) {
-                        navController.navigate(Screen.Pos.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                }
-            )
+            SettingsScreen(onBackClick = null)
         }
     }
 }

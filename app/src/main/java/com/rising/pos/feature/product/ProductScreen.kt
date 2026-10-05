@@ -236,41 +236,20 @@ fun ProductScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 12.dp, top = 8.dp, bottom = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                    .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Produk",
-                        style = TextStyle(
-                            fontSize = 28.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                    )
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        text = settings.name.ifBlank { "Warung Bu Siti" },
-                        style = TextStyle(
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Normal,
-                            color = Slate500
-                        )
-                    )
-                }
+                com.rising.pos.ui.components.PosHeaderTitleSection(
+                    title = "Produk",
+                    subtitle = settings.name.ifBlank { "Rising Studio" },
+                    modifier = Modifier.weight(1f)
+                )
 
-                IconButton(
-                    onClick = onNavigateToInventory,
-                    modifier = Modifier.size(44.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.QrCodeScanner,
-                        contentDescription = "Scan & Kelola Stok",
-                        tint = Slate900,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
+                com.rising.pos.ui.components.PosHeaderActionButton(
+                    icon = Icons.Outlined.QrCodeScanner,
+                    contentDescription = "Scan & Kelola Stok",
+                    onClick = onNavigateToInventory
+                )
             }
 
             // ── Search Bar ────────────────────────────────────────────────────
@@ -279,46 +258,10 @@ fun ProductScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
             ) {
-                OutlinedTextField(
+                com.rising.pos.ui.components.PosSearchBar(
                     value = uiState.searchQuery,
                     onValueChange = viewModel::setSearchQuery,
-                    placeholder = {
-                        Text(
-                            text = "Cari nama atau kode barang",
-                            style = TextStyle(fontSize = 14.sp, color = Slate400)
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                            tint = Slate500,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    },
-                    trailingIcon = if (uiState.searchQuery.isNotBlank()) {
-                        {
-                            IconButton(onClick = { viewModel.setSearchQuery("") }) {
-                                Icon(
-                                    imageVector = Icons.Default.Clear,
-                                    contentDescription = "Hapus",
-                                    tint = Slate500,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    } else null,
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = Slate50,
-                        focusedBorderColor = BrandBlue,
-                        unfocusedBorderColor = Slate200
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp)
+                    placeholder = "Cari nama atau kode barang"
                 )
             }
 
