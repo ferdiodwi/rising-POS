@@ -26,6 +26,12 @@ import com.rising.pos.core.database.entity.ProductWithCategory
 import com.rising.pos.ui.components.CashierIcons
 import com.rising.pos.ui.components.quantityLabel
 import com.rising.pos.ui.theme.posMoney
+import com.rising.pos.ui.theme.Slate900
+import com.rising.pos.ui.theme.Slate400
+import com.rising.pos.ui.theme.Slate200
+import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.PrimaryBlueContainer
+import com.rising.pos.ui.theme.DangerRed
 
 @Composable
 fun ProductPhoto(imageUrl: String?, name: String, modifier: Modifier = Modifier) {
@@ -35,7 +41,7 @@ fun ProductPhoto(imageUrl: String?, name: String, modifier: Modifier = Modifier)
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFF1F5F9))
+            .background(MaterialTheme.colorScheme.surfaceContainer)
             .then(if (loaded) Modifier.testTag("loaded_$name") else Modifier),
         contentAlignment = Alignment.Center
     ) {
@@ -44,7 +50,7 @@ fun ProductPhoto(imageUrl: String?, name: String, modifier: Modifier = Modifier)
                 imageVector = CashierIcons.Box,
                 contentDescription = "Foto $name belum tersedia",
                 modifier = Modifier.size(36.dp),
-                tint = Color(0xFF94A3B8)
+                tint = Slate400
             )
         } else {
             AsyncImage(
@@ -67,10 +73,13 @@ fun ProductCard(
     onIncrease: () -> Unit,
     onDecrease: () -> Unit = {},
     onClick: () -> Unit = onIncrease,
+    stockTrackingEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val product = item.product
-    val unavailable = product.trackStock && product.stock <= 0
+    // Bila "Pencatatan Stok" global nonaktif, stok diabaikan sepenuhnya sehingga
+    // produk tidak pernah dianggap habis dan selalu bisa dijual.
+    val unavailable = stockTrackingEnabled && product.trackStock && product.stock <= 0
     val selected = cartQuantity > 0
 
     Surface(
@@ -78,9 +87,9 @@ fun ProductCard(
         shape = RoundedCornerShape(12.dp),
         border = BorderStroke(
             width = if (selected) 1.5.dp else 1.dp,
-            color = if (selected) Color(0xFF2563EB) else Color(0xFFE2E8F0)
+            color = if (selected) PrimaryBlue else Slate200
         ),
-        color = Color.White
+        color = MaterialTheme.colorScheme.surface
     ) {
         Column(modifier = Modifier.padding(8.dp)) {
             // 1. Photo with quantity badge
@@ -100,14 +109,14 @@ fun ProductCard(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(6.dp)
-                            .background(Color(0xFF2563EB), RoundedCornerShape(8.dp))
+                            .background(PrimaryBlue, RoundedCornerShape(8.dp))
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
                             text = "${quantityLabel(cartQuantity)}x",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = MaterialTheme.colorScheme.surface
                         )
                     }
                 }
@@ -120,7 +129,7 @@ fun ProductCard(
                 text = product.name,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF0F172A),
+                color = Slate900,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.clickable(enabled = !unavailable, onClick = onClick)
@@ -138,14 +147,14 @@ fun ProductCard(
                     text = posMoney(product.sellingPrice, currencySymbol),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (selected) Color(0xFF2563EB) else Color(0xFF0F172A)
+                    color = if (selected) PrimaryBlue else Slate900
                 )
                 if (unavailable) {
                     Text(
                         text = "Stok habis",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFFEF4444)
+                        color = DangerRed
                     )
                 }
             }
@@ -163,8 +172,8 @@ fun ProductCard(
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFEFF6FF),
-                        border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+                        color = PrimaryBlueContainer,
+                        border = BorderStroke(1.dp, Slate200)
                     ) {
                         Row(
                             modifier = Modifier
@@ -179,7 +188,7 @@ fun ProductCard(
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = Color(0xFF2563EB),
+                                    color = PrimaryBlue,
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -197,7 +206,7 @@ fun ProductCard(
                                 text = quantityLabel(cartQuantity),
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF0F172A)
+                                color = Slate900
                             )
 
                             IconButton(
@@ -207,7 +216,7 @@ fun ProductCard(
                             ) {
                                 Surface(
                                     shape = CircleShape,
-                                    color = if (!unavailable) Color(0xFF2563EB) else Color(0xFFCBD5E1),
+                                    color = if (!unavailable) PrimaryBlue else Slate400,
                                     modifier = Modifier.size(24.dp)
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
@@ -229,8 +238,8 @@ fun ProductCard(
                             .fillMaxSize()
                             .clickable(enabled = !unavailable, onClick = onIncrease),
                         shape = RoundedCornerShape(8.dp),
-                        color = Color(0xFFF8FAFC),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, Slate200)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxSize(),
@@ -240,7 +249,7 @@ fun ProductCard(
                             Icon(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "Tambah ${product.name}",
-                                tint = if (!unavailable) Color(0xFF2563EB) else Color(0xFF94A3B8),
+                                tint = if (!unavailable) PrimaryBlue else Slate400,
                                 modifier = Modifier.size(16.dp)
                             )
                             Spacer(Modifier.width(4.dp))
@@ -248,7 +257,7 @@ fun ProductCard(
                                 text = "Tambah",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.SemiBold,
-                                color = if (!unavailable) Color(0xFF2563EB) else Color(0xFF94A3B8)
+                                color = if (!unavailable) PrimaryBlue else Slate400
                             )
                         }
                     }

@@ -14,6 +14,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.rising.pos.ui.theme.CashierTheme
+import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.components.CashierIcons
 
 /** Five primary phone destinations: Kasir, Produk, Riwayat, Laporan, Pengaturan. */
@@ -27,11 +29,11 @@ fun PosBottomNavBar(
     val colors = MaterialTheme.colorScheme
     Surface(color = colors.surface) {
         Column(modifier.navigationBarsPadding()) {
-            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 0.8.dp)
+            HorizontalDivider(color = colors.outlineVariant, thickness = 0.8.dp)
             Row(Modifier.fillMaxWidth()) {
                 items.forEachIndexed { index, screen ->
                     val selected = currentRoute == screen.route
-                    val color = if (selected) Color(0xFF2563EB) else Color(0xFF334155)
+                    val color = if (selected) colors.primary else Slate700
                     Column(
                         Modifier
                             .weight(1f)

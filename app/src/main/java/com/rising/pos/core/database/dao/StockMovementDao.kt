@@ -20,4 +20,7 @@ interface StockMovementDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMovements(movements: List<StockMovementEntity>)
+
+    @Query("SELECT COUNT(*) FROM stock_movements WHERE reference_id = :referenceId AND type = 'SALE'")
+    suspend fun countSaleMovements(referenceId: String): Int
 }

@@ -25,6 +25,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import com.rising.pos.ui.theme.Slate900
+import com.rising.pos.ui.theme.Slate700
+import com.rising.pos.ui.theme.Slate600
+import com.rising.pos.ui.theme.Slate500
+import com.rising.pos.ui.theme.Slate400
+import com.rising.pos.ui.theme.Slate200
+import com.rising.pos.ui.theme.Slate100
+import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.PrimaryBlueLight
+import com.rising.pos.ui.theme.PrimaryBlueContainer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -112,12 +122,12 @@ fun DashboardScreen(
                         showDateRangePicker = false
                     }
                 ) {
-                    Text("Pilih", color = Color(0xFF2563EB), fontWeight = FontWeight.Bold)
+                    Text("Pilih", color = PrimaryBlue, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showDateRangePicker = false }) {
-                    Text("Batal", color = Color(0xFF64748B))
+                    Text("Batal", color = Slate500)
                 }
             }
         ) {
@@ -139,14 +149,14 @@ fun DashboardScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbar) }
     ) { insets ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(insets)
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surface)
                 .verticalScroll(rememberScrollState())
         ) {
             // Header Top Bar
@@ -162,20 +172,20 @@ fun DashboardScreen(
                         text = "Laporan",
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF0F172A)
+                        color = Slate900
                     )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         text = settings.name.ifBlank { "Warung Bu Siti" },
                         fontSize = 14.sp,
-                        color = Color(0xFF64748B)
+                        color = Slate500
                     )
                 }
                 IconButton(onClick = { triggerExport() }) {
                     Icon(
                         Icons.Outlined.FileDownload,
                         contentDescription = "Unduh",
-                        tint = Color(0xFF0F172A),
+                        tint = Slate900,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -228,14 +238,14 @@ fun DashboardScreen(
                 Text(
                     text = metrics.dateRangeText,
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B)
+                    color = Slate500
                 )
                 Spacer(Modifier.weight(1f))
                 if (metrics.isSampleData) {
                     Text(
                         text = "Data contoh",
                         fontSize = 12.sp,
-                        color = Color(0xFF94A3B8)
+                        color = Slate400
                     )
                 }
             }
@@ -251,20 +261,20 @@ fun DashboardScreen(
                 Text(
                     text = "Total penjualan",
                     fontSize = 14.sp,
-                    color = Color(0xFF64748B)
+                    color = Slate500
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = money(metrics.grossSales),
                     fontSize = 32.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = Slate900
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "Transaksi selesai saja.",
                     fontSize = 12.sp,
-                    color = Color(0xFF94A3B8)
+                    color = Slate400
                 )
 
                 Spacer(Modifier.height(18.dp))
@@ -278,14 +288,14 @@ fun DashboardScreen(
                         Text(
                             text = "Transaksi",
                             fontSize = 13.sp,
-                            color = Color(0xFF64748B)
+                            color = Slate500
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = "${metrics.transactionCount}",
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = Slate900
                         )
                     }
 
@@ -293,7 +303,7 @@ fun DashboardScreen(
                         modifier = Modifier
                             .width(1.dp)
                             .height(36.dp)
-                            .background(Color(0xFFE2E8F0))
+                            .background(Slate200)
                     )
 
                     Spacer(Modifier.width(20.dp))
@@ -302,21 +312,21 @@ fun DashboardScreen(
                         Text(
                             text = "Rata-rata transaksi",
                             fontSize = 13.sp,
-                            color = Color(0xFF64748B)
+                            color = Slate500
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
                             text = money(metrics.averageTicketSize),
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A)
+                            color = Slate900
                         )
                     }
                 }
             }
 
             Spacer(Modifier.height(20.dp))
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+            HorizontalDivider(color = Slate100, thickness = 1.dp)
             Spacer(Modifier.height(16.dp))
 
             // Penjualan Harian Section (Bar Chart)
@@ -330,13 +340,13 @@ fun DashboardScreen(
                     text = "Penjualan harian",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = Slate900
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = metrics.monthRangeText,
                     fontSize = 12.sp,
-                    color = Color(0xFF64748B)
+                    color = Slate500
                 )
             }
 
@@ -351,7 +361,7 @@ fun DashboardScreen(
             }
 
             Spacer(Modifier.height(20.dp))
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+            HorizontalDivider(color = Slate100, thickness = 1.dp)
             Spacer(Modifier.height(16.dp))
 
             // Metode Pembayaran Section
@@ -359,7 +369,7 @@ fun DashboardScreen(
                 text = "Metode pembayaran",
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A),
+                color = Slate900,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -371,7 +381,7 @@ fun DashboardScreen(
             )
 
             Spacer(Modifier.height(14.dp))
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+            HorizontalDivider(color = Slate100, thickness = 1.dp)
             Spacer(Modifier.height(16.dp))
 
             // Produk Terlaris Section
@@ -385,13 +395,13 @@ fun DashboardScreen(
                     text = "Produk terlaris",
                     fontSize = 17.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = Slate900
                 )
                 Spacer(Modifier.weight(1f))
                 Text(
                     text = "Terjual",
                     fontSize = 13.sp,
-                    color = Color(0xFF64748B)
+                    color = Slate500
                 )
             }
 
@@ -400,14 +410,14 @@ fun DashboardScreen(
             TopProductsList(topProducts = metrics.topSellingProducts)
 
             Spacer(Modifier.height(14.dp))
-            HorizontalDivider(color = Color(0xFFF1F5F9), thickness = 1.dp)
+            HorizontalDivider(color = Slate100, thickness = 1.dp)
             Spacer(Modifier.height(14.dp))
 
             // Footnote
             Text(
                 text = "Transaksi batal tidak termasuk dalam laporan.",
                 fontSize = 12.sp,
-                color = Color(0xFF94A3B8),
+                color = Slate400,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
@@ -425,16 +435,16 @@ fun DashboardScreen(
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.5.dp, Color(0xFF2563EB)),
+                    border = BorderStroke(1.5.dp, PrimaryBlue),
                     colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = Color.White,
-                        contentColor = Color(0xFF2563EB)
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = PrimaryBlue
                     )
                 ) {
                     Icon(
                         Icons.Outlined.FileDownload,
                         contentDescription = null,
-                        tint = Color(0xFF2563EB),
+                        tint = PrimaryBlue,
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(Modifier.width(8.dp))
@@ -442,7 +452,7 @@ fun DashboardScreen(
                         text = "Unduh laporan",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF2563EB)
+                        color = PrimaryBlue
                     )
                 }
             }
@@ -460,9 +470,9 @@ private fun PeriodButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     onClick: () -> Unit
 ) {
-    val bgColor = if (isSelected) Color(0xFFEFF6FF) else Color.White
-    val borderColor = if (isSelected) Color(0xFFBFDBFE) else Color(0xFFE2E8F0)
-    val contentColor = if (isSelected) Color(0xFF2563EB) else Color(0xFF334155)
+    val bgColor = if (isSelected) PrimaryBlueContainer else MaterialTheme.colorScheme.surface
+    val borderColor = if (isSelected) Slate200 else Slate200
+    val contentColor = if (isSelected) PrimaryBlue else Slate700
 
     Box(
         modifier = modifier
@@ -528,7 +538,7 @@ private fun DailySalesBarChart(
                     text = CurrencyFormatter.format(point.amount, currencySymbol),
                     fontSize = 9.sp,
                     fontWeight = if (isHighlighted) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isHighlighted) Color(0xFF2563EB) else Color(0xFF64748B),
+                    color = if (isHighlighted) PrimaryBlue else Slate500,
                     maxLines = 1,
                     textAlign = TextAlign.Center
                 )
@@ -541,7 +551,7 @@ private fun DailySalesBarChart(
                         .fillMaxWidth(0.72f)
                         .height(barHeight)
                         .background(
-                            color = if (isHighlighted) Color(0xFF2563EB) else Color(0xFF60A5FA),
+                            color = if (isHighlighted) PrimaryBlue else PrimaryBlueLight,
                             shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
                         )
                 )
@@ -552,7 +562,7 @@ private fun DailySalesBarChart(
                 Text(
                     text = point.label,
                     fontSize = 12.sp,
-                    color = Color(0xFF64748B),
+                    color = Slate500,
                     textAlign = TextAlign.Center
                 )
             }
@@ -589,7 +599,7 @@ private fun PaymentMethodList(
                 Icon(
                     icon,
                     contentDescription = null,
-                    tint = Color(0xFF475569),
+                    tint = Slate600,
                     modifier = Modifier.size(22.dp)
                 )
 
@@ -598,7 +608,7 @@ private fun PaymentMethodList(
                 Text(
                     text = name,
                     fontSize = 15.sp,
-                    color = Color(0xFF334155),
+                    color = Slate700,
                     fontWeight = FontWeight.Normal
                 )
 
@@ -608,7 +618,7 @@ private fun PaymentMethodList(
                     text = CurrencyFormatter.format(amount, currencySymbol),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF0F172A)
+                    color = Slate900
                 )
 
                 Spacer(Modifier.width(8.dp))
@@ -616,7 +626,7 @@ private fun PaymentMethodList(
                 Icon(
                     Icons.Outlined.ChevronRight,
                     contentDescription = null,
-                    tint = Color(0xFF94A3B8),
+                    tint = Slate400,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -645,14 +655,14 @@ private fun TopProductsList(
                 Text(
                     text = "${index + 1}",
                     fontSize = 14.sp,
-                    color = Color(0xFF94A3B8),
+                    color = Slate400,
                     modifier = Modifier.width(24.dp)
                 )
 
                 Text(
                     text = product.productName,
                     fontSize = 15.sp,
-                    color = Color(0xFF0F172A),
+                    color = Slate900,
                     modifier = Modifier.weight(1f)
                 )
 
@@ -660,7 +670,7 @@ private fun TopProductsList(
                     text = "${product.totalQty.toInt()} $unit",
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Normal,
-                    color = Color(0xFF0F172A)
+                    color = Slate900
                 )
             }
         }

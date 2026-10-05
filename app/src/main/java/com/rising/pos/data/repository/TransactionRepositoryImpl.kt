@@ -46,7 +46,8 @@ class TransactionRepositoryImpl @Inject constructor(
         taxPercentage: Double,
         isTaxInclusive: Boolean,
         isServiceChargeEnabled: Boolean,
-        serviceChargePercentage: Double
+        serviceChargePercentage: Double,
+        isStockTrackingEnabled: Boolean
     ): Result<TransactionWithDetails> = runCatching {
         if (cartState.items.isEmpty()) {
             throw IllegalArgumentException("Keranjang belanja kosong")
@@ -140,7 +141,9 @@ class TransactionRepositoryImpl @Inject constructor(
                 }
 
                 // 3. Stock Movement & Update Stock (Event-based Stock Ledger)
-                if (cartItem.product.trackStock) {
+                // Hanya dicatat bila fitur "Pencatatan Stok" aktif di Pengaturan.
+                // Bila nonaktif, POS berjalan tanpa menyentuh stok sama sekali.
+                if (isStockTrackingEnabled && cartItem.product.trackStock) {
                     val currentProduct = productDao.getProductById(cartItem.product.id)
                     val beforeStock = currentProduct?.stock ?: 0.0
 
@@ -225,29 +228,34 @@ class TransactionRepositoryImpl @Inject constructor(
             val now = System.currentTimeMillis()
             transactionDao.updateTransactionStatus(transactionId, TransactionStatus.CANCELLED)
 
-            // Kembalikan stok produk otomatis
-            for (itemDetail in trxDetails.items) {
-                val item = itemDetail.item
-                val product = productDao.getProductById(item.productId)
-                if (product != null && product.trackStock) {
-                    val before = product.stock
-                    val after = before + item.qty
-                    productDao.updateStock(product.id, after, now)
+            // Kembalikan stok produk otomatis, HANYA bila saat checkout stok memang
+            // dipotong (tercatat movement SALE). Kalau fitur "Pencatatan Stok" sedang
+            // nonaktif, tidak ada yang perlu dikembalikan agar stok tidak menggelembung.
+            val stockWasTracked = stockMovementDao.countSaleMovements(transactionId) > 0
+            if (stockWasTracked) {
+                for (itemDetail in trxDetails.items) {
+                    val item = itemDetail.item
+                    val product = productDao.getProductById(item.productId)
+                    if (product != null && product.trackStock) {
+                        val before = product.stock
+                        val after = before + item.qty
+                        productDao.updateStock(product.id, after, now)
 
-                    stockMovementDao.insertMovement(
-                        StockMovementEntity(
-                            id = UUID.randomUUID().toString(),
-                            productId = product.id,
-                            type = StockMovementType.REFUND,
-                            qtyChange = item.qty,
-                            qtyBefore = before,
-                            qtyAfter = after,
-                            reason = "Void #${trx.receiptNumber}: $reason",
-                            referenceId = transactionId,
-                            createdAt = now,
-                            syncStatus = SyncStatus.PENDING
+                        stockMovementDao.insertMovement(
+                            StockMovementEntity(
+                                id = UUID.randomUUID().toString(),
+                                productId = product.id,
+                                type = StockMovementType.REFUND,
+                                qtyChange = item.qty,
+                                qtyBefore = before,
+                                qtyAfter = after,
+                                reason = "Void #${trx.receiptNumber}: $reason",
+                                referenceId = transactionId,
+                                createdAt = now,
+                                syncStatus = SyncStatus.PENDING
+                            )
                         )
-                    )
+                    }
                 }
             }
         }
@@ -265,28 +273,32 @@ class TransactionRepositoryImpl @Inject constructor(
             val now = System.currentTimeMillis()
             transactionDao.updateTransactionStatus(transactionId, TransactionStatus.REFUNDED)
 
-            for (itemDetail in trxDetails.items) {
-                val item = itemDetail.item
-                val product = productDao.getProductById(item.productId)
-                if (product != null && product.trackStock) {
-                    val before = product.stock
-                    val after = before + item.qty
-                    productDao.updateStock(product.id, after, now)
+            // Sama seperti void: kembalikan stok hanya bila memang pernah dipotong.
+            val stockWasTracked = stockMovementDao.countSaleMovements(transactionId) > 0
+            if (stockWasTracked) {
+                for (itemDetail in trxDetails.items) {
+                    val item = itemDetail.item
+                    val product = productDao.getProductById(item.productId)
+                    if (product != null && product.trackStock) {
+                        val before = product.stock
+                        val after = before + item.qty
+                        productDao.updateStock(product.id, after, now)
 
-                    stockMovementDao.insertMovement(
-                        StockMovementEntity(
-                            id = UUID.randomUUID().toString(),
-                            productId = product.id,
-                            type = StockMovementType.REFUND,
-                            qtyChange = item.qty,
-                            qtyBefore = before,
-                            qtyAfter = after,
-                            reason = "Refund #${trx.receiptNumber}: $reason",
-                            referenceId = transactionId,
-                            createdAt = now,
-                            syncStatus = SyncStatus.PENDING
+                        stockMovementDao.insertMovement(
+                            StockMovementEntity(
+                                id = UUID.randomUUID().toString(),
+                                productId = product.id,
+                                type = StockMovementType.REFUND,
+                                qtyChange = item.qty,
+                                qtyBefore = before,
+                                qtyAfter = after,
+                                reason = "Refund #${trx.receiptNumber}: $reason",
+                                referenceId = transactionId,
+                                createdAt = now,
+                                syncStatus = SyncStatus.PENDING
+                            )
                         )
-                    )
+                    }
                 }
             }
         }

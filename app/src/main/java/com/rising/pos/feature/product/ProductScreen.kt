@@ -112,19 +112,23 @@ import java.io.File
 import java.util.Locale
 import java.util.UUID
 
-private val BrandBlue = Color(0xFF2563EB)
-private val Slate900 = Color(0xFF0F172A)
-private val Slate700 = Color(0xFF334155)
-private val Slate600 = Color(0xFF475569)
-private val Slate500 = Color(0xFF64748B)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate50 = Color(0xFFF8FAFC)
-private val DangerRed = Color(0xFFEF4444)
-private val DangerRedContainer = Color(0xFFFEE2E2)
-private val WarningAmber = Color(0xFFD97706)
-private val WarningAmberContainer = Color(0xFFFEF3C7)
+import com.rising.pos.ui.theme.Slate900
+import com.rising.pos.ui.theme.Slate700
+import com.rising.pos.ui.theme.Slate600
+import com.rising.pos.ui.theme.Slate500
+import com.rising.pos.ui.theme.Slate400
+import com.rising.pos.ui.theme.Slate200
+import com.rising.pos.ui.theme.Slate100
+import com.rising.pos.ui.theme.Slate50
+import com.rising.pos.ui.theme.DangerRed
+import com.rising.pos.ui.theme.DangerRedContainer
+import com.rising.pos.ui.theme.WarningAmber
+import com.rising.pos.ui.theme.WarningAmberContainer
+import com.rising.pos.ui.theme.PrimaryBlue
+
+// Warna brand/status yang dipakai layar ini. Slate* kini berasal dari token
+// adaptif (LocalPosColors) sehingga otomatis mengikuti mode terang/gelap.
+private val BrandBlue = PrimaryBlue
 
 private enum class StockFilterType {
     ALL,
@@ -179,10 +183,10 @@ fun ProductScreen(
 
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         bottomBar = {
             Surface(
-                color = Color.White,
+                color = MaterialTheme.colorScheme.surface,
                 shadowElevation = 8.dp,
                 border = BorderStroke(1.dp, Slate100)
             ) {
@@ -303,7 +307,7 @@ fun ProductScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = Slate50,
                         focusedBorderColor = BrandBlue,
                         unfocusedBorderColor = Slate200
@@ -511,7 +515,7 @@ fun ProductScreen(
         AlertDialog(
             onDismissRequest = viewModel::closeCategoryDialog,
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text(
                     text = "Kategori Baru",
@@ -552,7 +556,7 @@ fun ProductScreen(
         AlertDialog(
             onDismissRequest = { productToDelete = null },
             shape = RoundedCornerShape(16.dp),
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text(
                     text = "Hapus Produk",
@@ -830,10 +834,10 @@ private fun ProductFormScreen(
 
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color.White
+        color = MaterialTheme.colorScheme.surface
     ) {
         Scaffold(
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             topBar = {
                 Column(modifier = Modifier.fillMaxWidth().statusBarsPadding()) {
                     Row(
@@ -969,8 +973,8 @@ private fun ProductFormScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         focusedBorderColor = BrandBlue,
                         unfocusedBorderColor = Slate200
                     )
@@ -990,7 +994,7 @@ private fun ProductFormScreen(
                         .height(50.dp)
                         .clip(RoundedCornerShape(10.dp))
                         .border(1.dp, Slate200, RoundedCornerShape(10.dp))
-                        .background(Color.White)
+                        .background(MaterialTheme.colorScheme.surface)
                         .clickable { categoryDropdownExpanded = true }
                         .padding(horizontal = 14.dp),
                     contentAlignment = Alignment.CenterStart
@@ -1151,8 +1155,8 @@ private fun ProductFormScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color.White,
-                                    unfocusedContainerColor = Color.White,
+                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                                     focusedBorderColor = BrandBlue,
                                     unfocusedBorderColor = Slate200
                                 )
@@ -1171,7 +1175,7 @@ private fun ProductFormScreen(
                                     .height(50.dp)
                                     .clip(RoundedCornerShape(10.dp))
                                     .border(1.dp, Slate200, RoundedCornerShape(10.dp))
-                                    .background(Color.White)
+                                    .background(MaterialTheme.colorScheme.surface)
                                     .clickable { unitDropdownExpanded = true }
                                     .padding(horizontal = 14.dp),
                                 contentAlignment = Alignment.CenterStart
@@ -1226,8 +1230,8 @@ private fun ProductFormScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(10.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color.White,
-                            unfocusedContainerColor = Color.White,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                             focusedBorderColor = BrandBlue,
                             unfocusedBorderColor = Slate200
                         )
@@ -1244,7 +1248,7 @@ private fun ProductFormScreen(
                 // ── Pengaturan Tambahan (Accordion) ───────────────────────────
                 Card(
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                     border = BorderStroke(1.dp, Slate200),
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -1312,8 +1316,8 @@ private fun ProductFormScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color.White,
-                                    unfocusedContainerColor = Color.White,
+                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                                     focusedBorderColor = BrandBlue,
                                     unfocusedBorderColor = Slate200
                                 )
@@ -1344,8 +1348,8 @@ private fun ProductFormScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(10.dp),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = Color.White,
-                                    unfocusedContainerColor = Color.White,
+                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                                     focusedBorderColor = BrandBlue,
                                     unfocusedBorderColor = Slate200
                                 )
@@ -1579,7 +1583,7 @@ private fun CurrencyPrefixTextField(
             .height(50.dp)
             .clip(RoundedCornerShape(10.dp))
             .border(1.dp, Slate200, RoundedCornerShape(10.dp))
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),

@@ -106,8 +106,9 @@ import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate400
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
+import com.rising.pos.ui.theme.PrimaryBlue
 
-private val BrandBlue = Color(0xFF2563EB)
+private val BrandBlue = PrimaryBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -150,7 +151,8 @@ private fun PosScreenContent(viewModel: PosViewModel) {
                         onSearchChange = viewModel::updateSearchQuery,
                         onScanBarcode = viewModel::scanBarcode,
                         onOpenScanner = { isCameraScannerOpen = true },
-                        onOpenHeldOrders = viewModel::openHeldOrdersList
+                        onOpenHeldOrders = viewModel::openHeldOrdersList,
+                        showBarcodeScanner = settings.isBarcodeEnabled
                     )
                     Spacer(Modifier.height(12.dp))
                     CategoryFilters(
@@ -168,6 +170,7 @@ private fun PosScreenContent(viewModel: PosViewModel) {
                         onProductClick = viewModel::onProductClicked,
                         onDecreaseProduct = viewModel::decreaseProductQuantity,
                         columns = 3,
+                        stockTrackingEnabled = settings.isStockTrackingEnabled,
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -376,7 +379,8 @@ internal fun PosHeader(
     onSearchChange: (String) -> Unit,
     onOpenScanner: () -> Unit = {},
     onScanBarcode: (String) -> Unit = {},
-    onOpenHeldOrders: () -> Unit = {}
+    onOpenHeldOrders: () -> Unit = {},
+    showBarcodeScanner: Boolean = true
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // Baris Header: Ikon Toko + Nama Usaha & Kasir + Tombol Struk/Pesanan Tertunda
@@ -468,7 +472,7 @@ internal fun PosHeader(
                     ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                    keyboardActions = KeyboardActions(onSearch = { onScanBarcode(searchQuery) }),
+                    keyboardActions = KeyboardActions(onSearch = { if (showBarcodeScanner) onScanBarcode(searchQuery) }),
                     modifier = Modifier.weight(1f),
                     decorationBox = { innerTextField ->
                         if (searchQuery.isEmpty()) {
@@ -496,22 +500,24 @@ internal fun PosHeader(
                         )
                     }
                 }
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .fillMaxHeight(0.6f)
-                        .background(Slate200)
-                )
-                IconButton(
-                    onClick = onOpenScanner,
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        imageVector = CashierIcons.Barcode,
-                        contentDescription = "Scan barcode",
-                        tint = Slate700,
-                        modifier = Modifier.size(22.dp)
+                if (showBarcodeScanner) {
+                    Box(
+                        modifier = Modifier
+                            .width(1.dp)
+                            .fillMaxHeight(0.6f)
+                            .background(Slate200)
                     )
+                    IconButton(
+                        onClick = onOpenScanner,
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = CashierIcons.Barcode,
+                            contentDescription = "Scan barcode",
+                            tint = Slate700,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    }
                 }
             }
         }
@@ -599,6 +605,7 @@ private fun ProductGrid(
     onDecreaseProduct: (com.rising.pos.core.database.entity.ProductEntity) -> Unit,
     columns: Int,
     isFiltered: Boolean,
+    stockTrackingEnabled: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     if (products.isEmpty()) {
@@ -635,7 +642,8 @@ private fun ProductGrid(
                     cartQuantity = cartQuantity,
                     onIncrease = { onProductClick(item.product) },
                     onDecrease = { onDecreaseProduct(item.product) },
-                    onClick = { onProductClick(item.product) }
+                    onClick = { onProductClick(item.product) },
+                    stockTrackingEnabled = stockTrackingEnabled
                 )
             }
         }
@@ -657,7 +665,8 @@ internal fun PosPhoneCatalog(
             Box(Modifier.padding(horizontal = 16.dp)) {
                 PosHeader(
                     settings.name, settings.cashierName, searchQuery, heldOrdersCount, onSearch,
-                    onOpenScanner = onOpenScanner, onScanBarcode = onScanBarcode, onOpenHeldOrders = onHeldOrders
+                    onOpenScanner = onOpenScanner, onScanBarcode = onScanBarcode, onOpenHeldOrders = onHeldOrders,
+                    showBarcodeScanner = settings.isBarcodeEnabled
                 )
             }
             Spacer(Modifier.height(8.dp))
@@ -665,7 +674,8 @@ internal fun PosPhoneCatalog(
             Spacer(Modifier.height(8.dp))
             Box(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                 ProductGrid(products, settings.currencySymbol, cart.items, onProduct, onDecrease, 2,
-                    searchQuery.isNotBlank() || selectedCategoryId != null, Modifier.fillMaxSize())
+                    searchQuery.isNotBlank() || selectedCategoryId != null,
+                    stockTrackingEnabled = settings.isStockTrackingEnabled, modifier = Modifier.fillMaxSize())
             }
         }
         if (cart.items.isNotEmpty()) {

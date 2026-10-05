@@ -77,18 +77,22 @@ import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
-private val BrandBlue = Color(0xFF2563EB)
-private val BrandBlueBg = Color(0xFFEFF6FF)
+import com.rising.pos.ui.theme.Slate900
+import com.rising.pos.ui.theme.Slate700
+import com.rising.pos.ui.theme.Slate600
+import com.rising.pos.ui.theme.Slate500
+import com.rising.pos.ui.theme.Slate400
+import com.rising.pos.ui.theme.Slate200
+import com.rising.pos.ui.theme.Slate100
+import com.rising.pos.ui.theme.Slate50
+import com.rising.pos.ui.theme.DangerRed
+import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.PrimaryBlueContainer
+
+// Slate* berasal dari token adaptif sehingga mengikuti mode terang/gelap.
+private val BrandBlue = PrimaryBlue
+private val BrandBlueBg = PrimaryBlueContainer
 private val BrandBlueBorder = Color(0xFFBFDBFE)
-private val Slate900 = Color(0xFF0F172A)
-private val Slate700 = Color(0xFF334155)
-private val Slate600 = Color(0xFF475569)
-private val Slate500 = Color(0xFF64748B)
-private val Slate400 = Color(0xFF94A3B8)
-private val Slate200 = Color(0xFFE2E8F0)
-private val Slate100 = Color(0xFFF1F5F9)
-private val Slate50 = Color(0xFFF8FAFC)
-private val DangerRed = Color(0xFFEF4444)
 
 /**
  * Layar Riwayat Transaksi sesuai style mockup:
@@ -151,7 +155,7 @@ fun TransactionScreen(
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = Color.White
+        containerColor = MaterialTheme.colorScheme.surface
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -221,7 +225,7 @@ fun TransactionScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = Color.White,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = Slate50,
                         focusedBorderColor = BrandBlue,
                         unfocusedBorderColor = Slate200
@@ -533,7 +537,7 @@ private fun DateFilterButton(
     modifier: Modifier = Modifier,
     icon: ImageVector? = null
 ) {
-    val bgColor = if (selected) BrandBlueBg else Color.White
+    val bgColor = if (selected) BrandBlueBg else MaterialTheme.colorScheme.surface
     val borderColor = if (selected) BrandBlueBorder else Slate200
     val contentColor = if (selected) BrandBlue else Slate600
 

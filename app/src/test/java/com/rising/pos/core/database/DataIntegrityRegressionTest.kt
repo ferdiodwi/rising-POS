@@ -170,6 +170,99 @@ class DataIntegrityRegressionTest {
         // Tidak ada transaksi yang tercatat (rollback penuh).
         assertEquals(0, db.transactionDao().getRecentTransactions().first().size)
     }
+
+    // ── TOGGLE "Pencatatan Stok" benar-benar berfungsi ────────────────────────
+    @Test
+    fun `pencatatan stok nonaktif membuat penjualan tidak menyentuh stok`() = runBlocking {
+        val productId = "p-no-stok"
+        db.productDao().insertProduct(
+            ProductEntity(id = productId, name = "Teh", sellingPrice = 5000L, stock = 20.0, trackStock = true)
+        )
+        val product = db.productDao().getProductById(productId)!!
+        val repo = TransactionRepositoryImpl(
+            db, db.transactionDao(), db.productDao(), db.stockMovementDao()
+        )
+
+        val result = repo.processCheckout(
+            cartState = CartState(items = listOf(CartItem(product = product, quantity = 3.0))),
+            paymentMethod = PaymentMethod.CASH,
+            paymentAmount = 20_000L,
+            deviceId = "A01",
+            cashierId = "Kasir",
+            isTaxEnabled = false,
+            taxPercentage = 0.0,
+            isTaxInclusive = true,
+            isServiceChargeEnabled = false,
+            serviceChargePercentage = 0.0,
+            isStockTrackingEnabled = false // fitur dimatikan
+        )
+
+        assertTrue("Checkout harus tetap berhasil walau stok tidak dicatat", result.isSuccess)
+        // Stok TIDAK boleh berubah karena pencatatan stok nonaktif.
+        assertEquals(20.0, db.productDao().getProductById(productId)!!.stock, 0.001)
+        // Tidak ada movement stok yang tercatat.
+        assertTrue(db.stockMovementDao().getMovementsForProduct(productId).first().isEmpty())
+        // Transaksi tetap tercatat (penjualan tetap sah).
+        assertEquals(1, db.transactionDao().getRecentTransactions().first().size)
+    }
+
+    @Test
+    fun `pencatatan stok aktif memotong stok seperti biasa`() = runBlocking {
+        val productId = "p-stok-aktif"
+        db.productDao().insertProduct(
+            ProductEntity(id = productId, name = "Kopi", sellingPrice = 8000L, stock = 20.0, trackStock = true)
+        )
+        val product = db.productDao().getProductById(productId)!!
+        val repo = TransactionRepositoryImpl(
+            db, db.transactionDao(), db.productDao(), db.stockMovementDao()
+        )
+
+        val result = repo.processCheckout(
+            cartState = CartState(items = listOf(CartItem(product = product, quantity = 3.0))),
+            paymentMethod = PaymentMethod.CASH,
+            paymentAmount = 50_000L,
+            deviceId = "A01",
+            cashierId = "Kasir",
+            isTaxEnabled = false,
+            taxPercentage = 0.0,
+            isTaxInclusive = true,
+            isServiceChargeEnabled = false,
+            serviceChargePercentage = 0.0,
+            isStockTrackingEnabled = true
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals(17.0, db.productDao().getProductById(productId)!!.stock, 0.001)
+        assertEquals(1, db.stockMovementDao().getMovementsForProduct(productId).first().size)
+    }
+
+    @Test
+    fun `void transaksi tanpa pencatatan stok tidak menambah stok`() = runBlocking {
+        val productId = "p-void-no-stok"
+        db.productDao().insertProduct(
+            ProductEntity(id = productId, name = "Roti", sellingPrice = 10000L, stock = 10.0, trackStock = true)
+        )
+        val product = db.productDao().getProductById(productId)!!
+        val repo = TransactionRepositoryImpl(
+            db, db.transactionDao(), db.productDao(), db.stockMovementDao()
+        )
+
+        val checkout = repo.processCheckout(
+            cartState = CartState(items = listOf(CartItem(product = product, quantity = 2.0))),
+            paymentMethod = PaymentMethod.CASH,
+            paymentAmount = 30_000L,
+            deviceId = "A01",
+            cashierId = "Kasir",
+            isStockTrackingEnabled = false
+        )
+        assertTrue(checkout.isSuccess)
+        val trxId = checkout.getOrThrow().transaction.id
+
+        // Void tidak boleh menggelembungkan stok, karena tadi stok memang tidak dipotong.
+        val void = repo.voidTransaction(trxId, "Salah input")
+        assertTrue(void.isSuccess)
+        assertEquals(10.0, db.productDao().getProductById(productId)!!.stock, 0.001)
+    }
     @Test
     fun `history period includes all statuses and does not truncate at 100 transactions`() = runBlocking {
         repeat(105) { index ->

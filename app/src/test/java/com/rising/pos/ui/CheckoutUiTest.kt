@@ -53,8 +53,24 @@ class CheckoutUiTest {
     private fun Catalog(onCart: () -> Unit = {}, onPay: () -> Unit = {}, onProduct: (ProductEntity) -> Unit = {}, onCategory: (String?) -> Unit = {}) {
         Column {
             Box(Modifier.weight(1f)) {
-                PosPhoneCatalog(settings, products.map { ProductWithCategory(it, null) }, categories, cart, "", null, 0,
-                    {}, {}, {}, onCategory, onProduct, {}, onCart, onPay)
+                PosPhoneCatalog(
+                    settings = settings,
+                    products = products.map { ProductWithCategory(it, null) },
+                    categories = categories,
+                    cart = cart,
+                    searchQuery = "",
+                    selectedCategoryId = null,
+                    heldOrdersCount = 0,
+                    onSearch = {},
+                    onScanBarcode = {},
+                    onOpenScanner = {},
+                    onHeldOrders = {},
+                    onCategory = onCategory,
+                    onProduct = onProduct,
+                    onDecrease = {},
+                    onCart = onCart,
+                    onCheckout = onPay
+                )
             }
             PosBottomNavBar(phoneNavigationItems, "pos", {})
         }
@@ -63,13 +79,15 @@ class CheckoutUiTest {
         var opened = false; var paid = false; var added = ""; var selected: String? = null
         compose.setContent { RisingPosTheme(darkTheme = false) { Catalog({ opened = true }, { paid = true }, { added = it.id }, { selected = it }) } }
         awaitPhotos()
-        compose.onNodeWithText("Rp28.000").assertIsDisplayed()
+        compose.onNodeWithText("Rp28.000").performScrollTo().assertIsDisplayed()
         savePreview("catalog")
         compose.onNodeWithContentDescription("Lihat keranjang").performClick(); assertTrue(opened)
         compose.onNodeWithText("Bayar Rp27.000").performClick(); assertTrue(paid)
         compose.onNodeWithContentDescription("Tambah Indomie Goreng").performClick(); assertEquals("mie", added)
         compose.onNodeWithText("Minuman").performClick(); assertEquals("Minuman", selected)
-        compose.onNodeWithText("Lainnya").performClick()
+        // Nav bawah: 5 destinasi flat (Kasir, Produk, Riwayat, Laporan, Pengaturan).
+        // Tidak ada menu "Lainnya" karena implementasi memilih nav datar, bukan dropdown.
+        compose.onNodeWithText("Riwayat").assertIsDisplayed()
         compose.onNodeWithText("Laporan").assertIsDisplayed()
         compose.onNodeWithText("Pengaturan").assertIsDisplayed()
     }

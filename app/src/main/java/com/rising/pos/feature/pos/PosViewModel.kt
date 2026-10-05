@@ -157,7 +157,7 @@ class PosViewModel @Inject constructor(
         val matched = productRepository.getProductByBarcode(trimmed)
         if (matched != null) {
             val variants = productRepository.getVariantsByProductId(matched.product.id)
-            if (variants.isNotEmpty()) {
+            if (variants.isNotEmpty() && settings.value.isModifierEnabled) {
                 _uiState.update {
                     it.copy(
                         selectedProductForVariants = matched.product,
@@ -195,6 +195,12 @@ class PosViewModel @Inject constructor(
 
     fun onProductClicked(product: ProductEntity) {
         viewModelScope.launch {
+            // Bila "Topping & Modifier" nonaktif, produk bervarian langsung masuk
+            // keranjang (pakai harga dasar) tanpa memunculkan pemilih varian.
+            if (!settings.value.isModifierEnabled) {
+                addToCart(product)
+                return@launch
+            }
             val variants = productRepository.getVariantsByProductId(product.id)
             if (variants.isNotEmpty()) {
                 _uiState.update {
@@ -401,7 +407,8 @@ class PosViewModel @Inject constructor(
                 taxPercentage = currentSettings.taxPercentage,
                 isTaxInclusive = currentSettings.isTaxInclusive,
                 isServiceChargeEnabled = currentSettings.isServiceChargeEnabled,
-                serviceChargePercentage = currentSettings.serviceChargePercentage
+                serviceChargePercentage = currentSettings.serviceChargePercentage,
+                isStockTrackingEnabled = currentSettings.isStockTrackingEnabled
             )
 
             result.fold(

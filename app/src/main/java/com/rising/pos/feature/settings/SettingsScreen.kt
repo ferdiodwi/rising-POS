@@ -189,7 +189,7 @@ fun SettingsScreen(
             SettingsGroupCard {
                 SettingSwitchItem(
                     title = "Pencatatan Stok",
-                    subtitle = "Otomatis catat stok masuk, keluar & sisa",
+                    subtitle = "Otomatis catat stok masuk, keluar & sisa. Bila nonaktif, penjualan tidak mengurangi stok.",
                     icon = Icons.Outlined.Inventory2,
                     checked = settings.isStockTrackingEnabled,
                     onCheckedChange = { checked ->
@@ -219,7 +219,7 @@ fun SettingsScreen(
                 SettingsDivider()
                 SettingSwitchItem(
                     title = "Topping & Modifier",
-                    subtitle = "Opsi tambahan (gula, shot, varian)",
+                    subtitle = "Opsi tambahan (gula, shot, varian). Bila nonaktif, produk bervarian masuk keranjang dengan harga dasar.",
                     icon = Icons.Outlined.Bolt,
                     checked = settings.isModifierEnabled,
                     onCheckedChange = { checked ->
@@ -234,7 +234,7 @@ fun SettingsScreen(
                 SettingsDivider()
                 SettingSwitchItem(
                     title = "Barcode Scanner",
-                    subtitle = "Scan barcode fisik & kamera",
+                    subtitle = "Scan barcode fisik & kamera. Bila nonaktif, tombol scan disembunyikan.",
                     icon = Icons.Outlined.QrCodeScanner,
                     checked = settings.isBarcodeEnabled,
                     onCheckedChange = { checked ->
