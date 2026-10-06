@@ -174,6 +174,7 @@ fun PosAppNavHost(
                 .statusBarsPadding(),
             bottomBar = {
                 PosBottomNavBar(
+                    expanded = screenWidth >= 840 && currentRoute == Screen.Pos.route,
                     items = phoneNavigationItems,
                     currentRoute = currentRoute,
                     onNavigate = { route ->

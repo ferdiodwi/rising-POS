@@ -132,6 +132,10 @@ import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.PrimaryBlue
 
+import androidx.compose.foundation.layout.BoxWithConstraints
+import com.rising.pos.feature.pos.components.TabletCartView
+import com.rising.pos.feature.pos.components.TabletProductCard
+
 private val BrandBlue = PrimaryBlue
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -161,11 +165,74 @@ private fun PosScreenContent(viewModel: PosViewModel) {
     val isCompactHeight = screenHeight < 500
     val isTablet = screenWidth >= 600
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        if (isTablet) {
+    BoxWithConstraints(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        val useWideTabletLayout = maxWidth >= 840.dp && !isCompactHeight
+        if (useWideTabletLayout) {
+            PosTabletLayout(
+                header = {
+                    PosToolbar(
+                        storeName = settings.name,
+                        heldOrdersCount = heldTransactions.size,
+                        occupiedTablesCount = occupiedTablesCount,
+                        isTableEnabled = isTableEnabled,
+                        onOpenHeldOrders = viewModel::openHeldOrdersList,
+                        onOpenTables = { viewModel.openTableFloorDialog(isPickerMode = false) }
+                    )
+                },
+                catalog = { columns ->
+                    Column(Modifier.fillMaxSize()) {
+                        Spacer(Modifier.height(12.dp))
+                        com.rising.pos.ui.components.PosSearchBar(
+                            value = uiState.searchQuery,
+                            onValueChange = viewModel::updateSearchQuery,
+                            placeholder = "Cari nama atau kode barang",
+                            trailingBarcodeAction = if (settings.isBarcodeEnabled) {
+                                { isCameraScannerOpen = true }
+                            } else null,
+                            onSearchAction = {
+                                if (settings.isBarcodeEnabled) viewModel.scanBarcode(uiState.searchQuery)
+                            }
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        CategoryFilters(categories, uiState.selectedCategoryId, viewModel::selectCategory, edgePadding = 0.dp)
+                        Spacer(Modifier.height(10.dp))
+                        ProductGrid(
+                            products = products,
+                            currencySymbol = settings.currencySymbol,
+                            cartItems = uiState.cart.items,
+                            isFiltered = uiState.searchQuery.isNotBlank() || uiState.selectedCategoryId != null,
+                            onProductClick = viewModel::onProductClicked,
+                            onDecreaseProduct = { product ->
+                                // A tile aggregates variants/modifiers; decrement an actual matching line.
+                                uiState.cart.items.lastOrNull { it.product.id == product.id }?.let {
+                                    viewModel.updateQuantity(it.cartItemId, -1.0)
+                                }
+                            },
+                            columns = columns,
+                            stockTrackingEnabled = settings.isStockTrackingEnabled,
+                            modifier = Modifier.weight(1f),
+                            tablet = true
+                        )
+                    }
+                },
+                cart = {
+                    TabletCartView(
+                        cart = uiState.cart,
+                        settings = settings,
+                        onUpdateQuantity = viewModel::updateQuantity,
+                        onRemoveItem = viewModel::removeItem,
+                        onClearCart = viewModel::clearCart,
+                        onCheckout = viewModel::openCheckoutDialog,
+                        onHoldCart = viewModel::openHoldDialog,
+                        onOpenCustomerPicker = { viewModel.openCustomerPicker(true) },
+                        onRemoveCustomer = { viewModel.setCustomer(null) },
+                        onOpenTablePicker = { viewModel.openTableFloorDialog(isPickerMode = true) },
+                        onRemoveTable = { viewModel.setTableNumber(null) },
+                        onOpenDiscountDialog = { viewModel.openDiscountDialog(true) }
+                    )
+                }
+            )
+        } else if (isTablet) {
             PosTabletContent(
                 settings = settings,
                 products = products,
@@ -221,7 +288,7 @@ private fun PosScreenContent(viewModel: PosViewModel) {
         }
 
         // ── Modal Bottom Sheet untuk Detail Keranjang ───────────────────────
-        if (uiState.isCartSheetOpen) {
+        if (uiState.isCartSheetOpen && !isTablet) {
             ModalBottomSheet(
                 onDismissRequest = { viewModel.setCartSheetOpen(false) },
                 sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -412,36 +479,7 @@ internal fun PosHeader(
     showBarcodeScanner: Boolean = true
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // Baris Header: Judul "Kasir" + Subtitle Toko + Tombol Aksi Rounded
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            com.rising.pos.ui.components.PosHeaderTitleSection(
-                title = "Kasir",
-                subtitle = storeName.ifBlank { "Rising Studio" },
-                modifier = Modifier.weight(1f)
-            )
-
-            if (isTableEnabled) {
-                com.rising.pos.ui.components.PosHeaderActionButton(
-                    icon = Icons.Outlined.TableRestaurant,
-                    contentDescription = "Kelola Meja",
-                    onClick = onOpenTables,
-                    badgeCount = occupiedTablesCount,
-                    badgeColor = Color(0xFFEA580C)
-                )
-                Spacer(Modifier.width(8.dp))
-            }
-
-            com.rising.pos.ui.components.PosHeaderActionButton(
-                icon = CashierIcons.Receipt,
-                contentDescription = "Pesanan Tertunda",
-                onClick = onOpenHeldOrders,
-                badgeCount = heldOrdersCount,
-                badgeColor = MaterialTheme.colorScheme.primary
-            )
-        }
+        PosToolbar(storeName, heldOrdersCount, occupiedTablesCount, isTableEnabled, onOpenHeldOrders, onOpenTables)
 
         // Search Bar dengan Ikon Barcode Terpadu
         com.rising.pos.ui.components.PosSearchBar(
@@ -452,6 +490,48 @@ internal fun PosHeader(
             onSearchAction = { if (showBarcodeScanner) onScanBarcode(searchQuery) }
         )
     }
+}
+
+@Composable
+private fun PosToolbar(
+    storeName: String,
+    heldOrdersCount: Int,
+    occupiedTablesCount: Int,
+    isTableEnabled: Boolean,
+    onOpenHeldOrders: () -> Unit,
+    onOpenTables: () -> Unit
+) {
+    // Baris Header: Judul "Kasir" + Subtitle Toko + Tombol Aksi Rounded
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        com.rising.pos.ui.components.PosHeaderTitleSection(
+            title = "Kasir",
+            subtitle = storeName.ifBlank { "Rising Studio" },
+            modifier = Modifier.weight(1f)
+        )
+
+        if (isTableEnabled) {
+            com.rising.pos.ui.components.PosHeaderActionButton(
+                icon = Icons.Outlined.TableRestaurant,
+                contentDescription = "Kelola Meja",
+                onClick = onOpenTables,
+                badgeCount = occupiedTablesCount,
+                badgeColor = Color(0xFFEA580C)
+            )
+            Spacer(Modifier.width(8.dp))
+        }
+
+        com.rising.pos.ui.components.PosHeaderActionButton(
+            icon = CashierIcons.Receipt,
+            contentDescription = "Pesanan Tertunda",
+            onClick = onOpenHeldOrders,
+            badgeCount = heldOrdersCount,
+            badgeColor = MaterialTheme.colorScheme.primary
+        )
+    }
+
 }
 
 @Composable
@@ -537,7 +617,8 @@ private fun ProductGrid(
     isFiltered: Boolean,
     stockTrackingEnabled: Boolean = true,
     compact: Boolean = false,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    tablet: Boolean = false
 ) {
     if (products.isEmpty()) {
         Box(
@@ -557,8 +638,8 @@ private fun ProductGrid(
     } else {
         LazyVerticalGrid(
             columns = GridCells.Fixed(columns),
-            horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 10.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else if (tablet) 12.dp else 10.dp),
+            verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else if (tablet) 12.dp else 8.dp),
             contentPadding = PaddingValues(top = 2.dp, bottom = if (compact) 6.dp else 12.dp),
             modifier = modifier
         ) {
@@ -567,7 +648,16 @@ private fun ProductGrid(
                     .filter { it.product.id == item.product.id }
                     .sumOf { it.quantity }
 
-                ProductCard(
+                if (tablet) {
+                    TabletProductCard(
+                        item = item,
+                        currencySymbol = currencySymbol,
+                        cartQuantity = cartQuantity,
+                        onIncrease = { onProductClick(item.product) },
+                        onDecrease = { onDecreaseProduct(item.product) },
+                        stockTrackingEnabled = stockTrackingEnabled
+                    )
+                } else ProductCard(
                     item = item,
                     currencySymbol = currencySymbol,
                     cartQuantity = cartQuantity,
