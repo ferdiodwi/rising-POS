@@ -61,6 +61,11 @@ import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+
 /**
  * Daftar pelanggan.
  *
@@ -71,6 +76,12 @@ import com.rising.pos.ui.theme.Slate900
 fun CustomerScreen(
     viewModel: CustomerViewModel = hiltViewModel()
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val screenHeight = configuration.screenHeightDp
+    val isWideScreen = screenWidth >= 600
+    val isCompactHeight = screenHeight < 500
+
     val uiState by viewModel.uiState.collectAsState()
     val customers by viewModel.customers.collectAsState()
     val settings by viewModel.settings.collectAsState()
@@ -88,15 +99,17 @@ fun CustomerScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            Button(
-                onClick = viewModel::openAddCustomer,
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                modifier = Modifier.height(56.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Text("Tambah pelanggan", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            if (!isWideScreen) {
+                Button(
+                    onClick = viewModel::openAddCustomer,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.height(56.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Tambah pelanggan", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                }
             }
         }
     ) { paddingValues ->
@@ -104,20 +117,45 @@ fun CustomerScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = if (isWideScreen) 24.dp else 16.dp)
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(if (isCompactHeight) 8.dp else 16.dp))
 
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Pelanggan", style = MaterialTheme.typography.headlineSmall, color = Slate900)
-                Text(
-                    "${customers.size} pelanggan ditampilkan",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Slate500
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        "Pelanggan",
+                        style = if (isCompactHeight) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineSmall,
+                        color = Slate900
+                    )
+                    Text(
+                        "${customers.size} pelanggan ditampilkan",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate500
+                    )
+                }
+
+                if (isWideScreen) {
+                    Button(
+                        onClick = viewModel::openAddCustomer,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.height(44.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Tambah pelanggan", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                    }
+                }
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(if (isCompactHeight) 8.dp else 12.dp))
 
             OutlinedTextField(
                 value = uiState.searchQuery,
@@ -129,7 +167,7 @@ fun CustomerScreen(
                 shape = RoundedCornerShape(12.dp)
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(if (isCompactHeight) 8.dp else 14.dp))
 
             if (customers.isEmpty()) {
                 Box(
@@ -145,6 +183,22 @@ fun CustomerScreen(
                             "Coba kata kunci lain."
                         }
                     )
+                }
+            } else if (isWideScreen) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 340.dp),
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(customers, key = { it.customer.id }) { item ->
+                        CustomerCard(
+                            customerWithStats = item,
+                            currencySymbol = settings.currencySymbol,
+                            onClick = { viewModel.selectCustomer(item) }
+                        )
+                    }
                 }
             } else {
                 LazyColumn(

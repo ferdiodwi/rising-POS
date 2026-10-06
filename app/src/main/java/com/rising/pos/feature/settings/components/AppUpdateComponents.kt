@@ -234,6 +234,8 @@ fun AppUpdateDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isCompactHeight = configuration.screenHeightDp < 500
 
     when (updateState) {
         is UpdateState.UpdateAvailable -> {
@@ -334,7 +336,7 @@ fun AppUpdateDialog(
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(max = 180.dp),
+                                .heightIn(max = if (isCompactHeight) 100.dp else 180.dp),
                             color = Slate200.copy(alpha = 0.4f),
                             shape = RoundedCornerShape(8.dp)
                         ) {

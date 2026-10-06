@@ -15,18 +15,39 @@ import androidx.compose.ui.window.DialogProperties
 /** Full page on phones, constrained panel on tablets. Callers keep actions outside scroll content. */
 @Composable
 fun PosDialog(onDismiss: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
-    val phone = LocalConfiguration.current.screenWidthDp < 600
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val screenHeight = configuration.screenHeightDp
+    val isPhonePortrait = screenWidth < 600
+    val isCompactHeight = screenHeight < 500
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
     ) {
         Surface(
-            modifier = if (phone) Modifier.fillMaxSize() else Modifier.widthIn(max = 560.dp).fillMaxWidth().fillMaxHeight(0.9f),
-            shape = if (phone) RectangleShape else RoundedCornerShape(20.dp),
+            modifier = when {
+                isPhonePortrait -> Modifier.fillMaxSize()
+                isCompactHeight -> Modifier
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth(0.85f)
+                    .fillMaxHeight(0.96f)
+                else -> Modifier
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.9f)
+            },
+            shape = if (isPhonePortrait) RectangleShape else RoundedCornerShape(if (isCompactHeight) 14.dp else 20.dp),
             color = MaterialTheme.colorScheme.surface
         ) {
             Column(
-                modifier = Modifier.windowInsetsPadding(WindowInsets.safeDrawing).imePadding().padding(20.dp),
+                modifier = Modifier
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .imePadding()
+                    .padding(
+                        horizontal = if (isCompactHeight) 16.dp else 20.dp,
+                        vertical = if (isCompactHeight) 10.dp else 20.dp
+                    ),
                 content = content
             )
         }

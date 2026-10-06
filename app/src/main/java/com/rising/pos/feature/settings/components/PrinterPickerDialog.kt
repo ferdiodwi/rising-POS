@@ -43,6 +43,8 @@ import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 
+import androidx.compose.ui.platform.LocalConfiguration
+
 @Composable
 fun PrinterPickerDialog(
     printers: List<BluetoothPrinterDevice>,
@@ -51,6 +53,8 @@ fun PrinterPickerDialog(
     onSelectPrinter: (BluetoothPrinterDevice) -> Unit
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isCompactHeight = configuration.screenHeightDp < 500
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -115,7 +119,7 @@ fun PrinterPickerDialog(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height((printers.size * 68).coerceAtMost(280).dp),
+                            .height((printers.size * 68).coerceAtMost(if (isCompactHeight) 140 else 280).dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(printers, key = { it.address }) { printer ->

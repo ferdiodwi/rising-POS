@@ -40,6 +40,9 @@ import com.rising.pos.ui.theme.Slate700
 
 import com.rising.pos.core.database.entity.RestaurantTableEntity
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 /**
  * Dialog menahan pesanan. Kasir memilih label cepat atau menulis label sendiri.
  * Label inilah yang muncul di daftar pesanan tertunda.
@@ -85,7 +88,12 @@ fun HoldCartDialog(
             }
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 Text(
                     text = "$itemCount item akan disimpan sementara. Anda bisa melayani pelanggan lain, lalu melanjutkan pesanan ini nanti.",
                     style = MaterialTheme.typography.bodySmall,

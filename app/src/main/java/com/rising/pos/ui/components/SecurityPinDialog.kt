@@ -47,6 +47,11 @@ import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate900
 import kotlinx.coroutines.launch
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 /**
  * Dialog verifikasi PIN Owner.
  *
@@ -62,6 +67,9 @@ fun SecurityPinDialog(
     onDismiss: () -> Unit,
     onSuccess: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isCompactHeight = configuration.screenHeightDp < 500
+
     var enteredPin by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var isChecking by remember { mutableStateOf(false) }
@@ -70,6 +78,7 @@ fun SecurityPinDialog(
     Dialog(onDismissRequest = { if (!isChecking) onDismiss() }) {
         Card(
             modifier = Modifier
+                .widthIn(max = 440.dp)
                 .fillMaxWidth()
                 .padding(16.dp),
             shape = RoundedCornerShape(20.dp),
@@ -79,7 +88,8 @@ fun SecurityPinDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(if (isCompactHeight) 14.dp else 24.dp)
+                    .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(

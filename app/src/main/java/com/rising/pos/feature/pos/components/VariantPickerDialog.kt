@@ -46,6 +46,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalConfiguration
 import com.rising.pos.core.database.entity.ModifierEntity
 import com.rising.pos.core.database.entity.ProductEntity
 import com.rising.pos.core.database.entity.ProductVariantEntity
@@ -78,6 +79,10 @@ fun VariantPickerDialog(
     onConfirm: (ProductVariantEntity?, List<ModifierEntity>) -> Unit,
     onDismiss: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp
+    val isCompactHeight = screenHeight < 500
+
     var selectedVariant by remember(product.id) {
         mutableStateOf(variants.firstOrNull { !(product.trackStock && it.stock != null && it.stock <= 0) })
     }
@@ -96,7 +101,7 @@ fun VariantPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(if (isCompactHeight) 14.dp else 20.dp),
         containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Row(
@@ -128,8 +133,8 @@ fun VariantPickerDialog(
         },
         text = {
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp)
+                verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) 8.dp else 12.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(max = if (isCompactHeight) 180.dp else 420.dp)
             ) {
                 // ── Bagian 1: Pilihan Varian (jika ada) ──
                 if (variants.isNotEmpty()) {

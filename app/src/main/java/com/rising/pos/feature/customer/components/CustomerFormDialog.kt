@@ -43,6 +43,10 @@ import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
+
 /**
  * Form tambah/edit pelanggan. Nama wajib; error tampil sebagai teks, bukan
  * sekadar border merah.
@@ -58,11 +62,17 @@ fun CustomerFormDialog(
     onDismiss: () -> Unit,
     onSave: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isCompactHeight = configuration.screenHeightDp < 500
     val isEdit = formState.editingCustomerId != null
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            modifier = Modifier
+                .widthIn(max = 520.dp)
+                .fillMaxWidth()
+                .then(if (isCompactHeight) Modifier.fillMaxHeight(0.96f) else Modifier)
+                .padding(8.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
@@ -70,7 +80,7 @@ fun CustomerFormDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(if (isCompactHeight) 14.dp else 20.dp)
                     .verticalScroll(rememberScrollState())
                     .imePadding(),
                 horizontalAlignment = Alignment.CenterHorizontally

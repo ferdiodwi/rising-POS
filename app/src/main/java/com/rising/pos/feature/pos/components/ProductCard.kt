@@ -56,8 +56,10 @@ fun ProductPhoto(imageUrl: String?, name: String, modifier: Modifier = Modifier)
             AsyncImage(
                 model = imageUrl,
                 contentDescription = name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(4.dp),
                 onSuccess = { loaded = true },
                 onError = { failed = true }
             )
@@ -74,6 +76,7 @@ fun ProductCard(
     onDecrease: () -> Unit = {},
     onClick: () -> Unit = onIncrease,
     stockTrackingEnabled: Boolean = true,
+    compact: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val product = item.product
@@ -84,50 +87,37 @@ fun ProductCard(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(10.dp),
         border = BorderStroke(
             width = if (selected) 1.5.dp else 1.dp,
             color = if (selected) PrimaryBlue else Slate200
         ),
         color = MaterialTheme.colorScheme.surface
     ) {
-        Column(modifier = Modifier.padding(8.dp)) {
-            // 1. Photo with quantity badge
+        Column(modifier = Modifier.padding(if (compact) 6.dp else 8.dp)) {
+            // 1. Photo
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(96.dp)
-                    .clickable(enabled = !unavailable, onClick = onClick)
+                    .height(if (compact) 58.dp else 104.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(com.rising.pos.ui.theme.Slate50)
+                    .clickable(enabled = !unavailable, onClick = onClick),
+                contentAlignment = Alignment.Center
             ) {
                 ProductPhoto(
                     imageUrl = product.imageUrl,
                     name = product.name,
                     modifier = Modifier.fillMaxSize()
                 )
-                if (selected) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .background(PrimaryBlue, RoundedCornerShape(8.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "${quantityLabel(cartQuantity)}x",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.surface
-                        )
-                    }
-                }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(if (compact) 4.dp else 8.dp))
 
             // 2. Product Name
             Text(
                 text = product.name,
-                fontSize = 14.sp,
+                fontSize = if (compact) 13.sp else 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Slate900,
                 maxLines = 1,
@@ -135,7 +125,7 @@ fun ProductCard(
                 modifier = Modifier.clickable(enabled = !unavailable, onClick = onClick)
             )
 
-            Spacer(Modifier.height(2.dp))
+            Spacer(Modifier.height(if (compact) 1.dp else 2.dp))
 
             // 3. Price & Stock Status
             Row(
@@ -145,35 +135,36 @@ fun ProductCard(
             ) {
                 Text(
                     text = posMoney(product.sellingPrice, currencySymbol),
-                    fontSize = 14.sp,
+                    fontSize = if (compact) 13.sp else 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = if (selected) PrimaryBlue else Slate900
+                    color = Slate900
                 )
                 if (unavailable) {
                     Text(
                         text = "Stok habis",
-                        fontSize = 11.sp,
+                        fontSize = if (compact) 10.sp else 11.sp,
                         fontWeight = FontWeight.Medium,
                         color = DangerRed
                     )
                 }
             }
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(if (compact) 4.dp else 8.dp))
 
-            // 4. Uniform Action Slot (always 34.dp height for both selected & unselected)
+            // 4. Uniform Action Slot
+            val actionHeight = if (compact) 28.dp else 34.dp
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(34.dp)
+                    .height(actionHeight)
             ) {
                 if (selected) {
                     // Stepper: [-]  qty  [+]
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         shape = RoundedCornerShape(8.dp),
-                        color = PrimaryBlueContainer,
-                        border = BorderStroke(1.dp, Slate200)
+                        color = Color(0xFFEFF6FF),
+                        border = BorderStroke(1.dp, Color(0xFFBFDBFE))
                     ) {
                         Row(
                             modifier = Modifier
@@ -184,27 +175,19 @@ fun ProductCard(
                         ) {
                             IconButton(
                                 onClick = onDecrease,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(if (compact) 26.dp else 30.dp)
                             ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = PrimaryBlue,
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Remove,
-                                            contentDescription = "Kurangi ${product.name}",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Remove,
+                                    contentDescription = "Kurangi ${product.name}",
+                                    tint = PrimaryBlue,
+                                    modifier = Modifier.size(if (compact) 13.dp else 16.dp)
+                                )
                             }
 
                             Text(
                                 text = quantityLabel(cartQuantity),
-                                fontSize = 13.sp,
+                                fontSize = if (compact) 12.sp else 13.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Slate900
                             )
@@ -212,33 +195,25 @@ fun ProductCard(
                             IconButton(
                                 onClick = onIncrease,
                                 enabled = !unavailable,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(if (compact) 26.dp else 30.dp)
                             ) {
-                                Surface(
-                                    shape = CircleShape,
-                                    color = if (!unavailable) PrimaryBlue else Slate400,
-                                    modifier = Modifier.size(24.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription = "Tambah ${product.name}",
-                                            tint = Color.White,
-                                            modifier = Modifier.size(14.dp)
-                                        )
-                                    }
-                                }
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Tambah ${product.name}",
+                                    tint = if (!unavailable) PrimaryBlue else Slate400,
+                                    modifier = Modifier.size(if (compact) 13.dp else 16.dp)
+                                )
                             }
                         }
                     }
                 } else {
-                    // Unselected: "+ Tambah" button in the same 34dp slot
+                    // Unselected: "+ Tambah" button in the same action slot
                     Surface(
                         modifier = Modifier
                             .fillMaxSize()
                             .clickable(enabled = !unavailable, onClick = onIncrease),
                         shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        color = com.rising.pos.ui.theme.Slate50,
                         border = BorderStroke(1.dp, Slate200)
                     ) {
                         Row(
@@ -250,12 +225,12 @@ fun ProductCard(
                                 imageVector = Icons.Default.Add,
                                 contentDescription = "Tambah ${product.name}",
                                 tint = if (!unavailable) PrimaryBlue else Slate400,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(if (compact) 13.dp else 15.dp)
                             )
-                            Spacer(Modifier.width(4.dp))
+                            Spacer(Modifier.width(if (compact) 2.dp else 4.dp))
                             Text(
                                 text = "Tambah",
-                                fontSize = 12.sp,
+                                fontSize = if (compact) 12.sp else 13.sp,
                                 fontWeight = FontWeight.SemiBold,
                                 color = if (!unavailable) PrimaryBlue else Slate400
                             )

@@ -26,9 +26,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -36,12 +41,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import com.rising.pos.core.database.entity.ModifierEntity
 import androidx.compose.material.icons.outlined.BakeryDining
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Coffee
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Edit
@@ -55,6 +63,7 @@ import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import androidx.compose.material.icons.outlined.ShoppingBag
 import androidx.compose.material.icons.outlined.Tune
+import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -185,43 +194,51 @@ fun ProductScreen(
         }
     }
 
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val screenHeight = configuration.screenHeightDp
+    val isWideScreen = screenWidth >= 600
+    val isCompactHeight = screenHeight < 500
+
     Scaffold(
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         containerColor = MaterialTheme.colorScheme.surface,
         bottomBar = {
-            Surface(
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 8.dp,
-                border = BorderStroke(1.dp, Slate100)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+            if (!isWideScreen) {
+                Surface(
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 8.dp,
+                    border = BorderStroke(1.dp, Slate100)
                 ) {
-                    Button(
-                        onClick = viewModel::openAddProductForm,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp)
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text = "Tambah produk",
-                            style = TextStyle(
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color.White
+                        Button(
+                            onClick = viewModel::openAddProductForm,
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(50.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
                             )
-                        )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Tambah produk",
+                                style = TextStyle(
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                )
+                            )
+                        }
                     }
                 }
             }
@@ -236,7 +253,12 @@ fun ProductScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
+                    .padding(
+                        start = if (isCompactHeight) 14.dp else 20.dp,
+                        end = if (isCompactHeight) 14.dp else 20.dp,
+                        top = if (isCompactHeight) 8.dp else 12.dp,
+                        bottom = if (isCompactHeight) 4.dp else 8.dp
+                    ),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 com.rising.pos.ui.components.PosHeaderTitleSection(
@@ -250,186 +272,235 @@ fun ProductScreen(
                     contentDescription = "Scan & Kelola Stok",
                     onClick = onNavigateToInventory
                 )
-            }
 
-            // ── Search Bar ────────────────────────────────────────────────────
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                com.rising.pos.ui.components.PosSearchBar(
-                    value = uiState.searchQuery,
-                    onValueChange = viewModel::setSearchQuery,
-                    placeholder = "Cari nama atau kode barang"
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            // ── Category Underline Tabs ───────────────────────────────────────
-            ScrollableTabRow(
-                selectedTabIndex = selectedTabIndex,
-                containerColor = Color.Transparent,
-                contentColor = BrandBlue,
-                edgePadding = 16.dp,
-                indicator = { tabPositions ->
-                    if (selectedTabIndex < tabPositions.size) {
-                        Box(
-                            Modifier
-                                .tabIndicatorOffset(tabPositions[selectedTabIndex])
-                                .height(2.5.dp)
-                                .background(BrandBlue)
+                if (isWideScreen) {
+                    Spacer(Modifier.width(10.dp))
+                    Button(
+                        onClick = viewModel::openAddProductForm,
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 0.dp),
+                        modifier = Modifier.height(if (isCompactHeight) 38.dp else 42.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
                         )
-                    }
-                },
-                divider = { HorizontalDivider(color = Slate100) }
-            ) {
-                // Tab "Semua"
-                Tab(
-                    selected = selectedTabIndex == 0,
-                    onClick = { viewModel.selectCategory(null) },
-                    text = {
+                        Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "Semua",
+                            text = "Tambah produk",
                             style = TextStyle(
-                                fontSize = 14.sp,
-                                fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedTabIndex == 0) BrandBlue else Slate500
+                                fontSize = 13.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = Color.White
                             )
                         )
                     }
-                )
+                }
+            }
 
-                // Tabs Kategori
-                categories.forEachIndexed { index, cat ->
-                    val isSelected = selectedTabIndex == index + 1
+            // ── Search Bar ────────────────────────────────────────────────────
+            if (isWideScreen && !isCompactHeight) {
+                ProductTabletMasterDetail(
+                    displayedProducts = displayedProducts,
+                    allProducts = products,
+                    categories = categories,
+                    selectedCategoryId = uiState.selectedCategoryId,
+                    searchQuery = uiState.searchQuery,
+                    currencySymbol = settings.currencySymbol,
+                    stockFilter = stockFilter,
+                    onStockFilterChange = { stockFilter = it },
+                    onSearchChange = viewModel::setSearchQuery,
+                    onSelectCategory = viewModel::selectCategory,
+                    onEditProduct = viewModel::openEditProductForm,
+                    onAdjustStock = onNavigateToInventory,
+                    onDeleteProduct = { productToDelete = it },
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 20.dp, vertical = 8.dp)
+                )
+            } else {
+                // ── Search Bar (Phone & Compact Height) ───────────────────────────
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                ) {
+                    com.rising.pos.ui.components.PosSearchBar(
+                        value = uiState.searchQuery,
+                        onValueChange = viewModel::setSearchQuery,
+                        placeholder = "Cari nama atau kode barang"
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // ── Category Underline Tabs ───────────────────────────────────────
+                ScrollableTabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    containerColor = Color.Transparent,
+                    contentColor = BrandBlue,
+                    edgePadding = 16.dp,
+                    indicator = { tabPositions ->
+                        if (selectedTabIndex < tabPositions.size) {
+                            Box(
+                                Modifier
+                                    .tabIndicatorOffset(tabPositions[selectedTabIndex])
+                                    .height(2.5.dp)
+                                    .background(BrandBlue)
+                            )
+                        }
+                    },
+                    divider = { HorizontalDivider(color = Slate100) }
+                ) {
+                    // Tab "Semua"
                     Tab(
-                        selected = isSelected,
-                        onClick = { viewModel.selectCategory(cat.id) },
+                        selected = selectedTabIndex == 0,
+                        onClick = { viewModel.selectCategory(null) },
                         text = {
                             Text(
-                                text = cat.name,
-                                maxLines = 1,
-                                softWrap = false,
+                                text = "Semua",
                                 style = TextStyle(
                                     fontSize = 14.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) BrandBlue else Slate500
+                                    fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (selectedTabIndex == 0) BrandBlue else Slate500
                                 )
                             )
                         }
                     )
-                }
-            }
 
-            // ── Subheader Row: Produk Count & Filter ──────────────────────────
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "${displayedProducts.size} produk",
-                    style = TextStyle(
-                        fontSize = 13.sp,
-                        color = Slate500,
-                        fontWeight = FontWeight.Medium
-                    )
-                )
-
-                Box {
-                    Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { filterMenuExpanded = true }
-                            .padding(horizontal = 6.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.Tune,
-                            contentDescription = "Filter",
-                            tint = if (stockFilter != StockFilterType.ALL) BrandBlue else Slate600,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = when (stockFilter) {
-                                StockFilterType.ALL -> "Filter"
-                                StockFilterType.LOW_STOCK -> "Menipis"
-                                StockFilterType.OUT_OF_STOCK -> "Habis"
-                            },
-                            style = TextStyle(
-                                fontSize = 13.sp,
-                                color = if (stockFilter != StockFilterType.ALL) BrandBlue else Slate600,
-                                fontWeight = FontWeight.Medium
-                            )
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = filterMenuExpanded,
-                        onDismissRequest = { filterMenuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Semua stok") },
-                            onClick = {
-                                stockFilter = StockFilterType.ALL
-                                filterMenuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Stok menipis") },
-                            onClick = {
-                                stockFilter = StockFilterType.LOW_STOCK
-                                filterMenuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Stok habis") },
-                            onClick = {
-                                stockFilter = StockFilterType.OUT_OF_STOCK
-                                filterMenuExpanded = false
+                    // Tabs Kategori
+                    categories.forEachIndexed { index, cat ->
+                        val isSelected = selectedTabIndex == index + 1
+                        Tab(
+                            selected = isSelected,
+                            onClick = { viewModel.selectCategory(cat.id) },
+                            text = {
+                                Text(
+                                    text = cat.name,
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    style = TextStyle(
+                                        fontSize = 14.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) BrandBlue else Slate500
+                                    )
+                                )
                             }
                         )
                     }
                 }
-            }
 
-            // ── Product Item List ─────────────────────────────────────────────
-            if (displayedProducts.isEmpty()) {
-                Box(
+                // ── Subheader Row: Produk Count & Filter ──────────────────────────
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
-                    contentAlignment = Alignment.Center
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    WorkspaceEmptyState(
-                        icon = if (uiState.searchQuery.isNotBlank()) Icons.Default.Search else Icons.Outlined.Inventory2,
-                        title = if (uiState.searchQuery.isNotBlank()) "Produk tidak ditemukan" else "Belum ada produk",
-                        description = if (uiState.searchQuery.isNotBlank()) {
-                            "Coba kata kunci lain atau pilih kategori Semua."
-                        } else {
-                            "Ketuk Tambah produk untuk mengisi nama, harga, dan stok barang jualan."
-                        }
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-                    items(displayedProducts, key = { it.product.id }) { item ->
-                        ProductItemRow(
-                            item = item,
-                            currencySymbol = settings.currencySymbol,
-                            onEdit = { viewModel.openEditProductForm(item) },
-                            onManageStock = onNavigateToInventory,
-                            onDelete = { productToDelete = item }
+                    Text(
+                        text = "${displayedProducts.size} produk",
+                        style = TextStyle(
+                            fontSize = 13.sp,
+                            color = Slate500,
+                            fontWeight = FontWeight.Medium
                         )
-                        HorizontalDivider(color = Slate100, thickness = 1.dp)
+                    )
+
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { filterMenuExpanded = true }
+                                .padding(horizontal = 6.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Tune,
+                                contentDescription = "Filter",
+                                tint = if (stockFilter != StockFilterType.ALL) BrandBlue else Slate600,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = when (stockFilter) {
+                                    StockFilterType.ALL -> "Filter"
+                                    StockFilterType.LOW_STOCK -> "Menipis"
+                                    StockFilterType.OUT_OF_STOCK -> "Habis"
+                                },
+                                style = TextStyle(
+                                    fontSize = 13.sp,
+                                    color = if (stockFilter != StockFilterType.ALL) BrandBlue else Slate600,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = filterMenuExpanded,
+                            onDismissRequest = { filterMenuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Semua stok") },
+                                onClick = {
+                                    stockFilter = StockFilterType.ALL
+                                    filterMenuExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Stok menipis") },
+                                onClick = {
+                                    stockFilter = StockFilterType.LOW_STOCK
+                                    filterMenuExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Stok habis") },
+                                onClick = {
+                                    stockFilter = StockFilterType.OUT_OF_STOCK
+                                    filterMenuExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // ── Product Item List (Phone) ─────────────────────────────────────
+                if (displayedProducts.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WorkspaceEmptyState(
+                            icon = if (uiState.searchQuery.isNotBlank()) Icons.Default.Search else Icons.Outlined.Inventory2,
+                            title = if (uiState.searchQuery.isNotBlank()) "Produk tidak ditemukan" else "Belum ada produk",
+                            description = if (uiState.searchQuery.isNotBlank()) {
+                                "Coba kata kunci lain atau pilih kategori Semua."
+                            } else {
+                                "Ketuk Tambah produk untuk mengisi nama, harga, dan stok barang jualan."
+                            }
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(bottom = 16.dp)
+                    ) {
+                        items(displayedProducts, key = { it.product.id }) { item ->
+                            ProductItemRow(
+                                item = item,
+                                currencySymbol = settings.currencySymbol,
+                                onEdit = { viewModel.openEditProductForm(item) },
+                                onManageStock = onNavigateToInventory,
+                                onDelete = { productToDelete = item }
+                            )
+                            HorizontalDivider(color = Slate100, thickness = 1.dp)
+                        }
                     }
                 }
             }
@@ -873,14 +944,20 @@ private fun ProductFormScreen(
                 }
             }
         ) { paddingValues ->
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
-                    .verticalScroll(rememberScrollState())
-                    .imePadding()
-                    .padding(horizontal = 20.dp, vertical = 16.dp)
+                    .padding(paddingValues),
+                contentAlignment = Alignment.TopCenter
             ) {
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 680.dp)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .imePadding()
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                ) {
                 // ── Area Foto Produk ──────────────────────────────────────────
                 Row(
                     verticalAlignment = Alignment.CenterVertically
@@ -1643,6 +1720,7 @@ private fun ProductFormScreen(
                 Spacer(Modifier.height(24.dp))
             }
         }
+    }
 
         if (isBarcodeScannerOpen) {
             BarcodeScannerInputDialog(
@@ -1857,5 +1935,615 @@ private fun savePickedImageToInternalStorage(context: Context, uri: Uri): String
         file.absolutePath
     } catch (_: Exception) {
         null
+    }
+}
+
+@Composable
+private fun ProductTabletMasterDetail(
+    displayedProducts: List<ProductWithCategory>,
+    allProducts: List<ProductWithCategory>,
+    categories: List<CategoryEntity>,
+    selectedCategoryId: String?,
+    searchQuery: String,
+    currencySymbol: String,
+    stockFilter: StockFilterType,
+    onStockFilterChange: (StockFilterType) -> Unit,
+    onSearchChange: (String) -> Unit,
+    onSelectCategory: (String?) -> Unit,
+    onEditProduct: (ProductWithCategory) -> Unit,
+    onAdjustStock: () -> Unit,
+    onDeleteProduct: (ProductWithCategory) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var selectedProductId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedItem = remember(displayedProducts, selectedProductId) {
+        displayedProducts.firstOrNull { it.product.id == selectedProductId }
+            ?: displayedProducts.firstOrNull()
+    }
+
+    val lowStockCount = remember(allProducts) {
+        allProducts.count { it.product.trackStock && it.product.stock <= it.product.minStock }
+    }
+
+    val selectedTabIndex = remember(selectedCategoryId, categories) {
+        if (selectedCategoryId == null) 0
+        else {
+            val idx = categories.indexOfFirst { it.id == selectedCategoryId }
+            if (idx >= 0) idx + 1 else 0
+        }
+    }
+
+    val pageSize = 6
+    var currentPage by rememberSaveable { mutableStateOf(0) }
+    val totalPages = maxOf(1, ((displayedProducts.size + pageSize - 1) / pageSize))
+    val safePage = currentPage.coerceIn(0, totalPages - 1)
+    val pagedProducts = remember(displayedProducts, safePage) {
+        displayedProducts.drop(safePage * pageSize).take(pageSize)
+    }
+
+    Row(
+        modifier = modifier.fillMaxSize(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // ── Panel Kiri: Tabel Produk (Master) ──────────────────────────────
+        Card(
+            modifier = Modifier
+                .weight(1.58f)
+                .fillMaxHeight(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, Slate200),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp)
+            ) {
+                // Search Bar
+                com.rising.pos.ui.components.PosSearchBar(
+                    value = searchQuery,
+                    onValueChange = onSearchChange,
+                    placeholder = "Cari nama atau kode barang"
+                )
+
+                Spacer(Modifier.height(10.dp))
+
+                // Subheader: Counter + Low stock badge
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "${displayedProducts.size} produk",
+                        style = TextStyle(
+                            fontSize = 13.5.sp,
+                            color = Slate600,
+                            fontWeight = FontWeight.Medium
+                        )
+                    )
+
+                    if (lowStockCount > 0) {
+                        Surface(
+                            onClick = {
+                                onStockFilterChange(
+                                    if (stockFilter == StockFilterType.LOW_STOCK) StockFilterType.ALL
+                                    else StockFilterType.LOW_STOCK
+                                )
+                            },
+                            shape = RoundedCornerShape(8.dp),
+                            color = Color(0xFFFEF3C7),
+                            border = BorderStroke(1.dp, Color(0xFFFDE68A))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "⚠️",
+                                    fontSize = 11.sp
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Text(
+                                    text = "$lowStockCount stok menipis",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFD97706)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // Underline Tabs Kategori
+                ScrollableTabRow(
+                    selectedTabIndex = selectedTabIndex,
+                    containerColor = Color.Transparent,
+                    contentColor = BrandBlue,
+                    edgePadding = 0.dp,
+                    indicator = { tabPositions ->
+                        if (selectedTabIndex < tabPositions.size) {
+                            Box(
+                                Modifier
+                                    .tabIndicatorOffset(tabPositions[selectedTabIndex])
+                                    .height(2.5.dp)
+                                    .background(BrandBlue)
+                            )
+                        }
+                    },
+                    divider = { HorizontalDivider(color = Slate100) }
+                ) {
+                    Tab(
+                        selected = selectedTabIndex == 0,
+                        onClick = { onSelectCategory(null) },
+                        text = {
+                            Text(
+                                text = "Semua",
+                                style = TextStyle(
+                                    fontSize = 13.5.sp,
+                                    fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (selectedTabIndex == 0) BrandBlue else Slate500
+                                )
+                            )
+                        }
+                    )
+                    categories.forEachIndexed { index, cat ->
+                        val isSelected = selectedTabIndex == index + 1
+                        Tab(
+                            selected = isSelected,
+                            onClick = { onSelectCategory(cat.id) },
+                            text = {
+                                Text(
+                                    text = cat.name,
+                                    maxLines = 1,
+                                    style = TextStyle(
+                                        fontSize = 13.5.sp,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                        color = if (isSelected) BrandBlue else Slate500
+                                    )
+                                )
+                            }
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(8.dp))
+
+                // Table Header
+                Surface(
+                    color = Slate100.copy(alpha = 0.6f),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 9.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Produk", modifier = Modifier.weight(2.4f), style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate600))
+                        Text("Kategori", modifier = Modifier.weight(1.3f), style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate600))
+                        Text("Harga jual", modifier = Modifier.weight(1.3f), style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate600))
+                        Text("Stok", modifier = Modifier.weight(1.1f), style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Slate600))
+                        Spacer(Modifier.width(36.dp))
+                    }
+                }
+
+                // Table Rows
+                if (displayedProducts.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        WorkspaceEmptyState(
+                            icon = Icons.Outlined.Inventory2,
+                            title = "Produk tidak ditemukan",
+                            description = "Coba kata kunci lain atau pilih kategori Semua."
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        items(pagedProducts, key = { it.product.id }) { item ->
+                            val isSelected = (item.product.id == selectedItem?.product?.id)
+                            var menuExpanded by remember { mutableStateOf(false) }
+
+                            Surface(
+                                onClick = { selectedProductId = item.product.id },
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isSelected) Color(0xFFEFF6FF) else Color.Transparent,
+                                border = if (isSelected) BorderStroke(1.dp, Color(0xFFBFDBFE)) else null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 2.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    // Kolom Produk (Thumbnail + Nama & SKU)
+                                    Row(
+                                        modifier = Modifier.weight(2.4f),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        val img = rememberProductImage(item.product.imageUrl)
+                                        Box(
+                                            modifier = Modifier
+                                                .size(38.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Slate100),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            if (img != null) {
+                                                Image(
+                                                    bitmap = img,
+                                                    contentDescription = item.product.name,
+                                                    contentScale = ContentScale.Crop,
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            } else {
+                                                val visual = getCategoryVisual(item.category?.name, item.product.name)
+                                                Icon(
+                                                    imageVector = visual.icon,
+                                                    contentDescription = null,
+                                                    tint = visual.contentColor,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                            }
+                                        }
+
+                                        Spacer(Modifier.width(10.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = item.product.name,
+                                                style = TextStyle(fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Slate900),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            Text(
+                                                text = item.product.sku?.takeIf { it.isNotBlank() } ?: item.product.barcode?.takeIf { it.isNotBlank() } ?: "PRD-${item.product.id.take(4).uppercase()}",
+                                                style = TextStyle(fontSize = 11.5.sp, color = Slate400),
+                                                maxLines = 1
+                                            )
+                                        }
+                                    }
+
+                                    // Kolom Kategori
+                                    Text(
+                                        text = item.category?.name ?: "Umum",
+                                        modifier = Modifier.weight(1.3f),
+                                        style = TextStyle(fontSize = 13.sp, color = Slate600),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+
+                                    // Kolom Harga jual
+                                    Text(
+                                        text = CurrencyFormatter.format(item.product.sellingPrice, currencySymbol),
+                                        modifier = Modifier.weight(1.3f),
+                                        style = TextStyle(fontSize = 13.5.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                                    )
+
+                                    // Kolom Stok
+                                    Box(modifier = Modifier.weight(1.1f)) {
+                                        if (item.product.trackStock) {
+                                            val isLow = item.product.stock <= item.product.minStock
+                                            if (isLow) {
+                                                Surface(
+                                                    shape = RoundedCornerShape(10.dp),
+                                                    color = Color(0xFFFEF3C7)
+                                                ) {
+                                                    Text(
+                                                        text = "${item.product.stock.toInt()} pcs",
+                                                        style = TextStyle(fontSize = 11.5.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFFD97706)),
+                                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                                    )
+                                                }
+                                            } else {
+                                                Text(
+                                                    text = "${item.product.stock.toInt()} pcs",
+                                                    style = TextStyle(fontSize = 13.sp, color = Slate700)
+                                                )
+                                            }
+                                        } else {
+                                            Text(text = "-", style = TextStyle(fontSize = 13.sp, color = Slate400))
+                                        }
+                                    }
+
+                                    // Kolom Action 3-dots
+                                    Box {
+                                        IconButton(
+                                            onClick = { menuExpanded = true },
+                                            modifier = Modifier.size(36.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Outlined.MoreVert,
+                                                contentDescription = "Opsi",
+                                                tint = Slate500,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+
+                                        DropdownMenu(
+                                            expanded = menuExpanded,
+                                            onDismissRequest = { menuExpanded = false }
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("Edit produk") },
+                                                leadingIcon = { Icon(Icons.Outlined.Edit, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                                onClick = {
+                                                    menuExpanded = false
+                                                    onEditProduct(item)
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Sesuaikan stok") },
+                                                leadingIcon = { Icon(Icons.Outlined.Inventory2, contentDescription = null, modifier = Modifier.size(18.dp)) },
+                                                onClick = {
+                                                    menuExpanded = false
+                                                    onAdjustStock()
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Hapus produk", color = DangerRed) },
+                                                leadingIcon = { Icon(Icons.Outlined.DeleteOutline, contentDescription = null, tint = DangerRed, modifier = Modifier.size(18.dp)) },
+                                                onClick = {
+                                                    menuExpanded = false
+                                                    onDeleteProduct(item)
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            HorizontalDivider(color = Slate100, thickness = 0.8.dp)
+                        }
+                    }
+                }
+
+                // Table Footer: Counter & Pagination
+                HorizontalDivider(color = Slate200, thickness = 1.dp)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    val startIdx = if (displayedProducts.isEmpty()) 0 else safePage * pageSize + 1
+                    val endIdx = minOf((safePage + 1) * pageSize, displayedProducts.size)
+                    Text(
+                        text = "Menampilkan $startIdx–$endIdx dari ${displayedProducts.size} produk",
+                        style = TextStyle(fontSize = 12.sp, color = Slate500)
+                    )
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(
+                            onClick = { if (currentPage > 0) currentPage-- },
+                            enabled = currentPage > 0,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                                contentDescription = "Sebelumnya",
+                                tint = if (currentPage > 0) Slate700 else Slate400
+                            )
+                        }
+
+                        Text(
+                            text = "${safePage + 1} / $totalPages",
+                            style = TextStyle(fontSize = 12.5.sp, fontWeight = FontWeight.Medium, color = Slate700),
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        IconButton(
+                            onClick = { if (currentPage < totalPages - 1) currentPage++ },
+                            enabled = currentPage < totalPages - 1,
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                                contentDescription = "Berikutnya",
+                                tint = if (currentPage < totalPages - 1) Slate700 else Slate400
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── Panel Kanan: Detail Produk ─────────────────────────────────────
+        Card(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+            border = BorderStroke(1.dp, Slate200),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        ) {
+            if (selectedItem != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(18.dp)
+                ) {
+                    // Header Detail
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Detail produk",
+                            style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                        )
+
+                        Surface(
+                            shape = RoundedCornerShape(12.dp),
+                            color = Color(0xFFDCFCE7)
+                        ) {
+                            Text(
+                                text = "Aktif",
+                                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF16A34A)),
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // Gambar Produk Besar
+                    val bigImg = rememberProductImage(selectedItem.product.imageUrl)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Slate100),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (bigImg != null) {
+                            Image(
+                                bitmap = bigImg,
+                                contentDescription = selectedItem.product.name,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(8.dp)
+                            )
+                        } else {
+                            val visual = getCategoryVisual(selectedItem.category?.name, selectedItem.product.name)
+                            Icon(
+                                imageVector = visual.icon,
+                                contentDescription = null,
+                                tint = visual.contentColor,
+                                modifier = Modifier.size(60.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // Nama & SKU
+                    Text(
+                        text = selectedItem.product.name,
+                        style = TextStyle(fontSize = 19.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                    )
+                    Text(
+                        text = selectedItem.product.sku?.takeIf { it.isNotBlank() } ?: selectedItem.product.barcode?.takeIf { it.isNotBlank() } ?: "PRD-${selectedItem.product.id.take(4).uppercase()}",
+                        style = TextStyle(fontSize = 13.sp, color = Slate400)
+                    )
+
+                    Spacer(Modifier.height(16.dp))
+
+                    // Spesifikasi Key-Value
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Kategori", style = TextStyle(fontSize = 13.sp, color = Slate500))
+                            Text(selectedItem.category?.name ?: "Umum", style = TextStyle(fontSize = 13.5.sp, color = Slate900))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Harga jual", style = TextStyle(fontSize = 13.sp, color = Slate500))
+                            Text(CurrencyFormatter.format(selectedItem.product.sellingPrice, currencySymbol), style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Slate900))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Stok tersedia", style = TextStyle(fontSize = 13.sp, color = Slate500))
+                            val stockTxt = if (selectedItem.product.trackStock) "${selectedItem.product.stock.toInt()} ${selectedItem.product.unit}" else "Tanpa batas"
+                            Text(stockTxt, style = TextStyle(fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Slate900))
+                        }
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Stok minimum", style = TextStyle(fontSize = 13.sp, color = Slate500))
+                            val minStockTxt = if (selectedItem.product.trackStock) "${selectedItem.product.minStock.toInt()} ${selectedItem.product.unit}" else "-"
+                            Text(minStockTxt, style = TextStyle(fontSize = 13.5.sp, color = Slate700))
+                        }
+                    }
+
+                    Spacer(Modifier.height(14.dp))
+
+                    // Status Stok Alert
+                    val isLowStock = selectedItem.product.trackStock && selectedItem.product.stock <= selectedItem.product.minStock
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isLowStock) Color(0xFFFEF3C7) else Color(0xFFF0FDF4),
+                        border = BorderStroke(1.dp, if (isLowStock) Color(0xFFFDE68A) else Color(0xFFDCFCE7)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isLowStock) Icons.Outlined.Warning else Icons.Outlined.CheckCircle,
+                                contentDescription = null,
+                                tint = if (isLowStock) Color(0xFFD97706) else Color(0xFF16A34A),
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = if (isLowStock) "Stok menipis, segera tambah stok." else "Stok masih mencukupi.",
+                                style = TextStyle(
+                                    fontSize = 12.5.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isLowStock) Color(0xFFD97706) else Color(0xFF16A34A)
+                                )
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.weight(1f))
+
+                    // Action Buttons
+                    Button(
+                        onClick = { onEditProduct(selectedItem) },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Icon(Icons.Outlined.Edit, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Edit produk", style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = Color.White))
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    OutlinedButton(
+                        onClick = onAdjustStock,
+                        shape = RoundedCornerShape(10.dp),
+                        border = BorderStroke(1.5.dp, BrandBlue),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = BrandBlue),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp)
+                    ) {
+                        Icon(Icons.Outlined.Inventory2, contentDescription = null, tint = BrandBlue, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Sesuaikan stok", style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = BrandBlue))
+                    }
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Pilih produk untuk melihat detail",
+                        style = TextStyle(fontSize = 14.sp, color = Slate400)
+                    )
+                }
+            }
+        }
     }
 }

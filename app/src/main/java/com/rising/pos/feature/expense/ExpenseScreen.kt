@@ -80,6 +80,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.widthIn
+
 /**
  * Pengeluaran operasional.
  *
@@ -91,6 +97,12 @@ import java.util.Locale
 fun ExpenseScreen(
     viewModel: ExpenseViewModel = hiltViewModel()
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val screenHeight = configuration.screenHeightDp
+    val isWideScreen = screenWidth >= 600
+    val isCompactHeight = screenHeight < 500
+
     val expenses by viewModel.expenses.collectAsState()
     val settings by viewModel.settings.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
@@ -102,15 +114,17 @@ fun ExpenseScreen(
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
-            Button(
-                onClick = viewModel::openForm,
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                modifier = Modifier.height(56.dp)
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
-                Spacer(Modifier.width(8.dp))
-                Text("Catat pengeluaran", style = MaterialTheme.typography.titleMedium, color = Color.White)
+            if (!isWideScreen) {
+                Button(
+                    onClick = viewModel::openForm,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.height(56.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = Color.White)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Catat pengeluaran", style = MaterialTheme.typography.titleMedium, color = Color.White)
+                }
             }
         }
     ) { paddingValues ->
@@ -118,20 +132,45 @@ fun ExpenseScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = if (isWideScreen) 24.dp else 16.dp)
         ) {
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(if (isCompactHeight) 8.dp else 16.dp))
 
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Pengeluaran", style = MaterialTheme.typography.headlineSmall, color = Slate900)
-                Text(
-                    "Catat biaya operasional dan belanja toko.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Slate500
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text(
+                        "Pengeluaran",
+                        style = if (isCompactHeight) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineSmall,
+                        color = Slate900
+                    )
+                    Text(
+                        "Catat biaya operasional dan belanja toko.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate500
+                    )
+                }
+
+                if (isWideScreen) {
+                    Button(
+                        onClick = viewModel::openForm,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.height(44.dp)
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Catat pengeluaran", style = MaterialTheme.typography.labelLarge, color = Color.White)
+                    }
+                }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(if (isCompactHeight) 8.dp else 16.dp))
 
             // Ringkasan total
             Surface(
@@ -140,10 +179,10 @@ fun ExpenseScreen(
                 color = DangerRedContainer
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(18.dp),
+                    modifier = Modifier.fillMaxWidth().padding(if (isCompactHeight) 12.dp else 18.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(
                                 Icons.Outlined.TrendingDown,
@@ -160,7 +199,7 @@ fun ExpenseScreen(
                         }
                         Text(
                             CurrencyFormatter.format(totalExpense, settings.currencySymbol),
-                            style = PosTextStyles.displayMoney,
+                            style = if (isCompactHeight) MaterialTheme.typography.titleLarge else PosTextStyles.displayMoney,
                             color = Slate900
                         )
                         Text(
@@ -172,7 +211,7 @@ fun ExpenseScreen(
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(if (isCompactHeight) 8.dp else 16.dp))
 
             if (expenses.isEmpty()) {
                 Box(
@@ -184,6 +223,23 @@ fun ExpenseScreen(
                         title = "Belum ada pengeluaran",
                         description = "Catat biaya seperti belanja bahan, gaji, atau listrik agar laporan usaha akurat."
                     )
+                }
+            } else if (isWideScreen) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 340.dp),
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(expenses, key = { it.id }) { item ->
+                        ExpenseItemRow(
+                            expense = item,
+                            currencySymbol = settings.currencySymbol,
+                            dateStr = dateFormatter.format(Date(item.date)),
+                            onDelete = { expenseToDelete = item }
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
@@ -363,16 +419,21 @@ private fun ExpenseFormBottomSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp)
-                .verticalScroll(rememberScrollState())
-                .imePadding(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.TopCenter
         ) {
-            Text("Catat pengeluaran", style = MaterialTheme.typography.titleLarge, color = Slate900)
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 20.dp)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Catat pengeluaran", style = MaterialTheme.typography.titleLarge, color = Slate900)
 
             // Nominal paling penting: input besar & menonjol.
             OutlinedTextField(
@@ -438,4 +499,5 @@ private fun ExpenseFormBottomSheet(
             Spacer(Modifier.height(8.dp))
         }
     }
+}
 }

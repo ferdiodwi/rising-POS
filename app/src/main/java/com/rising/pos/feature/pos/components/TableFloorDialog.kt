@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -65,6 +66,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.platform.LocalConfiguration
 import com.rising.pos.core.database.entity.RestaurantTableEntity
 import com.rising.pos.core.database.entity.TransactionWithDetails
 import com.rising.pos.core.util.CurrencyFormatter
@@ -93,6 +95,10 @@ fun TableFloorDialog(
     onToggleOccupied: (tableNumber: String, isOccupied: Boolean) -> Unit = { _, _ -> },
     onSeedDefaultTables: () -> Unit = {}
 ) {
+    val configuration = LocalConfiguration.current
+    val screenHeight = configuration.screenHeightDp
+    val isCompactHeight = screenHeight < 500
+
     var filterStatus by rememberSaveable { mutableStateOf("ALL") } // ALL, AVAILABLE, OCCUPIED
     var tableToEdit by remember { mutableStateOf<RestaurantTableEntity?>(null) }
     var showFormDialog by remember { mutableStateOf(false) }
@@ -110,14 +116,20 @@ fun TableFloorDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
+                .widthIn(max = 620.dp)
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(if (isCompactHeight) 14.dp else 20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             border = BorderStroke(1.dp, Slate200),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            Column(modifier = Modifier.padding(20.dp)) {
+            Column(
+                modifier = Modifier.padding(
+                    horizontal = if (isCompactHeight) 16.dp else 20.dp,
+                    vertical = if (isCompactHeight) 10.dp else 20.dp
+                )
+            ) {
                 // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -295,12 +307,12 @@ fun TableFloorDialog(
                     }
                 } else {
                     LazyVerticalGrid(
-                        columns = GridCells.Adaptive(minSize = 140.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        columns = GridCells.Adaptive(minSize = if (isCompactHeight) 120.dp else 140.dp),
+                        horizontalArrangement = Arrangement.spacedBy(if (isCompactHeight) 8.dp else 10.dp),
+                        verticalArrangement = Arrangement.spacedBy(if (isCompactHeight) 8.dp else 10.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 420.dp)
+                            .heightIn(max = if (isCompactHeight) 190.dp else 420.dp)
                     ) {
                         items(filteredTables, key = { it.id }) { table ->
                             val isSelected = selectedTableNumber == table.tableNumber
