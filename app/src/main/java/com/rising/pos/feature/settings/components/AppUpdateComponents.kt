@@ -8,16 +8,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.NewReleases
@@ -234,148 +230,13 @@ fun AppUpdateDialog(
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val isCompactHeight = configuration.screenHeightDp < 500
 
     when (updateState) {
         is UpdateState.UpdateAvailable -> {
-            val isForce = updateState.isForceUpdate
-            AlertDialog(
-                onDismissRequest = {
-                    if (!isForce) onDismiss()
-                },
-                icon = {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(
-                                (if (isForce) DangerRed else PrimaryBlue).copy(alpha = 0.12f),
-                                RoundedCornerShape(12.dp)
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = if (isForce) Icons.Default.Warning else Icons.Default.CloudDownload,
-                            contentDescription = null,
-                            tint = if (isForce) DangerRed else PrimaryBlue,
-                            modifier = Modifier.size(28.dp)
-                        )
-                    }
-                },
-                title = {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = if (isForce) "Pembaruan Wajib!" else "Update Tersedia!",
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = if (isForce) DangerRed else Slate900
-                            )
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Surface(
-                            color = (if (isForce) DangerRed else PrimaryBlue).copy(alpha = 0.1f),
-                            shape = RoundedCornerShape(6.dp)
-                        ) {
-                            Text(
-                                text = "Versi ${updateState.currentVersion} ke ${updateState.latestVersion}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = if (isForce) DangerRed else PrimaryBlue,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-                },
-                text = {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (isForce) {
-                            Surface(
-                                color = DangerRed.copy(alpha = 0.08f),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Warning,
-                                        contentDescription = null,
-                                        tint = DangerRed,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Text(
-                                        text = "Versi aplikasi Anda sudah tidak didukung. Harap perbarui ke versi terbaru untuk melanjutkan penggunaan.",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        color = DangerRed
-                                    )
-                                }
-                            }
-                        }
-
-                        if (updateState.apkSize > 0) {
-                            val sizeMb = updateState.apkSize.toDouble() / (1024.0 * 1024.0)
-                            Text(
-                                text = String.format(Locale.getDefault(), "Ukuran file: %.1f MB", sizeMb),
-                                fontSize = 12.sp,
-                                color = Slate500
-                            )
-                        }
-
-                        Text(
-                            text = "Catatan Rilis:",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Slate900
-                        )
-
-                        Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = if (isCompactHeight) 100.dp else 180.dp),
-                            color = Slate200.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Text(
-                                text = updateState.releaseNotes,
-                                fontSize = 12.sp,
-                                color = Slate700,
-                                modifier = Modifier
-                                    .padding(10.dp)
-                                    .verticalScroll(rememberScrollState())
-                            )
-                        }
-                    }
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            onDownload(updateState.downloadUrl, updateState.latestVersion, isForce)
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isForce) DangerRed else PrimaryBlue
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Download,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(if (isForce) "Perbarui Sekarang" else "Download & Pasang")
-                    }
-                },
-                dismissButton = if (!isForce) {
-                    {
-                        OutlinedButton(onClick = onDismiss) {
-                            Text("Nanti Saja")
-                        }
-                    }
-                } else null
+            UpdateAvailableDialog(
+                state = updateState,
+                onDownload = { onDownload(updateState.downloadUrl, updateState.latestVersion, updateState.isForceUpdate) },
+                onDismiss = onDismiss
             )
         }
 
@@ -563,37 +424,7 @@ fun AppUpdateDialog(
         }
 
         is UpdateState.UpToDate -> {
-            AlertDialog(
-                onDismissRequest = onDismiss,
-                icon = {
-                    Icon(
-                        imageVector = Icons.Default.CheckCircle,
-                        contentDescription = null,
-                        tint = SuccessGreen,
-                        modifier = Modifier.size(40.dp)
-                    )
-                },
-                title = {
-                    Text(
-                        text = "Versi Terbaru",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
-                    )
-                },
-                text = {
-                    Text(
-                        text = "Aplikasi Anda sudah menggunakan versi paling baru (v${updateState.currentVersion}). Tidak ada update yang diperlukan saat ini.",
-                        style = MaterialTheme.typography.bodyMedium.copy(color = Slate700)
-                    )
-                },
-                confirmButton = {
-                    Button(
-                        onClick = onDismiss,
-                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
-                    ) {
-                        Text("Oke")
-                    }
-                }
-            )
+            AppUpToDateDialog(currentVersion = updateState.currentVersion, onDismiss = onDismiss)
         }
 
         else -> {
