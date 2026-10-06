@@ -34,7 +34,10 @@ import com.rising.pos.ui.theme.PrimaryBlueContainer
 import com.rising.pos.ui.theme.DangerRed
 
 @Composable
-fun ProductPhoto(imageUrl: String?, name: String, modifier: Modifier = Modifier) {
+fun ProductPhoto(
+    imageUrl: String?, name: String, modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Crop
+) {
     var failed by remember(imageUrl) { mutableStateOf(false) }
     var loaded by remember(imageUrl) { mutableStateOf(false) }
 
@@ -56,7 +59,7 @@ fun ProductPhoto(imageUrl: String?, name: String, modifier: Modifier = Modifier)
             AsyncImage(
                 model = imageUrl,
                 contentDescription = name,
-                contentScale = ContentScale.Crop,
+                contentScale = contentScale,
                 modifier = Modifier.fillMaxSize(),
                 onSuccess = { loaded = true },
                 onError = { failed = true }

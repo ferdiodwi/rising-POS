@@ -91,8 +91,8 @@ fun PosAppNavHost(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Pos.route
 
-    if (isTablet) {
-        // Tablet: NavigationRail layout with full items
+    if (isTablet && currentRoute != Screen.Pos.route) {
+        // Keep existing navigation on tablet pages outside the cashier redesign.
         Row(
             modifier = Modifier
                 .fillMaxSize()
@@ -148,7 +148,7 @@ fun PosAppNavHost(
             }
         }
     } else {
-        // Phone: Scaffold with PosBottomNavBar
+        // Phones and the tablet cashier share the five-destination bottom navigation.
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
@@ -157,6 +157,7 @@ fun PosAppNavHost(
                 PosBottomNavBar(
                     items = phoneNavigationItems,
                     currentRoute = currentRoute,
+                    expanded = isTablet,
                     onNavigate = { route ->
                         if (currentRoute != route) {
                             navController.navigate(route) {
