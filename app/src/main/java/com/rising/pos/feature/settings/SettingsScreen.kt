@@ -12,10 +12,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -45,6 +47,12 @@ import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Restore
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.TableRestaurant
+import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.LocalOffer
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
 import com.rising.pos.feature.pos.components.TableFloorDialog
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -89,14 +97,20 @@ import com.rising.pos.ui.components.SecurityPinDialog
 import com.rising.pos.ui.theme.DangerRed
 import com.rising.pos.ui.theme.DangerRedContainer
 import com.rising.pos.ui.theme.PrimaryBlue
+import com.rising.pos.ui.theme.PrimaryBlueContainer
+import com.rising.pos.ui.theme.Slate100
 import com.rising.pos.ui.theme.Slate200
 import com.rising.pos.ui.theme.Slate400
 import com.rising.pos.ui.theme.Slate500
+import com.rising.pos.ui.theme.Slate600
 import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate800
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
 import com.rising.pos.ui.theme.SuccessGreenContainer
+
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.widthIn
 
 /**
  * Pengaturan usaha dan perangkat, dikelompokkan berdasarkan tugas kasir.
@@ -108,6 +122,9 @@ fun SettingsScreen(
     onBackClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val isWideScreen = configuration.screenWidthDp >= 600
+    val isCompactHeight = configuration.screenHeightDp < 500
     val settings by viewModel.settings.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val updateState by viewModel.updateState.collectAsState()
@@ -133,17 +150,55 @@ fun SettingsScreen(
 
     val hasPrinter = settings.printerMacAddress.isNotBlank()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        Row(
+    if (isWideScreen && !isCompactHeight) {
+        SettingsTabletMasterDetail(
+            settings = settings,
+            uiState = uiState,
+            updateState = updateState,
+            hasPrinter = hasPrinter,
+            onBackClick = onBackClick,
+            onUpdateProfile = { name, phone, address, footer, deviceId ->
+                viewModel.updateBusinessProfile(name, phone, address, footer, deviceId)
+            },
+            onUpdateTax = { taxEnabled, taxPct, isIncl, svcEnabled, svcPct ->
+                viewModel.updateTaxAndService(taxEnabled, taxPct, isIncl, svcEnabled, svcPct)
+            },
+            onUpdateToggles = { table, modifier, barcode, stock ->
+                viewModel.updateFeatureToggles(table, modifier, barcode, stock)
+            },
+            onSelectPrinter = { viewModel.openPrinterPicker() },
+            onTestPrint = { viewModel.testPrint() },
+            onSetPaperWidth = { viewModel.setPaperWidth(it) },
+            onSetAutoPrint = { viewModel.setAutoPrint(it) },
+            onBackupDatabase = { viewModel.backupDatabase(context) },
+            onRestoreDatabase = {
+                if (settings.isPinSecurityEnabled) {
+                    isPinAuthForRestoreOpen = true
+                } else {
+                    isRestoreConfirmationOpen = true
+                }
+            },
+            onExportCsv = { isExportReportDialogOpen = true },
+            onSyncNow = { viewModel.syncNow() },
+            onCheckUpdates = { viewModel.checkForUpdates() }
+        )
+    } else {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, top = 12.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
         ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = if (isCompactHeight) 14.dp else 20.dp,
+                        end = if (isCompactHeight) 14.dp else 20.dp,
+                        top = if (isCompactHeight) 6.dp else 12.dp,
+                        bottom = if (isCompactHeight) 4.dp else 8.dp
+                    ),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
             if (onBackClick != null) {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Outlined.ChevronLeft, contentDescription = "Kembali", tint = Slate900)
@@ -153,19 +208,25 @@ fun SettingsScreen(
             com.rising.pos.ui.components.PosHeaderTitleSection(
                 title = "Pengaturan",
                 subtitle = settings.name.ifBlank { "Rising Studio" },
-                extraSubtitle = "Sesuaikan usaha dan perangkat kasir."
+                extraSubtitle = if (isCompactHeight) null else "Sesuaikan usaha dan perangkat kasir."
             )
         }
 
         // ── Konten Pengaturan ────────────────────────────────────────────────
-        Column(
+        Box(
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
+                .fillMaxSize(),
+            contentAlignment = Alignment.TopCenter
         ) {
-            // ── Section: General ─────────────────────────────────────────────
-            SettingsSectionTitle("Usaha & tampilan")
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 840.dp)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = if (isWideScreen) 24.dp else 16.dp)
+            ) {
+                // ── Section: General ─────────────────────────────────────────────
+                SettingsSectionTitle("Usaha & tampilan")
             SettingsGroupCard {
                 SettingNavigationItem(
                     title = "Profil Toko",
@@ -548,6 +609,8 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(36.dp))
         }
+    }
+}
     }
 
     // ── Dialog: Profil Toko ──────────────────────────────────────────────────
@@ -1176,7 +1239,12 @@ private fun TaxAndServiceDialog(
             )
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
                 OutlinedTextField(
                     value = taxStr,
                     onValueChange = { taxStr = it },
@@ -1450,6 +1518,1127 @@ private fun ExportActionItem(
                 Text(subtitle, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = Slate500)
             }
             Icon(Icons.Outlined.ChevronRight, contentDescription = null, tint = Slate400, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+enum class SettingsTabletMenu(val label: String) {
+    STORE_INFO("Informasi toko"),
+    PAYMENT_METHODS("Metode pembayaran"),
+    TAX_DISCOUNT("Pajak & diskon"),
+    RECEIPT_PRINTER("Printer struk"),
+    BARCODE_SCANNER("Pemindai barcode"),
+    BACKUP_DATA("Cadangkan data"),
+    HELP("Bantuan"),
+    ABOUT_APP("Tentang aplikasi")
+}
+
+@Composable
+private fun SettingsTabletMasterDetail(
+    settings: com.rising.pos.core.datastore.BusinessSettings,
+    uiState: SettingsUiState,
+    updateState: UpdateState,
+    hasPrinter: Boolean,
+    onBackClick: (() -> Unit)?,
+    onUpdateProfile: (String, String, String, String, String) -> Unit,
+    onUpdateTax: (Boolean, Double, Boolean, Boolean, Double) -> Unit,
+    onUpdateToggles: (Boolean, Boolean, Boolean, Boolean) -> Unit,
+    onSelectPrinter: () -> Unit,
+    onTestPrint: () -> Unit,
+    onSetPaperWidth: (Int) -> Unit,
+    onSetAutoPrint: (Boolean) -> Unit,
+    onBackupDatabase: () -> Unit,
+    onRestoreDatabase: () -> Unit,
+    onExportCsv: () -> Unit,
+    onSyncNow: () -> Unit,
+    onCheckUpdates: () -> Unit
+) {
+    var selectedMenu by remember { mutableStateOf(SettingsTabletMenu.STORE_INFO) }
+
+    // Form state untuk STORE_INFO
+    var storeName by remember(settings.name) { mutableStateOf(settings.name.ifBlank { "Rising Studio" }) }
+    var storeAddress by remember(settings.address) { mutableStateOf(settings.address) }
+    var storePhone by remember(settings.phone) { mutableStateOf(settings.phone) }
+    var storeEmail by remember { mutableStateOf("") }
+    var storeFooter by remember(settings.footerNote) { mutableStateOf(settings.footerNote.ifBlank { "Terima kasih sudah berbelanja." }) }
+
+    // Form state untuk TAX_DISCOUNT
+    var isTaxEnabled by remember(settings.isTaxEnabled) { mutableStateOf(settings.isTaxEnabled) }
+    var taxPercentageText by remember(settings.taxPercentage) { mutableStateOf(settings.taxPercentage.toString()) }
+    var isTaxInclusive by remember(settings.isTaxInclusive) { mutableStateOf(settings.isTaxInclusive) }
+    var isServiceChargeEnabled by remember(settings.isServiceChargeEnabled) { mutableStateOf(settings.isServiceChargeEnabled) }
+    var serviceChargePercentageText by remember(settings.serviceChargePercentage) { mutableStateOf(settings.serviceChargePercentage.toString()) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.White)
+    ) {
+        // Header Top Bar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (onBackClick != null) {
+                IconButton(onClick = onBackClick) {
+                    Icon(Icons.Outlined.ChevronLeft, contentDescription = "Kembali", tint = Slate900)
+                }
+                Spacer(Modifier.width(8.dp))
+            }
+            com.rising.pos.ui.components.PosHeaderTitleSection(
+                title = "Pengaturan",
+                subtitle = settings.name.ifBlank { "Rising Studio" }
+            )
+        }
+
+        HorizontalDivider(color = Slate200, thickness = 1.dp)
+
+        // Split Master - Detail
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            // ── PANEL KIRI: SIDEBAR NAVIGASI (Width: 300.dp) ──
+            Column(
+                modifier = Modifier
+                    .width(300.dp)
+                    .fillMaxHeight()
+                    .background(Color.White)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp, vertical = 20.dp)
+            ) {
+                // Profile Card Header (Rising Studio / Pengaturan usaha)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .background(PrimaryBlueContainer, RoundedCornerShape(12.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Storefront,
+                            contentDescription = null,
+                            tint = PrimaryBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                    Spacer(Modifier.width(14.dp))
+                    Column {
+                        Text(
+                            text = settings.name.ifBlank { "Rising Studio" },
+                            fontSize = 15.5.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            text = "Pengaturan usaha",
+                            fontSize = 12.5.sp,
+                            color = Slate500
+                        )
+                    }
+                }
+
+                // ── Group: USAHA ──
+                Text(
+                    text = "USAHA",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400,
+                    modifier = Modifier.padding(start = 6.dp, top = 4.dp, bottom = 8.dp)
+                )
+
+                SidebarNavItem(
+                    title = "Informasi toko",
+                    icon = Icons.Outlined.Storefront,
+                    isSelected = selectedMenu == SettingsTabletMenu.STORE_INFO,
+                    onClick = { selectedMenu = SettingsTabletMenu.STORE_INFO }
+                )
+                SidebarNavItem(
+                    title = "Metode pembayaran",
+                    icon = Icons.Outlined.CreditCard,
+                    isSelected = selectedMenu == SettingsTabletMenu.PAYMENT_METHODS,
+                    onClick = { selectedMenu = SettingsTabletMenu.PAYMENT_METHODS }
+                )
+                SidebarNavItem(
+                    title = "Pajak & diskon",
+                    icon = Icons.Outlined.LocalOffer,
+                    isSelected = selectedMenu == SettingsTabletMenu.TAX_DISCOUNT,
+                    onClick = { selectedMenu = SettingsTabletMenu.TAX_DISCOUNT }
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                // ── Group: PERANGKAT ──
+                Text(
+                    text = "PERANGKAT",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400,
+                    modifier = Modifier.padding(start = 6.dp, top = 4.dp, bottom = 8.dp)
+                )
+
+                SidebarNavItem(
+                    title = "Printer struk",
+                    icon = Icons.Outlined.Print,
+                    isSelected = selectedMenu == SettingsTabletMenu.RECEIPT_PRINTER,
+                    trailingContent = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .background(
+                                        if (hasPrinter) Color(0xFF16A34A) else Slate400,
+                                        CircleShape
+                                    )
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = if (hasPrinter) "Terhubung" else "Belum",
+                                fontSize = 12.sp,
+                                color = if (hasPrinter) Color(0xFF16A34A) else Slate400,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    },
+                    onClick = { selectedMenu = SettingsTabletMenu.RECEIPT_PRINTER }
+                )
+                SidebarNavItem(
+                    title = "Pemindai barcode",
+                    icon = Icons.Outlined.QrCodeScanner,
+                    isSelected = selectedMenu == SettingsTabletMenu.BARCODE_SCANNER,
+                    onClick = { selectedMenu = SettingsTabletMenu.BARCODE_SCANNER }
+                )
+
+                Spacer(Modifier.height(16.dp))
+
+                // ── Group: APLIKASI ──
+                Text(
+                    text = "APLIKASI",
+                    fontSize = 11.5.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Slate400,
+                    modifier = Modifier.padding(start = 6.dp, top = 4.dp, bottom = 8.dp)
+                )
+
+                SidebarNavItem(
+                    title = "Cadangkan data",
+                    icon = Icons.Outlined.CloudUpload,
+                    isSelected = selectedMenu == SettingsTabletMenu.BACKUP_DATA,
+                    onClick = { selectedMenu = SettingsTabletMenu.BACKUP_DATA }
+                )
+                SidebarNavItem(
+                    title = "Bantuan",
+                    icon = Icons.Outlined.HelpOutline,
+                    isSelected = selectedMenu == SettingsTabletMenu.HELP,
+                    onClick = { selectedMenu = SettingsTabletMenu.HELP }
+                )
+                SidebarNavItem(
+                    title = "Tentang aplikasi",
+                    icon = Icons.Outlined.Info,
+                    isSelected = selectedMenu == SettingsTabletMenu.ABOUT_APP,
+                    trailingContent = {
+                        Text(
+                            text = BuildConfig.VERSION_NAME.ifBlank { "1.0.0" },
+                            fontSize = 12.5.sp,
+                            color = Slate400
+                        )
+                    },
+                    onClick = { selectedMenu = SettingsTabletMenu.ABOUT_APP }
+                )
+            }
+
+            // Divider Pemisah Vertikal
+            Box(
+                modifier = Modifier
+                    .width(1.dp)
+                    .fillMaxHeight()
+                    .background(Slate200)
+            )
+
+            // ── PANEL KANAN: DETAIL CONTENT FORM ──
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .background(Color.White)
+                    .verticalScroll(rememberScrollState())
+                    .padding(32.dp)
+            ) {
+                when (selectedMenu) {
+                    SettingsTabletMenu.STORE_INFO -> {
+                        // Title & Subtitle
+                        Text(
+                            text = "Informasi toko",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Identitas usaha yang tampil pada struk.",
+                            fontSize = 13.sp,
+                            color = Slate500
+                        )
+
+                        Spacer(Modifier.height(24.dp))
+
+                        // Logo Section
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .background(PrimaryBlueContainer, RoundedCornerShape(14.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Outlined.Storefront,
+                                    contentDescription = null,
+                                    tint = PrimaryBlue,
+                                    modifier = Modifier.size(34.dp)
+                                )
+                            }
+
+                            Spacer(Modifier.width(20.dp))
+
+                            Column {
+                                Text(
+                                    text = "Logo toko",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Slate900
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                OutlinedButton(
+                                    onClick = { /* Unggah logo */ },
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, PrimaryBlue),
+                                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp)
+                                ) {
+                                    Text(
+                                        text = "Unggah logo",
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = PrimaryBlue
+                                    )
+                                }
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    text = "PNG atau JPG, maksimal 2 MB",
+                                    fontSize = 11.5.sp,
+                                    color = Slate400
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(24.dp))
+
+                        // Nama toko
+                        Text(
+                            text = "Nama toko",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = storeName,
+                            onValueChange = { storeName = it },
+                            placeholder = { Text("Rising Studio", color = Slate400) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            singleLine = true
+                        )
+
+                        Spacer(Modifier.height(18.dp))
+
+                        // Alamat toko
+                        Text(
+                            text = "Alamat toko",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = storeAddress,
+                            onValueChange = { storeAddress = it },
+                            placeholder = { Text("Tambahkan alamat toko", color = Slate400) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(88.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            maxLines = 3
+                        )
+
+                        Spacer(Modifier.height(18.dp))
+
+                        // Nomor telepon & Email
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Nomor telepon (opsional)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Slate900
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                OutlinedTextField(
+                                    value = storePhone,
+                                    onValueChange = { storePhone = it },
+                                    placeholder = { Text("Tambahkan nomor telepon", color = Slate400) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    singleLine = true
+                                )
+                            }
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Email (opsional)",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Slate900
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                OutlinedTextField(
+                                    value = storeEmail,
+                                    onValueChange = { storeEmail = it },
+                                    placeholder = { Text("Tambahkan email toko", color = Slate400) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    singleLine = true
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(18.dp))
+
+                        // Pesan pada struk
+                        Text(
+                            text = "Pesan pada struk",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        OutlinedTextField(
+                            value = storeFooter,
+                            onValueChange = { storeFooter = it },
+                            placeholder = { Text("Terima kasih sudah berbelanja.", color = Slate400) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(8.dp),
+                            singleLine = true
+                        )
+
+                        Spacer(Modifier.height(14.dp))
+
+                        // Info caption
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.Info,
+                                contentDescription = null,
+                                tint = Slate500,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "Informasi toko akan digunakan pada struk transaksi.",
+                                fontSize = 12.sp,
+                                color = Slate500
+                            )
+                        }
+
+                        Spacer(Modifier.height(28.dp))
+
+                        // Tombol Aksi Bawah
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    storeName = settings.name
+                                    storeAddress = settings.address
+                                    storePhone = settings.phone
+                                    storeFooter = settings.footerNote
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, Slate200),
+                                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
+                            ) {
+                                Text(
+                                    text = "Batal",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = PrimaryBlue
+                                )
+                            }
+
+                            Spacer(Modifier.width(12.dp))
+
+                            Button(
+                                onClick = {
+                                    onUpdateProfile(
+                                        storeName,
+                                        storePhone,
+                                        storeAddress,
+                                        storeFooter,
+                                        settings.deviceId
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = PrimaryBlue,
+                                    contentColor = Color.White
+                                ),
+                                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 10.dp)
+                            ) {
+                                Text(
+                                    text = "Simpan perubahan",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    SettingsTabletMenu.PAYMENT_METHODS -> {
+                        Text(
+                            text = "Metode pembayaran",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Atur metode pembayaran yang aktif di kasir.",
+                            fontSize = 13.sp,
+                            color = Slate500
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+
+                        val methods = listOf(
+                            Triple("Tunai (Cash)", "Menerima uang tunai dan hitung kembalian otomatis", true),
+                            Triple("QRIS", "Menerima pembayaran QRIS statis maupun dinamis", true),
+                            Triple("Transfer Bank", "Menerima transfer manual BCA, Mandiri, BRI, BNI", true),
+                            Triple("Kartu Debit / EDC", "Menerima pembayaran lewat mesin EDC toko", true)
+                        )
+
+                        methods.forEach { (name, desc, isAvailable) ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, Slate200)
+                            ) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(name, fontWeight = FontWeight.Bold, fontSize = 14.5.sp, color = Slate900)
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(desc, fontSize = 12.5.sp, color = Slate500)
+                                    }
+                                    Switch(
+                                        checked = isAvailable,
+                                        onCheckedChange = { },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = PrimaryBlue
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    SettingsTabletMenu.TAX_DISCOUNT -> {
+                        Text(
+                            text = "Pajak & diskon",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Atur tarif PPN, PB1, dan biaya layanan restoran.",
+                            fontSize = 13.sp,
+                            color = Slate500
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Slate200)
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Pajak (PPN / PB1)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
+                                        Text("Aktifkan pajak pada setiap transaksi", fontSize = 12.5.sp, color = Slate500)
+                                    }
+                                    Switch(
+                                        checked = isTaxEnabled,
+                                        onCheckedChange = { isTaxEnabled = it },
+                                        colors = SwitchDefaults.colors(checkedTrackColor = PrimaryBlue)
+                                    )
+                                }
+
+                                if (isTaxEnabled) {
+                                    Spacer(Modifier.height(14.dp))
+                                    HorizontalDivider(color = Slate100)
+                                    Spacer(Modifier.height(14.dp))
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Persentase Pajak (%)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
+                                            Spacer(Modifier.height(6.dp))
+                                            OutlinedTextField(
+                                                value = taxPercentageText,
+                                                onValueChange = { taxPercentageText = it },
+                                                singleLine = true,
+                                                shape = RoundedCornerShape(8.dp),
+                                                modifier = Modifier.fillMaxWidth()
+                                            )
+                                        }
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text("Tipe Perhitungan", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
+                                            Spacer(Modifier.height(6.dp))
+                                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                                Checkbox(
+                                                    checked = isTaxInclusive,
+                                                    onCheckedChange = { isTaxInclusive = it }
+                                                )
+                                                Text("Harga sudah termasuk pajak (Inclusive)", fontSize = 12.5.sp, color = Slate700)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(14.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Slate200)
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Biaya Layanan (Service Charge)", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
+                                        Text("Tambahan servis untuk kafe & restoran", fontSize = 12.5.sp, color = Slate500)
+                                    }
+                                    Switch(
+                                        checked = isServiceChargeEnabled,
+                                        onCheckedChange = { isServiceChargeEnabled = it },
+                                        colors = SwitchDefaults.colors(checkedTrackColor = PrimaryBlue)
+                                    )
+                                }
+
+                                if (isServiceChargeEnabled) {
+                                    Spacer(Modifier.height(14.dp))
+                                    HorizontalDivider(color = Slate100)
+                                    Spacer(Modifier.height(14.dp))
+
+                                    Text("Persentase Biaya Layanan (%)", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
+                                    Spacer(Modifier.height(6.dp))
+                                    OutlinedTextField(
+                                        value = serviceChargePercentageText,
+                                        onValueChange = { serviceChargePercentageText = it },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(8.dp),
+                                        modifier = Modifier.fillMaxWidth(0.5f)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(24.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            Button(
+                                onClick = {
+                                    onUpdateTax(
+                                        isTaxEnabled,
+                                        taxPercentageText.toDoubleOrNull() ?: 11.0,
+                                        isTaxInclusive,
+                                        isServiceChargeEnabled,
+                                        serviceChargePercentageText.toDoubleOrNull() ?: 5.0
+                                    )
+                                },
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                            ) {
+                                Text("Simpan perubahan", color = Color.White, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+
+                    SettingsTabletMenu.RECEIPT_PRINTER -> {
+                        Text(
+                            text = "Printer struk",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Koneksikan printer thermal Bluetooth untuk cetak struk kasir.",
+                            fontSize = 13.sp,
+                            color = Slate500
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Slate200)
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(44.dp)
+                                            .background(if (hasPrinter) Color(0xFFDCFCE7) else Slate100, RoundedCornerShape(10.dp)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            Icons.Outlined.Print,
+                                            contentDescription = null,
+                                            tint = if (hasPrinter) Color(0xFF16A34A) else Slate500,
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                    }
+                                    Spacer(Modifier.width(14.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = if (hasPrinter) settings.printerName.ifBlank { settings.printerMacAddress } else "Belum terhubung",
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            color = Slate900
+                                        )
+                                        Text(
+                                            text = if (hasPrinter) "MAC: ${settings.printerMacAddress} · Lebar ${settings.printerPaperWidthMm} mm" else "Pilih printer thermal bluetooth Anda",
+                                            fontSize = 12.5.sp,
+                                            color = Slate500
+                                        )
+                                    }
+                                    Button(
+                                        onClick = onSelectPrinter,
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                                    ) {
+                                        Text(if (hasPrinter) "Ganti Printer" else "Pilih Printer", color = Color.White, fontSize = 13.sp)
+                                    }
+                                }
+
+                                Spacer(Modifier.height(18.dp))
+                                HorizontalDivider(color = Slate100)
+                                Spacer(Modifier.height(18.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Lebar Kertas", fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
+                                        Text("Sesuaikan dengan spesifikasi printer thermal Anda", fontSize = 12.sp, color = Slate500)
+                                    }
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        listOf(58, 80).forEach { w ->
+                                            val isSelected = settings.printerPaperWidthMm == w
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(if (isSelected) PrimaryBlueContainer else Color.White)
+                                                    .border(1.dp, if (isSelected) PrimaryBlue else Slate200, RoundedCornerShape(8.dp))
+                                                    .clickable { onSetPaperWidth(w) }
+                                                    .padding(horizontal = 14.dp, vertical = 8.dp)
+                                            ) {
+                                                Text(
+                                                    text = "$w mm",
+                                                    fontSize = 13.sp,
+                                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (isSelected) PrimaryBlue else Slate700
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(Modifier.height(14.dp))
+                                HorizontalDivider(color = Slate100)
+                                Spacer(Modifier.height(14.dp))
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Cetak Struk Otomatis", fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
+                                        Text("Langsung cetak struk begitu transaksi berhasil", fontSize = 12.sp, color = Slate500)
+                                    }
+                                    Switch(
+                                        checked = settings.autoPrintReceipt,
+                                        onCheckedChange = { onSetAutoPrint(it) },
+                                        colors = SwitchDefaults.colors(checkedTrackColor = PrimaryBlue)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        OutlinedButton(
+                            onClick = onTestPrint,
+                            enabled = hasPrinter && !uiState.isTestingPrint,
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, PrimaryBlue),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            if (uiState.isTestingPrint) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = PrimaryBlue, strokeWidth = 2.dp)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Mengirim Uji Cetak...", color = PrimaryBlue)
+                            } else {
+                                Icon(Icons.Outlined.Print, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Uji Cetak Struk Contoh", color = PrimaryBlue, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+
+                    SettingsTabletMenu.BARCODE_SCANNER -> {
+                        Text(
+                            text = "Pemindai barcode",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Pengaturan pemindai barcode kamera & hardware USB/Bluetooth.",
+                            fontSize = 13.sp,
+                            color = Slate500
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Slate200)
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(18.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text("Aktifkan Barcode Scanner", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                                    Spacer(Modifier.height(2.dp))
+                                    Text("Memungkinkan scan barcode barang di layar kasir dengan cepat", fontSize = 12.5.sp, color = Slate500)
+                                }
+                                Switch(
+                                    checked = settings.isBarcodeEnabled,
+                                    onCheckedChange = {
+                                        onUpdateToggles(
+                                            settings.isTableEnabled,
+                                            settings.isModifierEnabled,
+                                            it,
+                                            settings.isStockTrackingEnabled
+                                        )
+                                    },
+                                    colors = SwitchDefaults.colors(checkedTrackColor = PrimaryBlue)
+                                )
+                            }
+                        }
+                    }
+
+                    SettingsTabletMenu.BACKUP_DATA -> {
+                        Text(
+                            text = "Cadangkan data",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Ekspor data CSV, backup database lokal & sinkronisasi cloud.",
+                            fontSize = 13.sp,
+                            color = Slate500
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Slate200)
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Text("Database Kasir Lokal", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
+                                Text("Simpan salinan database ke penyimpanan perangkat atau pulihkan data sebelumnya.", fontSize = 12.5.sp, color = Slate500)
+
+                                Spacer(Modifier.height(16.dp))
+
+                                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    Button(
+                                        onClick = onBackupDatabase,
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                                    ) {
+                                        Text("Cadangkan Database", color = Color.White)
+                                    }
+                                    OutlinedButton(
+                                        onClick = onRestoreDatabase,
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, Slate200)
+                                    ) {
+                                        Text("Pulihkan Database", color = Slate700)
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Slate200)
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Text("Ekspor Laporan & Data CSV", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
+                                Text("Ekspor data transaksi, produk, dan biaya ke file Excel/CSV.", fontSize = 12.5.sp, color = Slate500)
+
+                                Spacer(Modifier.height(16.dp))
+
+                                Button(
+                                    onClick = onExportCsv,
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                                ) {
+                                    Text("Buka Menu Ekspor CSV", color = Color.White)
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(16.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Slate200)
+                        ) {
+                            Column(modifier = Modifier.padding(18.dp)) {
+                                Text("Sinkronisasi Cloud", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Slate900)
+                                Text("Kirim transaksi dan produk terbaru ke server cloud.", fontSize = 12.5.sp, color = Slate500)
+
+                                Spacer(Modifier.height(16.dp))
+
+                                OutlinedButton(
+                                    onClick = onSyncNow,
+                                    enabled = !uiState.isSyncing,
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, PrimaryBlue)
+                                ) {
+                                    if (uiState.isSyncing) {
+                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), color = PrimaryBlue, strokeWidth = 2.dp)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Menyinkronkan...", color = PrimaryBlue)
+                                    } else {
+                                        Icon(Icons.Outlined.Sync, contentDescription = null, tint = PrimaryBlue, modifier = Modifier.size(18.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Sinkronkan Sekarang", color = PrimaryBlue)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    SettingsTabletMenu.HELP -> {
+                        Text(
+                            text = "Bantuan",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Panduan operasional kasir dan dukungan teknis.",
+                            fontSize = 13.sp,
+                            color = Slate500
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+
+                        val faqs = listOf(
+                            "Bagaimana cara melakukan split payment?" to "Saat pembayaran di layar Kasir, pilih opsi Split Bill untuk membagi total tagihan menjadi dua metode bayar (misal tunai + QRIS).",
+                            "Bagaimana cara koneksi printer bluetooth?" to "Buka menu Printer struk, pilih 'Cari Printer', pastikan Bluetooth tablet aktif dan pasangkan dengan printer thermal Anda.",
+                            "Apakah kasir tetap bisa digunakan tanpa internet?" to "Ya! Aplikasi Rising POS dirancang offline-first 100%. Semua transaksi dan data produk tersimpan lokal di perangkat."
+                        )
+
+                        faqs.forEach { (q, a) ->
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, Slate200)
+                            ) {
+                                Column(modifier = Modifier.padding(16.dp)) {
+                                    Text(q, fontWeight = FontWeight.Bold, fontSize = 14.5.sp, color = Slate900)
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(a, fontSize = 12.5.sp, color = Slate600, lineHeight = 18.sp)
+                                }
+                            }
+                        }
+                    }
+
+                    SettingsTabletMenu.ABOUT_APP -> {
+                        Text(
+                            text = "Tentang aplikasi",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Informasi versi aplikasi dan lisensi.",
+                            fontSize = 13.sp,
+                            color = Slate500
+                        )
+
+                        Spacer(Modifier.height(20.dp))
+
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color.White),
+                            border = BorderStroke(1.dp, Slate200)
+                        ) {
+                            Column(modifier = Modifier.padding(20.dp)) {
+                                Text("Rising POS", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = Slate900)
+                                Spacer(Modifier.height(4.dp))
+                                Text("Flexible Offline-First POS Android", fontSize = 13.sp, color = Slate500)
+                                Spacer(Modifier.height(14.dp))
+                                HorizontalDivider(color = Slate100)
+                                Spacer(Modifier.height(14.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text("Versi Aplikasi", fontSize = 13.5.sp, fontWeight = FontWeight.SemiBold, color = Slate900)
+                                        Text("Versi ${BuildConfig.VERSION_NAME.ifBlank { "1.0.0" }}", fontSize = 12.5.sp, color = Slate500)
+                                    }
+                                    Button(
+                                        onClick = onCheckUpdates,
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryBlue)
+                                    ) {
+                                        Text("Periksa Update", color = Color.White, fontSize = 13.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SidebarNavItem(
+    title: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    trailingContent: (@Composable () -> Unit)? = null,
+    onClick: () -> Unit
+) {
+    val bgColor = if (isSelected) PrimaryBlueContainer else Color.Transparent
+    val contentColor = if (isSelected) PrimaryBlue else Slate700
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(bgColor)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 11.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = contentColor,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(Modifier.width(14.dp))
+            Text(
+                text = title,
+                fontSize = 13.5.sp,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                color = contentColor,
+                modifier = Modifier.weight(1f)
+            )
+            if (trailingContent != null) {
+                trailingContent()
+            }
         }
     }
 }

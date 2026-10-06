@@ -53,6 +53,9 @@ import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.widthIn
+
 /**
  * Pemilih pelanggan untuk kasir: cari cepat lalu pilih. Ringkas, tanpa distraksi.
  */
@@ -64,6 +67,8 @@ fun CustomerPickerDialog(
     onAddNewCustomer: () -> Unit,
     onDismiss: () -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isCompactHeight = configuration.screenHeightDp < 500
     var searchQuery by remember { mutableStateOf("") }
 
     val filteredCustomers = remember(searchQuery, customers) {
@@ -79,12 +84,15 @@ fun CustomerPickerDialog(
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            modifier = Modifier
+                .widthIn(max = 520.dp)
+                .fillMaxWidth()
+                .padding(8.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(if (isCompactHeight) 14.dp else 20.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -138,7 +146,7 @@ fun CustomerPickerDialog(
                     }
                 } else {
                     LazyColumn(
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 300.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(max = if (isCompactHeight) 160.dp else 300.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(filteredCustomers, key = { it.id }) { cust ->

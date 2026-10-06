@@ -70,6 +70,8 @@ import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate700
 import com.rising.pos.ui.theme.Slate900
 
+import androidx.compose.foundation.layout.widthIn
+
 /**
  * Layar setup awal: mengisi identitas usaha sebelum mulai berjualan.
  * Mengikuti desain modern "Siapkan usaha Anda".
@@ -92,23 +94,29 @@ fun OnboardingScreen(
                 .fillMaxSize()
                 .safeDrawingPadding()
         ) {
-            // Konten scrollable
-            Column(
+            // Konten scrollable terpusat rapi di tablet
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.TopCenter
             ) {
-                Spacer(Modifier.height(20.dp))
+                Column(
+                    modifier = Modifier
+                        .widthIn(max = 640.dp)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp)
+                ) {
+                    Spacer(Modifier.height(20.dp))
 
-                // Ikon Toko Biru di atas
-                Icon(
-                    imageVector = Icons.Outlined.Storefront,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(38.dp)
-                )
+                    // Ikon Toko Biru di atas
+                    Icon(
+                        imageVector = Icons.Outlined.Storefront,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(38.dp)
+                    )
 
                 Spacer(Modifier.height(16.dp))
 
@@ -398,6 +406,7 @@ fun OnboardingScreen(
             }
         }
     }
+}
 
     if (showDeviceDialog) {
         var tempDeviceId by remember { mutableStateOf(state.deviceId.ifBlank { "A01" }) }

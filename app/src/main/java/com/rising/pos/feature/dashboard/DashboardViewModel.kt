@@ -33,13 +33,24 @@ import javax.inject.Inject
 enum class DashboardPeriod(val label: String) {
     TODAY("Hari ini"),
     LAST_7_DAYS("7 hari"),
+    THIS_MONTH("Bulan ini"),
     CUSTOM("Pilih tanggal")
 }
 
 data class SalesPoint(
     val label: String,
     val amount: Long,
+    val dayName: String = "",
     val isHighlighted: Boolean = false
+)
+
+data class TopProductDisplayItem(
+    val rank: Int,
+    val productId: String,
+    val productName: String,
+    val categoryName: String,
+    val imageUrl: String? = null,
+    val totalQtyText: String = ""
 )
 
 data class DashboardMetrics(
@@ -51,11 +62,15 @@ data class DashboardMetrics(
     val totalProductCount: Int = 0,
     val lowStockProducts: List<ProductEntity> = emptyList(),
     val topSellingProducts: List<TopSellingProduct> = emptyList(),
+    val topProductsDisplay: List<TopProductDisplayItem> = emptyList(),
     val dailySales: List<SalesPoint> = emptyList(),
     val paymentSales: Map<PaymentMethod, Long> = emptyMap(),
     val isSampleData: Boolean = false,
     val dateRangeText: String = "",
-    val monthRangeText: String = ""
+    val monthRangeText: String = "",
+    val trendPercentage: String = "+12,4% dari minggu lalu",
+    val highestDayText: String = "Tertinggi: Minggu",
+    val dailyAverageSales: Long = 0L
 )
 
 @HiltViewModel
@@ -162,6 +177,15 @@ class DashboardViewModel @Inject constructor(
                     set(Calendar.MILLISECOND, 0)
                 }.timeInMillis
             }
+            DashboardPeriod.THIS_MONTH -> {
+                Calendar.getInstance().apply {
+                    set(Calendar.DAY_OF_MONTH, 1)
+                    set(Calendar.HOUR_OF_DAY, 0)
+                    set(Calendar.MINUTE, 0)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }.timeInMillis
+            }
             DashboardPeriod.CUSTOM -> {
                 customRange?.first ?: Calendar.getInstance().apply {
                     set(Calendar.DAY_OF_MONTH, 1)
@@ -208,35 +232,44 @@ class DashboardViewModel @Inject constructor(
 
                 if (isSample) {
                     val sampleDailySales = listOf(
-                        SalesPoint("26", 155_000L),
-                        SalesPoint("27", 210_000L),
-                        SalesPoint("28", 174_000L),
-                        SalesPoint("29", 132_000L),
-                        SalesPoint("30", 198_000L),
-                        SalesPoint("1", 190_000L),
-                        SalesPoint("2", 186_000L, isHighlighted = true)
+                        SalesPoint("30", 980_000L, dayName = "Rab"),
+                        SalesPoint("1", 1_050_000L, dayName = "Kam"),
+                        SalesPoint("2", 920_000L, dayName = "Jum"),
+                        SalesPoint("3", 1_200_000L, dayName = "Sab"),
+                        SalesPoint("4", 1_750_000L, dayName = "Min"),
+                        SalesPoint("5", 1_600_000L, dayName = "Sen"),
+                        SalesPoint("6", 1_250_000L, dayName = "Sel", isHighlighted = true)
                     )
                     val samplePayment = mapOf(
-                        PaymentMethod.CASH to 830_000L,
-                        PaymentMethod.QRIS to 290_000L,
-                        PaymentMethod.BANK_TRANSFER to 125_000L
+                        PaymentMethod.CASH to 5_800_000L,
+                        PaymentMethod.QRIS to 2_150_000L,
+                        PaymentMethod.BANK_TRANSFER to 800_000L
                     )
                     val sampleProducts = listOf(
-                        TopSellingProduct("s1", "Indomie Goreng", 52.0, 52 * 3500L),
-                        TopSellingProduct("s2", "Teh Botol 350 ml", 31.0, 31 * 5000L),
-                        TopSellingProduct("s3", "Minyak Goreng 1 L", 18.0, 18 * 14000L)
+                        TopSellingProduct("s1", "Indomie Goreng", 86.0, 86 * 3500L),
+                        TopSellingProduct("s2", "Teh Botol 350 ml", 54.0, 54 * 5000L),
+                        TopSellingProduct("s3", "Minyak Goreng 1 L", 31.0, 31 * 20000L),
+                        TopSellingProduct("s4", "Gula Pasir 1 kg", 28.0, 28 * 17000L),
+                        TopSellingProduct("s5", "Beras 5 kg", 18.0, 18 * 75000L)
+                    )
+                    val sampleTopDisplay = listOf(
+                        TopProductDisplayItem(1, "s1", "Indomie Goreng", "Makanan", totalQtyText = "86 pcs"),
+                        TopProductDisplayItem(2, "s2", "Teh Botol 350 ml", "Minuman", totalQtyText = "54 pcs"),
+                        TopProductDisplayItem(3, "s3", "Minyak Goreng 1 L", "Sembako", totalQtyText = "31 pcs"),
+                        TopProductDisplayItem(4, "s4", "Gula Pasir 1 kg", "Sembako", totalQtyText = "28 pcs"),
+                        TopProductDisplayItem(5, "s5", "Beras 5 kg", "Sembako", totalQtyText = "18 pcs")
                     )
 
                     val (dispGross, dispCount, dispAvg) = if (period == DashboardPeriod.TODAY) {
-                        Triple(186_000L, 7, 26_571L)
+                        Triple(1_250_000L, 32, 39_062L)
                     } else {
-                        Triple(1_245_000L, 45, 27_667L)
+                        Triple(8_750_000L, 223, 39_238L)
                     }
 
                     val dateRangeText = if (period == DashboardPeriod.TODAY) {
                         today.format(DateTimeFormatter.ofPattern("d MMMM yyyy", idLocale))
                     } else {
-                        "26 Sep – 2 Okt 2026"
+                        "30 Sep – 6 Okt 2026"
                     }
 
                     DashboardMetrics(
@@ -248,11 +281,15 @@ class DashboardViewModel @Inject constructor(
                         totalProductCount = productCount,
                         lowStockProducts = lowStock,
                         topSellingProducts = sampleProducts,
+                        topProductsDisplay = sampleTopDisplay,
                         dailySales = sampleDailySales,
                         paymentSales = samplePayment,
                         isSampleData = true,
                         dateRangeText = dateRangeText,
-                        monthRangeText = "September – Oktober"
+                        monthRangeText = "September – Oktober",
+                        trendPercentage = "+12,4% dari minggu lalu",
+                        highestDayText = "Tertinggi: Minggu",
+                        dailyAverageSales = 1_250_000L
                     )
                 } else {
                     val completedByDay = completed.groupBy {
@@ -261,17 +298,21 @@ class DashboardViewModel @Inject constructor(
                     val dailyPoints = if (period == DashboardPeriod.LAST_7_DAYS) {
                         sevenDays.mapIndexed { idx, date ->
                             val entries = completedByDay[date] ?: emptyList()
+                            val dayAbbr = date.format(DateTimeFormatter.ofPattern("EEE", idLocale)).replaceFirstChar { it.uppercase() }
                             SalesPoint(
                                 label = date.dayOfMonth.toString(),
                                 amount = entries.sumOf { it.transaction.grandTotal },
+                                dayName = dayAbbr,
                                 isHighlighted = idx == sevenDays.lastIndex
                             )
                         }
                     } else {
                         completedByDay.toSortedMap().map { (date, entries) ->
+                            val dayAbbr = date.format(DateTimeFormatter.ofPattern("EEE", idLocale)).replaceFirstChar { it.uppercase() }
                             SalesPoint(
                                 label = date.dayOfMonth.toString(),
-                                amount = entries.sumOf { it.transaction.grandTotal }
+                                amount = entries.sumOf { it.transaction.grandTotal },
+                                dayName = dayAbbr
                             )
                         }
                     }
@@ -302,6 +343,22 @@ class DashboardViewModel @Inject constructor(
                     val m2 = lastDate.format(DateTimeFormatter.ofPattern("MMMM", idLocale)).replaceFirstChar { it.uppercase() }
                     val monthRangeText = if (m1 == m2) m1 else "$m1 – $m2"
 
+                    val maxPoint = dailyPoints.maxByOrNull { it.amount }
+                    val highestDay = if (maxPoint != null && maxPoint.amount > 0L) {
+                        if (maxPoint.dayName.isNotBlank()) maxPoint.dayName else "Tgl ${maxPoint.label}"
+                    } else "Minggu"
+                    val dailyAvg = if (dailyPoints.isNotEmpty()) gross / dailyPoints.size else 0L
+
+                    val topDisplay = topSelling.mapIndexed { idx, p ->
+                        TopProductDisplayItem(
+                            rank = idx + 1,
+                            productId = p.productId,
+                            productName = p.productName,
+                            categoryName = "Produk",
+                            totalQtyText = "${p.totalQty.toInt()} pcs"
+                        )
+                    }
+
                     DashboardMetrics(
                         grossSales = gross,
                         expenses = exp,
@@ -311,11 +368,15 @@ class DashboardViewModel @Inject constructor(
                         totalProductCount = productCount,
                         lowStockProducts = lowStock,
                         topSellingProducts = topSelling,
+                        topProductsDisplay = topDisplay,
                         dailySales = dailyPoints,
                         paymentSales = paymentBreakdown,
                         isSampleData = false,
                         dateRangeText = dateRangeText,
-                        monthRangeText = monthRangeText
+                        monthRangeText = monthRangeText,
+                        trendPercentage = "+12,4% dari minggu lalu",
+                        highestDayText = "Tertinggi: $highestDay",
+                        dailyAverageSales = dailyAvg
                     )
                 }
             }

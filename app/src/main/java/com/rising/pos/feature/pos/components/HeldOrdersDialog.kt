@@ -50,6 +50,9 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.widthIn
+
 /**
  * Daftar pesanan yang ditahan. Setiap kartu: label, waktu, ringkasan item, total,
  * lalu aksi Lanjut atau Hapus. Empty state menjelaskan kenapa kosong.
@@ -62,16 +65,21 @@ fun HeldOrdersDialog(
     onResumeOrder: (TransactionWithDetails) -> Unit,
     onDeleteOrder: (String) -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isCompactHeight = configuration.screenHeightDp < 500
     val dateFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
-            modifier = Modifier.fillMaxWidth().padding(8.dp),
+            modifier = Modifier
+                .widthIn(max = 540.dp)
+                .fillMaxWidth()
+                .padding(8.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(20.dp)) {
+            Column(modifier = Modifier.fillMaxWidth().padding(if (isCompactHeight) 14.dp else 20.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -103,7 +111,7 @@ fun HeldOrdersDialog(
 
                 if (heldOrders.isEmpty()) {
                     Box(
-                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp),
+                        modifier = Modifier.fillMaxWidth().heightIn(min = if (isCompactHeight) 120.dp else 180.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -132,7 +140,7 @@ fun HeldOrdersDialog(
                     LazyColumn(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(max = 400.dp),
+                            .heightIn(max = if (isCompactHeight) 180.dp else 400.dp),
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(heldOrders, key = { it.transaction.id }) { heldTrx ->

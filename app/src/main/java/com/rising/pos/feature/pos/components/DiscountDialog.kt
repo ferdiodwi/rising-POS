@@ -58,6 +58,10 @@ import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate900
 import com.rising.pos.ui.theme.SuccessGreen
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
+
 enum class DiscountType {
     NOMINAL,
     PERCENTAGE
@@ -73,6 +77,9 @@ fun DiscountDialog(
     onDismiss: () -> Unit,
     onApplyDiscount: (amount: Long, reason: String?) -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isCompactHeight = configuration.screenHeightDp < 500
+
     var discountType by remember { mutableStateOf(DiscountType.NOMINAL) }
     var inputValue by remember {
         mutableStateOf(if (currentDiscount > 0) currentDiscount.toString() else "")
@@ -92,7 +99,9 @@ fun DiscountDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
+                .widthIn(max = 500.dp)
                 .fillMaxWidth()
+                .then(if (isCompactHeight) Modifier.fillMaxHeight(0.96f) else Modifier)
                 .padding(8.dp),
             shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -101,7 +110,7 @@ fun DiscountDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(if (isCompactHeight) 14.dp else 20.dp)
                     .verticalScroll(rememberScrollState()),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {

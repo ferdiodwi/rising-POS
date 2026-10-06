@@ -84,6 +84,12 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.layout.widthIn
+
 /**
  * Persediaan dan mutasi stok.
  *
@@ -95,6 +101,12 @@ import java.util.Locale
 fun InventoryScreen(
     viewModel: InventoryViewModel = hiltViewModel()
 ) {
+    val configuration = LocalConfiguration.current
+    val screenWidth = configuration.screenWidthDp
+    val screenHeight = configuration.screenHeightDp
+    val isWideScreen = screenWidth >= 600
+    val isCompactHeight = screenHeight < 500
+
     val uiState by viewModel.uiState.collectAsState()
     val trackedProducts by viewModel.trackedProducts.collectAsState()
     val recentMovements by viewModel.recentMovements.collectAsState()
@@ -105,24 +117,30 @@ fun InventoryScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp)
+            .padding(horizontal = if (isWideScreen) 24.dp else 16.dp)
     ) {
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(if (isCompactHeight) 8.dp else 16.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Stok produk", style = MaterialTheme.typography.headlineSmall, color = Slate900)
                 Text(
-                    "Pantau persediaan dan catat perubahan stok.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Slate500
+                    "Stok produk",
+                    style = if (isCompactHeight) MaterialTheme.typography.titleMedium else MaterialTheme.typography.headlineSmall,
+                    color = Slate900
                 )
+                if (!isCompactHeight) {
+                    Text(
+                        "Pantau persediaan dan catat perubahan stok.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Slate500
+                    )
+                }
             }
             Button(
                 onClick = { viewModel.openStockAction(StockActionType.RESTOCK) },
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                modifier = Modifier.height(44.dp)
+                modifier = Modifier.height(if (isCompactHeight) 38.dp else 44.dp)
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(6.dp))
@@ -130,7 +148,7 @@ fun InventoryScreen(
             }
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(if (isCompactHeight) 8.dp else 14.dp))
 
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             tabs.forEachIndexed { index, title ->
@@ -150,7 +168,7 @@ fun InventoryScreen(
             }
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(if (isCompactHeight) 8.dp else 14.dp))
 
         if (uiState.selectedTab == 0) {
             if (trackedProducts.isEmpty()) {
@@ -163,6 +181,23 @@ fun InventoryScreen(
                         title = "Belum ada produk berstok",
                         description = "Aktifkan \"Kelola stok otomatis\" pada produk di menu Produk agar stoknya bisa dipantau di sini."
                     )
+                }
+            } else if (isWideScreen) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 340.dp),
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(trackedProducts, key = { it.id }) { product ->
+                        ProductStockRow(
+                            product = product,
+                            onRestock = { viewModel.openStockAction(StockActionType.RESTOCK, product) },
+                            onAdjust = { viewModel.openStockAction(StockActionType.ADJUSTMENT, product) },
+                            onDamage = { viewModel.openStockAction(StockActionType.DAMAGE_LOSS, product) }
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
@@ -191,6 +226,24 @@ fun InventoryScreen(
                         title = "Belum ada pergerakan stok",
                         description = "Catat stok masuk atau koreksi stok, maka riwayatnya akan muncul di sini."
                     )
+                }
+            } else if (isWideScreen) {
+                LazyVerticalGrid(
+                    columns = GridCells.Adaptive(minSize = 340.dp),
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(bottom = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(recentMovements, key = { it.id }) { movement ->
+                        val matchedProduct = trackedProducts.find { it.id == movement.productId }
+                        MovementItemRow(
+                            movement = movement,
+                            productName = matchedProduct?.name ?: "Produk #${movement.productId.take(6)}",
+                            unit = matchedProduct?.unit ?: "item",
+                            dateStr = dateFormatter.format(Date(movement.createdAt))
+                        )
+                    }
                 }
             } else {
                 LazyColumn(
@@ -482,16 +535,21 @@ private fun StockActionBottomSheet(
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = MaterialTheme.colorScheme.surface
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 20.dp)
-                .verticalScroll(rememberScrollState())
-                .imePadding(),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.TopCenter
         ) {
-            Text(title, style = MaterialTheme.typography.titleLarge, color = Slate900)
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 560.dp)
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(bottom = 20.dp)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(title, style = MaterialTheme.typography.titleLarge, color = Slate900)
 
             ExposedDropdownMenuBox(
                 expanded = productDropdownExpanded,
@@ -565,6 +623,7 @@ private fun StockActionBottomSheet(
             Spacer(Modifier.height(8.dp))
         }
     }
+}
 }
 
 @Composable

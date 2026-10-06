@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +49,13 @@ import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate900
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Settings
+import com.rising.pos.ui.components.CashierIcons
+
 @Composable
 fun PosAppNavHost(
     appPreferences: AppPreferences,
@@ -87,77 +95,88 @@ fun PosAppNavHost(
 
     val navController = rememberNavController()
     val configuration = LocalConfiguration.current
-    val isTablet = configuration.screenWidthDp >= 600
+    val screenWidth = configuration.screenWidthDp
+    val screenHeight = configuration.screenHeightDp
+    val isLandscapePhone = screenWidth >= 600 && screenHeight < 500
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Pos.route
 
-    if (isTablet && currentRoute != Screen.Pos.route) {
-        // Keep existing navigation on tablet pages outside the cashier redesign.
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
+    if (isLandscapePhone) {
+        // Khusus HP Landscape: Side NavigationRail ramping di dalam safeDrawingPadding agar bebas potongan notch & tombol sistem Android
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.surface
         ) {
-            NavigationRail(
-                containerColor = MaterialTheme.colorScheme.surface,
-                modifier = Modifier.fillMaxHeight()
-            ) {
-                tabletNavigationItems.forEach { screen ->
-                    val selected = currentRoute == screen.route
-                    NavigationRailItem(
-                        selected = selected,
-                        onClick = {
-                            if (currentRoute != screen.route) {
-                                navController.navigate(screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            }
-                        },
-                        icon = {
-                            screen.icon?.let { Icon(it, contentDescription = screen.title) }
-                        },
-                        label = {
-                            Text(
-                                screen.title,
-                                fontSize = 11.sp,
-                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = NavigationRailItemDefaults.colors(
-                            selectedIconColor = PrimaryBlue,
-                            selectedTextColor = PrimaryBlue,
-                            indicatorColor = PrimaryBlue.copy(alpha = 0.15f),
-                            unselectedIconColor = Slate500,
-                            unselectedTextColor = Slate500
-                        )
-                    )
-                }
-            }
-
-            Surface(
+            Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                color = MaterialTheme.colorScheme.background
+                    .fillMaxSize()
+                    .safeDrawingPadding()
             ) {
-                MainAppNavHostContent(navController = navController)
+                NavigationRail(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .width(62.dp)
+                ) {
+                    phoneNavigationItems.forEachIndexed { index, screen ->
+                        val selected = currentRoute == screen.route
+                        val icon = when (index) {
+                            0 -> CashierIcons.Store
+                            1 -> CashierIcons.Box
+                            2 -> Icons.Outlined.History
+                            3 -> CashierIcons.BarChart
+                            else -> Icons.Outlined.Settings
+                        }
+                        NavigationRailItem(
+                            selected = selected,
+                            onClick = {
+                                if (currentRoute != screen.route) {
+                                    navController.navigate(screen.route) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
+                                            saveState = true
+                                        }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = icon,
+                                    contentDescription = screen.title,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            colors = NavigationRailItemDefaults.colors(
+                                selectedIconColor = PrimaryBlue,
+                                indicatorColor = PrimaryBlue.copy(alpha = 0.12f),
+                                unselectedIconColor = Slate500
+                            )
+                        )
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    MainAppNavHostContent(navController = navController)
+                }
             }
         }
     } else {
-        // Phones and the tablet cashier share the five-destination bottom navigation.
+        // Phone Portrait & Tablet: Bottom Navigation Bar 5 menu
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding(),
             bottomBar = {
                 PosBottomNavBar(
+                    expanded = screenWidth >= 840 && currentRoute == Screen.Pos.route,
                     items = phoneNavigationItems,
                     currentRoute = currentRoute,
-                    expanded = isTablet,
                     onNavigate = { route ->
                         if (currentRoute != route) {
                             navController.navigate(route) {

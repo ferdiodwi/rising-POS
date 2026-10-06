@@ -36,6 +36,10 @@ import com.rising.pos.ui.theme.DangerRed
 import com.rising.pos.ui.theme.PrimaryBlue
 import com.rising.pos.ui.theme.Slate500
 import com.rising.pos.ui.theme.Slate900
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 
 @Composable
 fun PinSetupDialog(
@@ -43,6 +47,9 @@ fun PinSetupDialog(
     onDismiss: () -> Unit,
     onSavePin: (enabled: Boolean, pin: String) -> Unit
 ) {
+    val configuration = LocalConfiguration.current
+    val isCompactHeight = configuration.screenHeightDp < 500
+
     var isEnabled by remember { mutableStateOf(initialEnabled) }
     var newPin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
@@ -51,6 +58,7 @@ fun PinSetupDialog(
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
+                .widthIn(max = 480.dp)
                 .fillMaxWidth()
                 .padding(16.dp),
             shape = RoundedCornerShape(20.dp),
@@ -60,7 +68,8 @@ fun PinSetupDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp)
+                    .padding(if (isCompactHeight) 14.dp else 20.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
                 Text(
                     text = "Keamanan & PIN Owner",
