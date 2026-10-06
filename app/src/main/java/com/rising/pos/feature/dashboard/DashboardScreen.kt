@@ -3,6 +3,7 @@ package com.rising.pos.feature.dashboard
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,12 +64,13 @@ import androidx.compose.material.icons.outlined.Inventory2
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(
+private fun DashboardScreenContent(
     viewModel: DashboardViewModel = hiltViewModel(),
     onBackClick: () -> Unit = {},
     onNavigateToExpenses: () -> Unit = {},
     onNavigateToInventory: () -> Unit = {},
-    onNavigateToCustomers: () -> Unit = {}
+    onNavigateToCustomers: () -> Unit = {},
+    onNavigateToProducts: () -> Unit = {}
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
@@ -180,7 +182,7 @@ fun DashboardScreen(
         containerColor = MaterialTheme.colorScheme.surface,
         snackbarHost = { SnackbarHost(snackbar) }
     ) { insets ->
-        if (isWideScreen && !isCompactHeight) {
+        if (isWideScreen) {
             DashboardTabletLayout(
                 modifier = Modifier
                     .fillMaxSize()
@@ -193,7 +195,7 @@ fun DashboardScreen(
                 onExportClick = { triggerExport() },
                 onPrintClick = { viewModel.printReport() },
                 isPrinting = isPrinting,
-                onNavigateToInventory = onNavigateToInventory
+                onNavigateToInventory = onNavigateToProducts
             )
         } else {
             Column(
@@ -780,7 +782,7 @@ private fun DashboardTabletLayout(
     Column(
         modifier = modifier
             .background(MaterialTheme.colorScheme.surface)
-            .verticalScroll(rememberScrollState())
+
     ) {
         // ── 1. Header Top Bar ──
         Row(
@@ -799,7 +801,7 @@ private fun DashboardTabletLayout(
                 onClick = onExportClick,
                 shape = RoundedCornerShape(8.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = PrimaryBlue,
+                    containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = Color.White
                 ),
                 contentPadding = PaddingValues(horizontal = 18.dp, vertical = 10.dp)
@@ -820,322 +822,329 @@ private fun DashboardTabletLayout(
             }
         }
 
-        Spacer(Modifier.height(8.dp))
+        HorizontalDivider(color = Slate200)
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
+            Spacer(Modifier.height(12.dp))
 
-        // ── 2. Filter Bar (Tabs + Range Text) ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            listOf(
-                DashboardPeriod.TODAY to "Hari ini",
-                DashboardPeriod.LAST_7_DAYS to "7 hari",
-                DashboardPeriod.THIS_MONTH to "Bulan ini"
-            ).forEach { (p, label) ->
-                val isSelected = selectedPeriod == p
+            // ── 2. Filter Bar (Tabs + Range Text) ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                listOf(
+                    DashboardPeriod.TODAY to "Hari ini",
+                    DashboardPeriod.LAST_7_DAYS to "7 hari",
+                    DashboardPeriod.THIS_MONTH to "Bulan ini"
+                ).forEach { (p, label) ->
+                    val isSelected = selectedPeriod == p
+                    Box(
+                        modifier = Modifier
+                            .height(48.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+                            .border(1.dp, if (isSelected) MaterialTheme.colorScheme.primary else Slate200, RoundedCornerShape(8.dp))
+                            .clickable { onPeriodSelected(p) }
+                            .padding(horizontal = 18.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isSelected) MaterialTheme.colorScheme.primary else Slate700
+                        )
+                    }
+                }
+
+                val isCustom = selectedPeriod == DashboardPeriod.CUSTOM
                 Box(
                     modifier = Modifier
-                        .height(38.dp)
+                        .height(48.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(if (isSelected) PrimaryBlueContainer else Color.White)
-                        .border(1.dp, if (isSelected) PrimaryBlue else Slate200, RoundedCornerShape(8.dp))
-                        .clickable { onPeriodSelected(p) }
-                        .padding(horizontal = 18.dp),
+                        .background(if (isCustom) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface)
+                        .border(1.dp, if (isCustom) MaterialTheme.colorScheme.primary else Slate200, RoundedCornerShape(8.dp))
+                        .clickable { onSelectDateRangeClick() }
+                        .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = label,
-                        fontSize = 13.sp,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isSelected) PrimaryBlue else Slate700
-                    )
-                }
-            }
-
-            val isCustom = selectedPeriod == DashboardPeriod.CUSTOM
-            Box(
-                modifier = Modifier
-                    .height(38.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (isCustom) PrimaryBlueContainer else Color.White)
-                    .border(1.dp, if (isCustom) PrimaryBlue else Slate200, RoundedCornerShape(8.dp))
-                    .clickable { onSelectDateRangeClick() }
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Outlined.CalendarToday,
-                        contentDescription = null,
-                        tint = if (isCustom) PrimaryBlue else Slate500,
-                        modifier = Modifier.size(15.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = "Pilih tanggal",
-                        fontSize = 13.sp,
-                        fontWeight = if (isCustom) FontWeight.SemiBold else FontWeight.Normal,
-                        color = if (isCustom) PrimaryBlue else Slate700
-                    )
-                }
-            }
-
-            Spacer(Modifier.weight(1f))
-
-            Text(
-                text = metrics.dateRangeText,
-                fontSize = 13.sp,
-                color = Slate600
-            )
-
-            if (metrics.isSampleData) {
-                Spacer(Modifier.width(12.dp))
-                Text(
-                    text = "Data contoh",
-                    fontSize = 12.sp,
-                    color = Slate400
-                )
-            }
-        }
-
-        Spacer(Modifier.height(18.dp))
-
-        // ── 3. Tiga Stat Cards Horizontal ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            // Card 1: Total Penjualan
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Outlined.ShowChart,
-                iconBgColor = Color(0xFFDCFCE7),
-                iconTint = Color(0xFF16A34A),
-                title = "Total penjualan",
-                value = CurrencyFormatter.format(metrics.grossSales, settings.currencySymbol),
-                subtext = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            Icons.Outlined.ArrowUpward,
+                            Icons.Outlined.CalendarToday,
                             contentDescription = null,
-                            tint = Color(0xFF16A34A),
-                            modifier = Modifier.size(13.dp)
+                            tint = if (isCustom) MaterialTheme.colorScheme.primary else Slate500,
+                            modifier = Modifier.size(15.dp)
                         )
-                        Spacer(Modifier.width(2.dp))
+                        Spacer(Modifier.width(6.dp))
                         Text(
-                            text = metrics.trendPercentage,
+                            text = "Pilih tanggal",
+                            fontSize = 13.sp,
+                            fontWeight = if (isCustom) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (isCustom) MaterialTheme.colorScheme.primary else Slate700
+                        )
+                    }
+                }
+
+                Spacer(Modifier.weight(1f))
+
+                Text(
+                    text = metrics.dateRangeText,
+                    fontSize = 13.sp,
+                    color = Slate600
+                )
+
+                if (metrics.isSampleData) {
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = "Data contoh",
+                        fontSize = 12.sp,
+                        color = Slate400
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+
+            // ── 3. Tiga Stat Cards Horizontal ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                // Card 1: Total Penjualan
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Outlined.ShowChart,
+                    iconBgColor = Color(0xFFDCFCE7),
+                    iconTint = Color(0xFF16A34A),
+                    title = "Total penjualan",
+                    value = CurrencyFormatter.format(metrics.grossSales, settings.currencySymbol),
+                    subtext = {
+                        if (metrics.trendPercentage.isNotBlank()) Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                Icons.Outlined.ArrowUpward,
+                                contentDescription = null,
+                                tint = Color(0xFF16A34A),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(Modifier.width(2.dp))
+                            Text(
+                                text = metrics.trendPercentage,
+                                fontSize = 12.sp,
+                                color = Color(0xFF16A34A),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                )
+
+                // Card 2: Transaksi Selesai
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.Outlined.ShoppingCart,
+                    iconBgColor = Color(0xFFE0F2FE),
+                    iconTint = Color(0xFF0284C7),
+                    title = "Transaksi selesai",
+                    value = "${metrics.transactionCount}",
+                    subtext = {
+                        Text(
+                            text = if (selectedPeriod == DashboardPeriod.LAST_7_DAYS) "Dalam 7 hari terakhir" else "Transaksi selesai",
                             fontSize = 12.sp,
-                            color = Color(0xFF16A34A),
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
-            )
-
-            // Card 2: Transaksi Selesai
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.Outlined.ShoppingCart,
-                iconBgColor = Color(0xFFE0F2FE),
-                iconTint = Color(0xFF0284C7),
-                title = "Transaksi selesai",
-                value = "${metrics.transactionCount}",
-                subtext = {
-                    Text(
-                        text = if (selectedPeriod == DashboardPeriod.LAST_7_DAYS) "Dalam 7 hari terakhir" else "Transaksi selesai",
-                        fontSize = 12.sp,
-                        color = Slate500
-                    )
-                }
-            )
-
-            // Card 3: Rata-rata Transaksi
-            StatCard(
-                modifier = Modifier.weight(1f),
-                icon = Icons.AutoMirrored.Outlined.ReceiptLong,
-                iconBgColor = Color(0xFFF3E8FF),
-                iconTint = Color(0xFF9333EA),
-                title = "Rata-rata transaksi",
-                value = CurrencyFormatter.format(metrics.averageTicketSize, settings.currencySymbol),
-                subtext = {
-                    Text(
-                        text = "Per transaksi selesai",
-                        fontSize = 12.sp,
-                        color = Slate500
-                    )
-                }
-            )
-        }
-
-        Spacer(Modifier.height(20.dp))
-
-        // ── 4. Dua Kolom Konten (Tren Penjualan & Produk Terlaris) ──
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            // Kolom Kiri: Tren Penjualan
-            Column(modifier = Modifier.weight(1.35f)) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Slate200)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            text = "Tren penjualan",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = "Penjualan harian",
-                            fontSize = 12.5.sp,
                             color = Slate500
                         )
-
-                        Spacer(Modifier.height(20.dp))
-
-                        SalesTrendBarChart(
-                            dailyPoints = metrics.dailySales,
-                            currencySymbol = settings.currencySymbol
-                        )
-
-                        Spacer(Modifier.height(18.dp))
-                        HorizontalDivider(color = Slate100, thickness = 1.dp)
-                        Spacer(Modifier.height(14.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Rata-rata per hari",
-                                    fontSize = 12.sp,
-                                    color = Slate500
-                                )
-                                Spacer(Modifier.height(2.dp))
-                                Text(
-                                    text = CurrencyFormatter.format(metrics.dailyAverageSales, settings.currencySymbol),
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Slate900
-                                )
-                            }
-                            Spacer(Modifier.weight(1f))
-                            Text(
-                                text = metrics.highestDayText,
-                                fontSize = 13.sp,
-                                color = Slate600
-                            )
-                        }
                     }
-                }
+                )
 
-                Spacer(Modifier.height(10.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(start = 4.dp)
-                ) {
-                    Icon(
-                        Icons.Outlined.Info,
-                        contentDescription = null,
-                        tint = Slate500,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        text = "Hanya transaksi selesai yang dihitung dalam laporan.",
-                        fontSize = 12.sp,
-                        color = Slate500
-                    )
-                }
+                // Card 3: Rata-rata Transaksi
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    icon = Icons.AutoMirrored.Outlined.ReceiptLong,
+                    iconBgColor = Color(0xFFF3E8FF),
+                    iconTint = Color(0xFF9333EA),
+                    title = "Rata-rata transaksi",
+                    value = CurrencyFormatter.format(metrics.averageTicketSize, settings.currencySymbol),
+                    subtext = {
+                        Text(
+                            text = "Per transaksi selesai",
+                            fontSize = 12.sp,
+                            color = Slate500
+                        )
+                    }
+                )
             }
 
-            // Kolom Kanan: Produk Terlaris
-            Column(modifier = Modifier.weight(0.95f)) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Slate200)
-                ) {
-                    Column(modifier = Modifier.padding(20.dp)) {
-                        Text(
-                            text = "Produk terlaris",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Slate900
-                        )
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            text = "Berdasarkan jumlah terjual",
-                            fontSize = 12.5.sp,
-                            color = Slate500
-                        )
+            Spacer(Modifier.height(20.dp))
 
-                        Spacer(Modifier.height(16.dp))
+            // ── 4. Dua Kolom Konten (Tren Penjualan & Produk Terlaris) ──
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(18.dp)
+            ) {
+                // Kolom Kiri: Tren Penjualan
+                Column(modifier = Modifier.weight(1.6f)) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, Slate200)
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Text(
+                                text = "Tren penjualan",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate900
+                            )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "Penjualan harian",
+                                fontSize = 12.5.sp,
+                                color = Slate500
+                            )
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text("Produk", fontSize = 12.sp, color = Slate500)
-                            Spacer(Modifier.weight(1f))
-                            Text("Terjual", fontSize = 12.sp, color = Slate500)
-                        }
+                            Spacer(Modifier.height(20.dp))
 
-                        Spacer(Modifier.height(8.dp))
+                            SalesTrendBarChart(
+                                dailyPoints = metrics.dailySales,
+                                currencySymbol = settings.currencySymbol
+                            )
 
-                        val displayProducts = if (metrics.topProductsDisplay.isNotEmpty()) {
-                            metrics.topProductsDisplay
-                        } else {
-                            metrics.topSellingProducts.mapIndexed { idx, p ->
-                                TopProductDisplayItem(
-                                    rank = idx + 1,
-                                    productId = p.productId,
-                                    productName = p.productName,
-                                    categoryName = "Produk",
-                                    totalQtyText = "${p.totalQty.toInt()} pcs"
+                            Spacer(Modifier.height(18.dp))
+                            HorizontalDivider(color = Slate100, thickness = 1.dp)
+                            Spacer(Modifier.height(14.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column {
+                                    Text(
+                                        text = "Rata-rata per hari",
+                                        fontSize = 12.sp,
+                                        color = Slate500
+                                    )
+                                    Spacer(Modifier.height(2.dp))
+                                    Text(
+                                        text = CurrencyFormatter.format(metrics.dailyAverageSales, settings.currencySymbol),
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Slate900
+                                    )
+                                }
+                                Spacer(Modifier.weight(1f))
+                                Text(
+                                    text = metrics.highestDayText,
+                                    fontSize = 13.sp,
+                                    color = Slate600
                                 )
                             }
                         }
+                    }
 
-                        displayProducts.take(5).forEach { item ->
-                            TopProductTabletRow(item = item)
-                        }
+                    Spacer(Modifier.height(10.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Icon(
+                            Icons.Outlined.Info,
+                            contentDescription = null,
+                            tint = Slate500,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Hanya transaksi selesai yang dihitung dalam laporan.",
+                            fontSize = 12.sp,
+                            color = Slate500
+                        )
+                    }
+                }
 
-                        Spacer(Modifier.height(16.dp))
-
-                        Row(
-                            modifier = Modifier
-                                .clickable(onClick = onNavigateToInventory)
-                                .padding(vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
+                // Kolom Kanan: Produk Terlaris
+                Column(modifier = Modifier.weight(1f)) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, Slate200)
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
                             Text(
-                                text = "Lihat semua produk >",
-                                fontSize = 13.5.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = PrimaryBlue
+                                text = "Produk terlaris",
+                                fontSize = 17.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Slate900
                             )
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "Berdasarkan jumlah terjual",
+                                fontSize = 12.5.sp,
+                                color = Slate500
+                            )
+
+                            Spacer(Modifier.height(16.dp))
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("Produk", fontSize = 12.sp, color = Slate500)
+                                Spacer(Modifier.weight(1f))
+                                Text("Terjual", fontSize = 12.sp, color = Slate500)
+                            }
+
+                            Spacer(Modifier.height(8.dp))
+
+                            val displayProducts = if (metrics.topProductsDisplay.isNotEmpty()) {
+                                metrics.topProductsDisplay
+                            } else {
+                                metrics.topSellingProducts.mapIndexed { idx, p ->
+                                    TopProductDisplayItem(
+                                        rank = idx + 1,
+                                        productId = p.productId,
+                                        productName = p.productName,
+                                        categoryName = "Produk",
+                                        totalQtyText = "${p.totalQty.toInt()} pcs"
+                                    )
+                                }
+                            }
+
+                            if (displayProducts.isEmpty()) {
+                                Text("Belum ada produk terjual pada periode ini.", color = Slate500, fontSize = 13.sp)
+                            }
+                            displayProducts.take(5).forEach { item ->
+                                TopProductTabletRow(item = item)
+                            }
+
+                            Spacer(Modifier.height(16.dp))
+
+                            Row(
+                                modifier = Modifier
+                                    .clickable(onClick = onNavigateToInventory)
+                                    .heightIn(min = 48.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Lihat semua produk",
+                                    fontSize = 13.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
 
-        Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(24.dp))
+        }
     }
 }
 
@@ -1149,166 +1158,86 @@ private fun StatCard(
     value: String,
     subtext: @Composable () -> Unit
 ) {
-    Card(
-        modifier = modifier,
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Slate200)
-    ) {
-        Row(
-            modifier = Modifier.padding(18.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(42.dp)
-                    .background(iconBgColor, RoundedCornerShape(21.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = iconTint,
-                    modifier = Modifier.size(22.dp)
-                )
+    Card(modifier, shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, Slate200)) {
+        BoxWithConstraints(Modifier.fillMaxWidth().padding(16.dp)) {
+            val narrow = maxWidth < 220.dp
+            val badge: @Composable () -> Unit = {
+                Box(Modifier.size(if (narrow) 28.dp else 42.dp)
+                    .background(iconBgColor, RoundedCornerShape(24.dp)), contentAlignment = Alignment.Center) {
+                    Icon(icon, null, Modifier.size(if (narrow) 18.dp else 22.dp), tint = iconTint)
+                }
             }
-
-            Spacer(Modifier.width(14.dp))
-
-            Column {
-                Text(
-                    text = title,
-                    fontSize = 12.5.sp,
-                    color = Slate500
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = value,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Slate900
-                )
+            val figures: @Composable () -> Unit = {
+                Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Slate900,
+                    style = MaterialTheme.typography.titleLarge.copy(fontFeatureSettings = "tnum"))
                 Spacer(Modifier.height(4.dp))
                 subtext()
+            }
+            if (narrow) {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        badge(); Spacer(Modifier.width(8.dp))
+                        Text(title, fontSize = 12.5.sp, color = Slate500)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    figures()
+                }
+            } else {
+                Row(verticalAlignment = Alignment.Top) {
+                    badge(); Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(title, fontSize = 12.5.sp, color = Slate500)
+                        Spacer(Modifier.height(4.dp))
+                        figures()
+                    }
+                }
             }
         }
     }
 }
 
 @Composable
-private fun SalesTrendBarChart(
-    dailyPoints: List<SalesPoint>,
-    currencySymbol: String
-) {
-    val maxAmount = 2_000_000L.coerceAtLeast(dailyPoints.maxOfOrNull { it.amount } ?: 2_000_000L)
-    val levels = listOf(
-        maxAmount,
-        (maxAmount * 0.75).toLong(),
-        (maxAmount * 0.50).toLong(),
-        (maxAmount * 0.25).toLong(),
-        0L
-    )
-
-    fun formatShort(amount: Long): String = when {
-        amount >= 1_000_000L -> {
-            val jt = amount.toDouble() / 1_000_000.0
-            if (jt % 1.0 == 0.0) "Rp${jt.toInt()} jt" else "Rp${String.format(Locale.US, "%.1f", jt).replace('.', ',')} jt"
-        }
-        amount >= 1_000L -> "Rp${amount / 1000} rb"
-        else -> "Rp0"
+private fun SalesTrendBarChart(dailyPoints: List<SalesPoint>, currencySymbol: String) {
+    val largest = (dailyPoints.maxOfOrNull { it.amount } ?: 0L).coerceAtLeast(1L)
+    val maxAmount = largest + (largest / 4).coerceAtLeast(1L)
+    val levels = (4 downTo 0).map { (maxAmount.toDouble() * it / 4).toLong() }
+    fun shortMoney(amount: Long): String = when {
+        amount >= 1_000_000L -> "${currencySymbol}${String.format(Locale.US, "%.1f", amount / 1_000_000.0).replace('.', ',')} jt"
+        amount >= 1_000L -> "${currencySymbol}${amount / 1000} rb"
+        else -> com.rising.pos.ui.theme.posMoney(amount, currencySymbol)
     }
-
-    val chartHeightDp = 140.dp
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(190.dp)
-    ) {
-        // Y-Axis labels (left)
-        Column(
-            modifier = Modifier
-                .width(58.dp)
-                .height(chartHeightDp),
-            verticalArrangement = Arrangement.SpaceBetween,
-            horizontalAlignment = Alignment.End
-        ) {
-            levels.forEach { lvl ->
-                Text(
-                    text = formatShort(lvl),
-                    fontSize = 10.sp,
-                    color = Slate500,
-                    modifier = Modifier.padding(end = 8.dp)
-                )
+    if (dailyPoints.isEmpty() || dailyPoints.all { it.amount == 0L }) {
+        Text("Belum ada penjualan pada periode ini.", Modifier.padding(vertical = 24.dp), color = Slate500)
+        return
+    }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val plotWidth = (maxWidth - 58.dp).coerceAtLeast((dailyPoints.size * 48).dp)
+        Row(Modifier.fillMaxWidth()) {
+            Column(Modifier.width(58.dp).height(140.dp), verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.End) {
+                levels.forEach { level -> Text(shortMoney(level), Modifier.padding(end = 8.dp), fontSize = 10.sp, color = Slate500) }
             }
-        }
-
-        // Chart area with horizontal grid lines and bars
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxHeight()
-        ) {
-            // Horizontal grid lines
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(chartHeightDp),
-                verticalArrangement = Arrangement.SpaceBetween
-            ) {
-                repeat(5) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .background(Slate100)
-                    )
-                }
-            }
-
-            // Bars
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.Bottom
-            ) {
-                dailyPoints.forEach { point ->
-                    val ratio = (point.amount.toFloat() / maxAmount.toFloat()).coerceIn(0f, 1f)
-                    val barHeight = (ratio * chartHeightDp.value).dp.coerceAtLeast(4.dp)
-
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Bottom
-                    ) {
-                        // The Bar
-                        Box(
-                            modifier = Modifier
-                                .width(36.dp)
-                                .height(barHeight)
-                                .background(
-                                    color = PrimaryBlue,
-                                    shape = RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)
-                                )
-                        )
-
-                        Spacer(Modifier.height(8.dp))
-
-                        // Day name below bar (e.g. Rab)
-                        Text(
-                            text = point.dayName.ifBlank { point.label },
-                            fontSize = 11.5.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Slate600
-                        )
-
-                        // Date number below day (e.g. 30)
-                        Text(
-                            text = point.label,
-                            fontSize = 11.sp,
-                            color = Slate500
-                        )
+            Box(Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                Box(Modifier.width(plotWidth).height(190.dp)) {
+                    Column(Modifier.fillMaxWidth().height(140.dp), verticalArrangement = Arrangement.SpaceBetween) {
+                        repeat(5) { Box(Modifier.fillMaxWidth().height(1.dp).background(Slate100)) }
+                    }
+                    Row(Modifier.fillMaxWidth()) {
+                        dailyPoints.forEach { point ->
+                            val barHeight = (140 * (point.amount.toDouble() / maxAmount).coerceIn(0.0, 1.0)).dp
+                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(Modifier.fillMaxWidth().height(140.dp), contentAlignment = Alignment.BottomCenter) {
+                                    Box(Modifier.width(28.dp).height(barHeight).background(
+                                        if (point.isHighlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                                        RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp)))
+                                }
+                                Spacer(Modifier.height(8.dp))
+                                Text(point.dayName.ifBlank { point.label }, fontSize = 11.sp, color = Slate600)
+                                Text(point.label, fontSize = 11.sp, color = Slate500)
+                            }
+                        }
                     }
                 }
             }
@@ -1335,7 +1264,7 @@ private fun TopProductTabletRow(item: TopProductDisplayItem) {
                 text = "${item.rank}",
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,
-                color = PrimaryBlue
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -1355,7 +1284,7 @@ private fun TopProductTabletRow(item: TopProductDisplayItem) {
                     model = item.imageUrl,
                     contentDescription = null,
                     modifier = Modifier.fillMaxSize(),
-                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                    contentScale = androidx.compose.ui.layout.ContentScale.Fit
                 )
             } else {
                 Icon(
@@ -1396,4 +1325,11 @@ private fun TopProductTabletRow(item: TopProductDisplayItem) {
             color = Slate900
         )
     }
+}
+
+@Composable
+fun DashboardScreen(viewModel: DashboardViewModel = hiltViewModel(), onBackClick: () -> Unit = {}, onNavigateToExpenses: () -> Unit = {}, onNavigateToInventory: () -> Unit = {}, onNavigateToCustomers: () -> Unit = {}, onNavigateToProducts: () -> Unit = {}) {
+    if (LocalConfiguration.current.screenWidthDp >= 600) {
+        com.rising.pos.ui.theme.TabletCashierTheme { DashboardScreenContent(viewModel, onBackClick, onNavigateToExpenses, onNavigateToInventory, onNavigateToCustomers, onNavigateToProducts) }
+    } else DashboardScreenContent(viewModel, onBackClick, onNavigateToExpenses, onNavigateToInventory, onNavigateToCustomers, onNavigateToProducts)
 }

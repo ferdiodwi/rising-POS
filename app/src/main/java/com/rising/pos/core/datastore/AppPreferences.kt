@@ -53,7 +53,9 @@ data class BusinessSettings(
     /** Salt acak (Base64) untuk [securityPinHash]. */
     val securityPinSalt: String = "",
     // Appearance / Theme
-    val appTheme: AppTheme = AppTheme.SYSTEM
+    val appTheme: AppTheme = AppTheme.SYSTEM,
+    val email: String = "",
+    val logoUrl: String = ""
 ) {
     /** True bila PIN Owner sudah diatur (hash tersimpan). */
     val hasPin: Boolean get() = securityPinHash.isNotBlank() && securityPinSalt.isNotBlank()
@@ -77,6 +79,8 @@ class AppPreferences @Inject constructor(
         val IS_ONBOARDING_COMPLETED = booleanPreferencesKey("is_onboarding_completed")
         val BUSINESS_NAME = stringPreferencesKey("business_name")
         val BUSINESS_TYPE = stringPreferencesKey("business_type")
+        val BUSINESS_EMAIL = stringPreferencesKey("business_email")
+        val BUSINESS_LOGO = stringPreferencesKey("business_logo")
         val BUSINESS_PHONE = stringPreferencesKey("business_phone")
         val BUSINESS_ADDRESS = stringPreferencesKey("business_address")
         val CURRENCY_SYMBOL = stringPreferencesKey("currency_symbol")
@@ -123,6 +127,8 @@ class AppPreferences @Inject constructor(
         val isOnboardingCompleted = prefs[Keys.IS_ONBOARDING_COMPLETED] ?: hasConfiguredProfile
 
         BusinessSettings(
+            email = prefs[Keys.BUSINESS_EMAIL].orEmpty(),
+            logoUrl = prefs[Keys.BUSINESS_LOGO].orEmpty(),
             name = businessName,
             type = businessType,
             phone = phone,
@@ -164,9 +170,13 @@ class AppPreferences @Inject constructor(
         address: String,
         currencySymbol: String,
         footerNote: String,
-        deviceId: String
+        deviceId: String,
+        email: String? = null,
+        logoUrl: String? = null
     ) {
         context.dataStore.edit { prefs ->
+            if (email != null) prefs[Keys.BUSINESS_EMAIL] = email
+            if (logoUrl != null) prefs[Keys.BUSINESS_LOGO] = logoUrl
             prefs[Keys.BUSINESS_NAME] = name
             prefs[Keys.BUSINESS_TYPE] = type.name
             prefs[Keys.BUSINESS_PHONE] = phone

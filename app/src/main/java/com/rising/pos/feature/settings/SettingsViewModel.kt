@@ -27,6 +27,8 @@ import com.rising.pos.domain.repository.SyncRepository
 import com.rising.pos.domain.repository.TableRepository
 
 data class SettingsUiState(
+    val isSavingProfile: Boolean = false,
+    val profileStatusMessage: String? = null,
     val pairedPrinters: List<BluetoothPrinterDevice> = emptyList(),
     val isPrinterPickerOpen: Boolean = false,
     val isTestingPrint: Boolean = false,
@@ -258,18 +260,27 @@ class SettingsViewModel @Inject constructor(
         phone: String,
         address: String,
         footerNote: String,
-        deviceId: String
+        deviceId: String,
+        email: String? = null,
+        logoUrl: String? = null
     ) {
+        if (_uiState.value.isSavingProfile || name.isBlank()) return
         val current = settings.value
+        _uiState.update { it.copy(isSavingProfile = true, profileStatusMessage = null) }
         viewModelScope.launch {
-            appPreferences.updateBusinessProfile(
+            runCatching { appPreferences.updateBusinessProfile(
                 name = name,
                 type = current.type,
                 phone = phone,
                 address = address,
                 currencySymbol = current.currencySymbol,
                 footerNote = footerNote,
-                deviceId = deviceId
+                deviceId = deviceId,
+                email = email,
+                logoUrl = logoUrl
+            ) }.fold(
+                onSuccess = { _uiState.update { it.copy(isSavingProfile = false, profileStatusMessage = "Perubahan terakhir tersimpan.") } },
+                onFailure = { error -> _uiState.update { it.copy(isSavingProfile = false, profileStatusMessage = error.message ?: "Gagal menyimpan perubahan.") } }
             )
         }
     }

@@ -68,8 +68,8 @@ data class DashboardMetrics(
     val isSampleData: Boolean = false,
     val dateRangeText: String = "",
     val monthRangeText: String = "",
-    val trendPercentage: String = "+12,4% dari minggu lalu",
-    val highestDayText: String = "Tertinggi: Minggu",
+    val trendPercentage: String = "",
+    val highestDayText: String = "",
     val dailyAverageSales: Long = 0L
 )
 
@@ -228,158 +228,99 @@ class DashboardViewModel @Inject constructor(
                 val sevenDays = (6 downTo 0).map { today.minusDays(it.toLong()) }
                 val idLocale = Locale.forLanguageTag("id-ID")
 
-                val isSample = count == 0 && gross == 0L
-
-                if (isSample) {
-                    val sampleDailySales = listOf(
-                        SalesPoint("30", 980_000L, dayName = "Rab"),
-                        SalesPoint("1", 1_050_000L, dayName = "Kam"),
-                        SalesPoint("2", 920_000L, dayName = "Jum"),
-                        SalesPoint("3", 1_200_000L, dayName = "Sab"),
-                        SalesPoint("4", 1_750_000L, dayName = "Min"),
-                        SalesPoint("5", 1_600_000L, dayName = "Sen"),
-                        SalesPoint("6", 1_250_000L, dayName = "Sel", isHighlighted = true)
-                    )
-                    val samplePayment = mapOf(
-                        PaymentMethod.CASH to 5_800_000L,
-                        PaymentMethod.QRIS to 2_150_000L,
-                        PaymentMethod.BANK_TRANSFER to 800_000L
-                    )
-                    val sampleProducts = listOf(
-                        TopSellingProduct("s1", "Indomie Goreng", 86.0, 86 * 3500L),
-                        TopSellingProduct("s2", "Teh Botol 350 ml", 54.0, 54 * 5000L),
-                        TopSellingProduct("s3", "Minyak Goreng 1 L", 31.0, 31 * 20000L),
-                        TopSellingProduct("s4", "Gula Pasir 1 kg", 28.0, 28 * 17000L),
-                        TopSellingProduct("s5", "Beras 5 kg", 18.0, 18 * 75000L)
-                    )
-                    val sampleTopDisplay = listOf(
-                        TopProductDisplayItem(1, "s1", "Indomie Goreng", "Makanan", totalQtyText = "86 pcs"),
-                        TopProductDisplayItem(2, "s2", "Teh Botol 350 ml", "Minuman", totalQtyText = "54 pcs"),
-                        TopProductDisplayItem(3, "s3", "Minyak Goreng 1 L", "Sembako", totalQtyText = "31 pcs"),
-                        TopProductDisplayItem(4, "s4", "Gula Pasir 1 kg", "Sembako", totalQtyText = "28 pcs"),
-                        TopProductDisplayItem(5, "s5", "Beras 5 kg", "Sembako", totalQtyText = "18 pcs")
-                    )
-
-                    val (dispGross, dispCount, dispAvg) = if (period == DashboardPeriod.TODAY) {
-                        Triple(1_250_000L, 32, 39_062L)
-                    } else {
-                        Triple(8_750_000L, 223, 39_238L)
-                    }
-
-                    val dateRangeText = if (period == DashboardPeriod.TODAY) {
-                        today.format(DateTimeFormatter.ofPattern("d MMMM yyyy", idLocale))
-                    } else {
-                        "30 Sep – 6 Okt 2026"
-                    }
-
-                    DashboardMetrics(
-                        grossSales = dispGross,
-                        expenses = 0L,
-                        netProfit = dispGross,
-                        transactionCount = dispCount,
-                        averageTicketSize = dispAvg,
-                        totalProductCount = productCount,
-                        lowStockProducts = lowStock,
-                        topSellingProducts = sampleProducts,
-                        topProductsDisplay = sampleTopDisplay,
-                        dailySales = sampleDailySales,
-                        paymentSales = samplePayment,
-                        isSampleData = true,
-                        dateRangeText = dateRangeText,
-                        monthRangeText = "September – Oktober",
-                        trendPercentage = "+12,4% dari minggu lalu",
-                        highestDayText = "Tertinggi: Minggu",
-                        dailyAverageSales = 1_250_000L
-                    )
-                } else {
-                    val completedByDay = completed.groupBy {
-                        Instant.ofEpochMilli(it.transaction.createdAt).atZone(zone).toLocalDate()
-                    }
-                    val dailyPoints = if (period == DashboardPeriod.LAST_7_DAYS) {
-                        sevenDays.mapIndexed { idx, date ->
-                            val entries = completedByDay[date] ?: emptyList()
-                            val dayAbbr = date.format(DateTimeFormatter.ofPattern("EEE", idLocale)).replaceFirstChar { it.uppercase() }
-                            SalesPoint(
-                                label = date.dayOfMonth.toString(),
-                                amount = entries.sumOf { it.transaction.grandTotal },
-                                dayName = dayAbbr,
-                                isHighlighted = idx == sevenDays.lastIndex
-                            )
-                        }
-                    } else {
-                        completedByDay.toSortedMap().map { (date, entries) ->
-                            val dayAbbr = date.format(DateTimeFormatter.ofPattern("EEE", idLocale)).replaceFirstChar { it.uppercase() }
-                            SalesPoint(
-                                label = date.dayOfMonth.toString(),
-                                amount = entries.sumOf { it.transaction.grandTotal },
-                                dayName = dayAbbr
-                            )
-                        }
-                    }
-
-                    val breakdown = mutableMapOf<PaymentMethod, Long>()
-                    for (item in completed) {
-                        val trx = item.transaction
-                        if (trx.splitPaymentMethod != null && trx.splitAmount > 0) {
-                            val amount1 = (trx.grandTotal - trx.splitAmount).coerceAtLeast(0L)
-                            breakdown[trx.paymentMethod] = (breakdown[trx.paymentMethod] ?: 0L) + amount1
-                            breakdown[trx.splitPaymentMethod] = (breakdown[trx.splitPaymentMethod] ?: 0L) + trx.splitAmount
-                        } else {
-                            breakdown[trx.paymentMethod] = (breakdown[trx.paymentMethod] ?: 0L) + trx.grandTotal
-                        }
-                    }
-                    val paymentBreakdown = breakdown.toMap()
-
-                    val firstDate = if (period == DashboardPeriod.LAST_7_DAYS) sevenDays.first() else Instant.ofEpochMilli(startTime).atZone(zone).toLocalDate()
-                    val lastDate = if (period == DashboardPeriod.LAST_7_DAYS) sevenDays.last() else Instant.ofEpochMilli(endTime).atZone(zone).toLocalDate()
-
-                    val dateRangeText = if (firstDate == lastDate) {
-                        firstDate.format(DateTimeFormatter.ofPattern("d MMMM yyyy", idLocale))
-                    } else {
-                        "${firstDate.format(DateTimeFormatter.ofPattern("d MMM", idLocale))} – ${lastDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", idLocale))}"
-                    }
-
-                    val m1 = firstDate.format(DateTimeFormatter.ofPattern("MMMM", idLocale)).replaceFirstChar { it.uppercase() }
-                    val m2 = lastDate.format(DateTimeFormatter.ofPattern("MMMM", idLocale)).replaceFirstChar { it.uppercase() }
-                    val monthRangeText = if (m1 == m2) m1 else "$m1 – $m2"
-
-                    val maxPoint = dailyPoints.maxByOrNull { it.amount }
-                    val highestDay = if (maxPoint != null && maxPoint.amount > 0L) {
-                        if (maxPoint.dayName.isNotBlank()) maxPoint.dayName else "Tgl ${maxPoint.label}"
-                    } else "Minggu"
-                    val dailyAvg = if (dailyPoints.isNotEmpty()) gross / dailyPoints.size else 0L
-
-                    val topDisplay = topSelling.mapIndexed { idx, p ->
-                        TopProductDisplayItem(
-                            rank = idx + 1,
-                            productId = p.productId,
-                            productName = p.productName,
-                            categoryName = "Produk",
-                            totalQtyText = "${p.totalQty.toInt()} pcs"
+                val completedByDay = completed.groupBy {
+                    Instant.ofEpochMilli(it.transaction.createdAt).atZone(zone).toLocalDate()
+                }
+                val dailyPoints = if (period == DashboardPeriod.LAST_7_DAYS) {
+                    sevenDays.mapIndexed { idx, date ->
+                        val entries = completedByDay[date] ?: emptyList()
+                        val dayAbbr = date.format(DateTimeFormatter.ofPattern("EEE", idLocale)).replaceFirstChar { it.uppercase() }
+                        SalesPoint(
+                            label = date.dayOfMonth.toString(),
+                            amount = entries.sumOf { it.transaction.grandTotal },
+                            dayName = dayAbbr,
+                            isHighlighted = idx == sevenDays.lastIndex
                         )
                     }
+                } else {
+                    completedByDay.toSortedMap().map { (date, entries) ->
+                        val dayAbbr = date.format(DateTimeFormatter.ofPattern("EEE", idLocale)).replaceFirstChar { it.uppercase() }
+                        SalesPoint(
+                            label = date.dayOfMonth.toString(),
+                            amount = entries.sumOf { it.transaction.grandTotal },
+                            dayName = dayAbbr
+                        )
+                    }
+                }
 
-                    DashboardMetrics(
-                        grossSales = gross,
-                        expenses = exp,
-                        netProfit = net,
-                        transactionCount = count,
-                        averageTicketSize = avgTicket,
-                        totalProductCount = productCount,
-                        lowStockProducts = lowStock,
-                        topSellingProducts = topSelling,
-                        topProductsDisplay = topDisplay,
-                        dailySales = dailyPoints,
-                        paymentSales = paymentBreakdown,
-                        isSampleData = false,
-                        dateRangeText = dateRangeText,
-                        monthRangeText = monthRangeText,
-                        trendPercentage = "+12,4% dari minggu lalu",
-                        highestDayText = "Tertinggi: $highestDay",
-                        dailyAverageSales = dailyAvg
+                val breakdown = mutableMapOf<PaymentMethod, Long>()
+                for (item in completed) {
+                    val trx = item.transaction
+                    if (trx.splitPaymentMethod != null && trx.splitAmount > 0) {
+                        val amount1 = (trx.grandTotal - trx.splitAmount).coerceAtLeast(0L)
+                        breakdown[trx.paymentMethod] = (breakdown[trx.paymentMethod] ?: 0L) + amount1
+                        breakdown[trx.splitPaymentMethod] = (breakdown[trx.splitPaymentMethod] ?: 0L) + trx.splitAmount
+                    } else {
+                        breakdown[trx.paymentMethod] = (breakdown[trx.paymentMethod] ?: 0L) + trx.grandTotal
+                    }
+                }
+                val paymentBreakdown = breakdown.toMap()
+
+                val firstDate = if (period == DashboardPeriod.LAST_7_DAYS) sevenDays.first() else Instant.ofEpochMilli(startTime).atZone(zone).toLocalDate()
+                val lastDate = if (period == DashboardPeriod.LAST_7_DAYS) sevenDays.last() else Instant.ofEpochMilli(endTime).atZone(zone).toLocalDate()
+
+                val dateRangeText = if (firstDate == lastDate) {
+                    firstDate.format(DateTimeFormatter.ofPattern("d MMMM yyyy", idLocale))
+                } else {
+                    "${firstDate.format(DateTimeFormatter.ofPattern("d MMM", idLocale))} – ${lastDate.format(DateTimeFormatter.ofPattern("d MMM yyyy", idLocale))}"
+                }
+
+                val m1 = firstDate.format(DateTimeFormatter.ofPattern("MMMM", idLocale)).replaceFirstChar { it.uppercase() }
+                val m2 = lastDate.format(DateTimeFormatter.ofPattern("MMMM", idLocale)).replaceFirstChar { it.uppercase() }
+                val monthRangeText = if (m1 == m2) m1 else "$m1 – $m2"
+
+                val maxPoint = dailyPoints.maxByOrNull { it.amount }
+                val highestDay = if (maxPoint != null && maxPoint.amount > 0L) {
+                    if (maxPoint.dayName.isNotBlank()) maxPoint.dayName else "Tgl ${maxPoint.label}"
+                } else ""
+                val daysInPeriod = (java.time.temporal.ChronoUnit.DAYS.between(firstDate, lastDate) + 1).coerceAtLeast(1L)
+                val dailyAvg = gross / daysInPeriod
+
+                val topDisplay = topSelling.mapIndexed { idx, p ->
+                    TopProductDisplayItem(
+                        rank = idx + 1,
+                        productId = p.productId,
+                        productName = p.productName,
+                        categoryName = "Produk",
+                        totalQtyText = "${java.math.BigDecimal.valueOf(p.totalQty).stripTrailingZeros().toPlainString()} pcs"
                     )
                 }
+
+                DashboardMetrics(
+                    grossSales = gross,
+                    expenses = exp,
+                    netProfit = net,
+                    transactionCount = count,
+                    averageTicketSize = avgTicket,
+                    totalProductCount = productCount,
+                    lowStockProducts = lowStock,
+                    topSellingProducts = topSelling,
+                    topProductsDisplay = topDisplay,
+                    dailySales = dailyPoints,
+                    paymentSales = paymentBreakdown,
+                    isSampleData = false,
+                    dateRangeText = dateRangeText,
+                    monthRangeText = monthRangeText,
+                    trendPercentage = "",
+                    highestDayText = if (highestDay.isBlank()) "Belum ada penjualan" else "Tertinggi: $highestDay",
+                    dailyAverageSales = dailyAvg
+                )
             }
+        }.combine(productRepository.getAllProducts()) { summary, products ->
+            summary.copy(topProductsDisplay = summary.topProductsDisplay.map { ranked ->
+                val item = products.firstOrNull { it.product.id == ranked.productId }
+                ranked.copy(imageUrl = item?.product?.imageUrl, categoryName = item?.category?.name ?: ranked.categoryName)
+            })
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),

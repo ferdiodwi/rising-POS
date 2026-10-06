@@ -99,7 +99,8 @@ import androidx.compose.foundation.layout.widthIn
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InventoryScreen(
-    viewModel: InventoryViewModel = hiltViewModel()
+    viewModel: InventoryViewModel = hiltViewModel(),
+    initialProductId: String? = null
 ) {
     val configuration = LocalConfiguration.current
     val screenWidth = configuration.screenWidthDp
@@ -110,6 +111,16 @@ fun InventoryScreen(
     val uiState by viewModel.uiState.collectAsState()
     val trackedProducts by viewModel.trackedProducts.collectAsState()
     val recentMovements by viewModel.recentMovements.collectAsState()
+
+    var openedInitialProduct by remember(initialProductId) { mutableStateOf(false) }
+    androidx.compose.runtime.LaunchedEffect(initialProductId, trackedProducts) {
+        if (!openedInitialProduct && initialProductId != null) {
+            trackedProducts.firstOrNull { it.id == initialProductId }?.let { product ->
+                openedInitialProduct = true
+                viewModel.openStockAction(StockActionType.ADJUSTMENT, product)
+            }
+        }
+    }
 
     val tabs = listOf("Persediaan", "Riwayat stok")
     val dateFormatter = SimpleDateFormat("dd MMM, HH:mm", Locale.getDefault())

@@ -460,6 +460,7 @@ internal fun CategoryFilters(
     onSelectCategory: (String?) -> Unit,
     edgePadding: Dp = 16.dp
 ) {
+    val activeColor = MaterialTheme.colorScheme.primary
     val selectedTabIndex = remember(selectedCategoryId, categories) {
         if (selectedCategoryId == null) 0
         else {
@@ -471,7 +472,7 @@ internal fun CategoryFilters(
     ScrollableTabRow(
         selectedTabIndex = selectedTabIndex,
         containerColor = Color.Transparent,
-        contentColor = BrandBlue,
+        contentColor = activeColor,
         edgePadding = edgePadding,
         indicator = { tabPositions ->
             if (selectedTabIndex < tabPositions.size) {
@@ -479,7 +480,7 @@ internal fun CategoryFilters(
                     Modifier
                         .tabIndicatorOffset(tabPositions[selectedTabIndex])
                         .height(2.5.dp)
-                        .background(BrandBlue)
+                        .background(activeColor)
                 )
             }
         },
@@ -496,7 +497,7 @@ internal fun CategoryFilters(
                     style = TextStyle(
                         fontSize = 14.sp,
                         fontWeight = if (selectedTabIndex == 0) FontWeight.Bold else FontWeight.Normal,
-                        color = if (selectedTabIndex == 0) BrandBlue else Slate500
+                        color = if (selectedTabIndex == 0) activeColor else Slate500
                     )
                 )
             }
@@ -516,7 +517,7 @@ internal fun CategoryFilters(
                         style = TextStyle(
                             fontSize = 14.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isSelected) BrandBlue else Slate500
+                            color = if (isSelected) activeColor else Slate500
                         )
                     )
                 }

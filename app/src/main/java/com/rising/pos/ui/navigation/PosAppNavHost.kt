@@ -105,7 +105,7 @@ internal fun PosAppScaffold(
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
         bottomBar = {
             PosBottomNavBar(
-                expanded = configuration.screenWidthDp >= 600 && configuration.screenHeightDp >= 500 && currentRoute == Screen.Pos.route,
+                expanded = configuration.screenWidthDp >= 600 && configuration.screenHeightDp >= 500,
                 items = phoneNavigationItems,
                 currentRoute = currentRoute,
                 onNavigate = onNavigate
@@ -130,10 +130,18 @@ private fun MainAppNavHostContent(
         composable(Screen.Pos.route) { PosScreen() }
         composable(Screen.Products.route) {
             ProductScreen(
-                onNavigateToInventory = { navController.navigate(Screen.Inventory.route) }
+                onNavigateToInventory = { navController.navigate(Screen.Inventory.route) },
+                onAdjustProductStock = { product -> navController.navigate("inventory?productId=${android.net.Uri.encode(product.id)}") }
             )
         }
-        composable(Screen.Inventory.route) { InventoryScreen() }
+        composable(
+            "inventory?productId={productId}",
+            arguments = listOf(androidx.navigation.navArgument("productId") {
+                type = androidx.navigation.NavType.StringType
+                nullable = true
+                defaultValue = null
+            })
+        ) { entry -> InventoryScreen(initialProductId = entry.arguments?.getString("productId")) }
         composable(Screen.Transactions.route) { TransactionScreen() }
         composable(Screen.Expenses.route) { ExpenseScreen() }
         composable(Screen.Customers.route) { CustomerScreen() }
@@ -150,6 +158,7 @@ private fun MainAppNavHostContent(
                         }
                     }
                 },
+                onNavigateToProducts = { navController.navigate(Screen.Products.route) },
                 onNavigateToExpenses = { navController.navigate(Screen.Expenses.route) },
                 onNavigateToInventory = { navController.navigate(Screen.Inventory.route) },
                 onNavigateToCustomers = { navController.navigate(Screen.Customers.route) }

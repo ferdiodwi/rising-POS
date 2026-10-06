@@ -116,6 +116,7 @@ class EscPosBuilder(
             if (settings.address.isNotEmpty()) {
                 builder.textLine(settings.address)
             }
+            if (settings.email.isNotEmpty()) builder.textLine(settings.email)
             if (settings.phone.isNotEmpty()) {
                 builder.textLine("Telp: ${settings.phone}")
             }
@@ -243,6 +244,7 @@ class EscPosBuilder(
             if (settings.address.isNotEmpty()) {
                 builder.textLine(settings.address)
             }
+            if (settings.email.isNotEmpty()) builder.textLine(settings.email)
             if (settings.phone.isNotEmpty()) {
                 builder.textLine("Telp: ${settings.phone}")
             }
