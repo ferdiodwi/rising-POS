@@ -193,3 +193,12 @@ Catatan: `line` (`#E4E7EC`, rasio 1.24) dipakai **hanya untuk garis dekoratif** 
 - Payment and success receipt use full pages on phones, with secondary print/share actions and one primary completion action.
 - Product form actions stay outside the scrolling fields. SKU, barcode and variants are disclosed on demand.
 - Navigation takes its colors from `MaterialTheme`; there is no second navigation palette or decorative bounce animation.
+
+## 12. Tablet cashier reference
+
+- Windows from 600dp, including phone landscape, use one full-width header and a permanent catalog/cart split, following the owner's tablet mockup.
+- The cart takes about 39% of the width (280–560dp). The catalog adapts from one to three columns, keeping quantity controls usable on narrower tablets.
+- Tablet cards use contained product photographs, a single-line product name, a selected blue outline and a full-width add/quantity control. Quantity and delete actions have 48dp targets.
+- Customer/table selection stays above the scrolling cart lines. Subtotal, discount, total and the 56dp hold/payment actions stay below them; the summary can scroll in short windows.
+- The tablet palette uses a white canvas, navy text and bright blue actions to match the supplied reference. Dark mode uses the existing dark palette.
+- Short landscape windows use the same two-panel layout and bottom navigation. Customer selection, items and discount scroll above a fixed total and hold/payment footer. Production photographs, counts and prices come from existing product/cart data.

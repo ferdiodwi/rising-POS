@@ -19,3 +19,20 @@ fun CashierTheme(content: @Composable () -> Unit) {
 }
 fun posMoney(amount: Long, symbol: String = "Rp"): String = symbol + groupedAmount(amount)
 fun groupedAmount(amount: Long): String = NumberFormat.getIntegerInstance(Locale.forLanguageTag("id-ID")).format(amount)
+
+/** Tablet checkout palette follows the white, blue and navy reference. */
+@Composable
+fun TabletCashierTheme(content: @Composable () -> Unit) {
+    val base = MaterialTheme.colorScheme
+    val colors = if (LocalPosColors.current.isDark) base else base.copy(
+        surface = Color.White,
+        primary = Color(0xFF006BFF),
+        primaryContainer = Color(0xFFEDF5FF),
+        onSurface = Color(0xFF091638),
+        onSurfaceVariant = Color(0xFF53678B),
+        surfaceContainer = Color(0xFFF0F3F6),
+        surfaceContainerLow = Color(0xFFF5F7FA),
+        outlineVariant = Color(0xFFDCE4EF)
+    )
+    MaterialTheme(colorScheme = colors, content = content)
+}

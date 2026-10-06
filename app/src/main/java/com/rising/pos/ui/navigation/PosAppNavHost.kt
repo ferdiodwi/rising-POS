@@ -1,34 +1,24 @@
 package com.rising.pos.ui.navigation
 
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
-import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -45,16 +35,8 @@ import com.rising.pos.feature.pos.PosScreen
 import com.rising.pos.feature.product.ProductScreen
 import com.rising.pos.feature.settings.SettingsScreen
 import com.rising.pos.feature.transaction.TransactionScreen
-import com.rising.pos.ui.theme.PrimaryBlue
-import com.rising.pos.ui.theme.Slate500
-import com.rising.pos.ui.theme.Slate900
 
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
-import com.rising.pos.ui.components.CashierIcons
 
 @Composable
 fun PosAppNavHost(
@@ -94,112 +76,45 @@ fun PosAppNavHost(
     }
 
     val navController = rememberNavController()
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp
-    val screenHeight = configuration.screenHeightDp
-    val isLandscapePhone = screenWidth >= 600 && screenHeight < 500
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Pos.route
 
-    if (isLandscapePhone) {
-        // Khusus HP Landscape: Side NavigationRail ramping di dalam safeDrawingPadding agar bebas potongan notch & tombol sistem Android
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.surface
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-            ) {
-                NavigationRail(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .width(62.dp)
-                ) {
-                    phoneNavigationItems.forEachIndexed { index, screen ->
-                        val selected = currentRoute == screen.route
-                        val icon = when (index) {
-                            0 -> CashierIcons.Store
-                            1 -> CashierIcons.Box
-                            2 -> Icons.Outlined.History
-                            3 -> CashierIcons.BarChart
-                            else -> Icons.Outlined.Settings
-                        }
-                        NavigationRailItem(
-                            selected = selected,
-                            onClick = {
-                                if (currentRoute != screen.route) {
-                                    navController.navigate(screen.route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
-                                    }
-                                }
-                            },
-                            icon = {
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = screen.title,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            },
-                            colors = NavigationRailItemDefaults.colors(
-                                selectedIconColor = PrimaryBlue,
-                                indicatorColor = PrimaryBlue.copy(alpha = 0.12f),
-                                unselectedIconColor = Slate500
-                            )
-                        )
-                    }
-                }
-
-                Surface(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    MainAppNavHostContent(navController = navController)
-                }
+    PosAppScaffold(currentRoute, onNavigate = { route ->
+        if (currentRoute != route) {
+            navController.navigate(route) {
+                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                launchSingleTop = true
+                restoreState = true
             }
         }
-    } else {
-        // Phone Portrait & Tablet: Bottom Navigation Bar 5 menu
-        Scaffold(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding(),
-            bottomBar = {
-                PosBottomNavBar(
-                    expanded = screenWidth >= 840 && currentRoute == Screen.Pos.route,
-                    items = phoneNavigationItems,
-                    currentRoute = currentRoute,
-                    onNavigate = { route ->
-                        if (currentRoute != route) {
-                            navController.navigate(route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        }
-                    }
-                )
-            },
-            containerColor = MaterialTheme.colorScheme.background
-        ) { paddingValues ->
-            Surface(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                color = MaterialTheme.colorScheme.background
-            ) {
-                MainAppNavHostContent(navController = navController)
-            }
+    }) {
+        MainAppNavHostContent(navController = navController)
+    }
+}
+
+/** Shared application shell keeps bottom navigation in both orientations. */
+@Composable
+internal fun PosAppScaffold(
+    currentRoute: String,
+    onNavigate: (String) -> Unit,
+    content: @Composable () -> Unit
+) {
+    val configuration = LocalConfiguration.current
+    Scaffold(
+        modifier = Modifier.fillMaxSize().statusBarsPadding()
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)),
+        bottomBar = {
+            PosBottomNavBar(
+                expanded = configuration.screenWidthDp >= 600 && configuration.screenHeightDp >= 500 && currentRoute == Screen.Pos.route,
+                items = phoneNavigationItems,
+                currentRoute = currentRoute,
+                onNavigate = onNavigate
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background
+    ) { paddingValues ->
+        Surface(Modifier.fillMaxSize().padding(paddingValues), color = MaterialTheme.colorScheme.background) {
+            content()
         }
     }
 }

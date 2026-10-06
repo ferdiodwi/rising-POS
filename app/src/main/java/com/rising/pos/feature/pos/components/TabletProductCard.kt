@@ -41,13 +41,13 @@ internal fun TabletProductCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = colors.surface,
-        border = BorderStroke(1.dp, if (selected) colors.primary else colors.outlineVariant)
+        border = BorderStroke(if (selected) 1.5.dp else 1.dp, if (selected) colors.primary else colors.outlineVariant)
     ) {
         Column(Modifier.padding(10.dp)) {
             ProductPhoto(
                 imageUrl = product.imageUrl,
                 name = product.name,
-                modifier = Modifier.fillMaxWidth().aspectRatio(1.65f)
+                modifier = Modifier.fillMaxWidth().aspectRatio(1.8f)
                     .clickable(enabled = !unavailable, role = Role.Button, onClick = onIncrease),
                 contentScale = ContentScale.Fit
             )
@@ -58,11 +58,12 @@ internal fun TabletProductCard(
                 fontSize = 15.sp,
                 lineHeight = 19.sp,
                 fontWeight = FontWeight.SemiBold,
-                minLines = 2,
-                maxLines = 2,
+                minLines = 1,
+                maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Text(posMoney(product.sellingPrice, currencySymbol), fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text(posMoney(product.sellingPrice, currencySymbol), fontSize = 17.sp, fontWeight = FontWeight.Bold,
+                style = MaterialTheme.typography.titleMedium.copy(fontFeatureSettings = "tnum"))
             Spacer(Modifier.height(10.dp))
             if (selected) {
                 TabletQuantityStepper(
@@ -82,7 +83,7 @@ internal fun TabletProductCard(
                     color = colors.surfaceContainerLow,
                     contentColor = if (unavailable) colors.onSurfaceVariant else colors.primary,
                     border = BorderStroke(1.dp, colors.outlineVariant),
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp)
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                 ) {
                     Row(
                         Modifier.padding(horizontal = 8.dp, vertical = 10.dp),
@@ -119,16 +120,16 @@ internal fun TabletQuantityStepper(
         color = if (highlighted) colors.primaryContainer else colors.surface,
         border = BorderStroke(1.dp, if (highlighted) colors.primary.copy(alpha = 0.3f) else colors.outlineVariant)
     ) {
-        Row(Modifier.heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onDecrease, modifier = Modifier.size(44.dp)) {
+        Row(Modifier.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onDecrease, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.Default.Remove, "Kurangi $productName", tint = colors.primary)
             }
-            VerticalDivider(Modifier.height(30.dp), color = colors.outlineVariant)
+            VerticalDivider(Modifier.height(48.dp), color = colors.outlineVariant)
             Box(Modifier.weight(1f).padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                 Text(quantityLabel(quantity), fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             }
-            VerticalDivider(Modifier.height(30.dp), color = colors.outlineVariant)
-            IconButton(onClick = onIncrease, enabled = canIncrease, modifier = Modifier.size(44.dp)) {
+            VerticalDivider(Modifier.height(48.dp), color = colors.outlineVariant)
+            IconButton(onClick = onIncrease, enabled = canIncrease, modifier = Modifier.size(48.dp)) {
                 Icon(Icons.Default.Add, "Tambah $productName", tint = if (canIncrease) colors.primary else colors.onSurfaceVariant)
             }
         }

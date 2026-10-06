@@ -38,7 +38,7 @@ fun PosBottomNavBar(
                     Column(
                         Modifier
                             .weight(1f)
-                            .heightIn(min = if (expanded) 64.dp else 56.dp)
+                            .heightIn(min = if (expanded) 72.dp else 56.dp)
                             .selectable(
                                 selected,
                                 role = Role.Tab,
@@ -55,11 +55,11 @@ fun PosBottomNavBar(
                             3 -> CashierIcons.BarChart
                             else -> Icons.Outlined.Settings
                         }
-                        Icon(icon, contentDescription = screen.title, Modifier.size(if (expanded) 26.dp else 22.dp), tint = color)
+                        Icon(icon, contentDescription = screen.title, Modifier.size(if (expanded) 28.dp else 22.dp), tint = color)
                         Spacer(Modifier.height(3.dp))
                         Text(
                             screen.title,
-                            fontSize = if (expanded) 12.sp else 10.sp,
+                            fontSize = if (expanded) 13.sp else 10.sp,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                             color = color
                         )
